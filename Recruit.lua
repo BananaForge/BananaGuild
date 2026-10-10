@@ -201,8 +201,31 @@ local function Prospect(name, source)
 	BG.db.stats.scans = BG.db.stats.scans + 1
 end
 
-function Recruit.RepliesList()
-	return BG.Lines(BG.db.texts.replies)
+-- Guess the language of a whisper: "de" or "en" (ties and unknown -> "de", it is a German guild)
+local DE_WORDS = { "hallo", "moin", "servus", "ihr", "wir", "ich", "du", "und", "nicht", "seit", "seid", "bin", "bist",
+	"habt", "habe", "hab", "suche", "gilde", "bitte", "danke", "wieder", "noch", "auch", "mal", "kann", "könnt",
+	"wollt", "möchte", "aber", "oder", "ein", "eine", "wer", "wie", "was", "jemand", "aufnehmen", "lust", "gerne",
+	"grüß", "tach", "euch", "dabei", "mitmachen", "aufnahme", "da", "mich", "mir", "dich", "freue", "gruss" }
+local EN_WORDS = { "hello", "hey", "the", "you", "your", "are", "is", "guild", "join", "looking", "can", "please",
+	"thanks", "thank", "want", "would", "anyone", "and", "with", "for", "what", "how", "who", "back", "again",
+	"there", "still", "recruiting", "invite", "interested", "me", "my", "am", "any", "need", "to", "of" }
+local DE_SET, EN_SET = {}, {}
+for i = 1, table.getn(DE_WORDS) do DE_SET[DE_WORDS[i]] = true end
+for i = 1, table.getn(EN_WORDS) do EN_SET[EN_WORDS[i]] = true end
+
+function Recruit.DetectLang(msg)
+	local de, en = 0, 0
+	for w in string.gfind(string.lower(msg or ""), "[%a\128-\255]+") do
+		if DE_SET[w] then de = de + 1 end
+		if EN_SET[w] then en = en + 1 end
+	end
+	if en > de then return "en" end
+	return "de"
+end
+
+function Recruit.RepliesList(lang)
+	local key = (lang == "en") and "repliesEN" or "repliesDE"
+	return BG.Lines(BG.db.texts[key])
 end
 
 local function ReplyWhisper(name, text, invite)
@@ -212,24 +235,29 @@ local function ReplyWhisper(name, text, invite)
 	end
 end
 
-local function WhisperPopup(sender, msg)
+local WhisperPopup
+WhisperPopup = function(sender, msg, lang)
 	local buttons = {}
-	local replies = Recruit.RepliesList()
+	local replies = Recruit.RepliesList(lang)
 	local nr = table.getn(replies)
 	if nr >= 1 then
-		table.insert(buttons, { text = BG.T("btn_reply_invite"), tip = replies[1], fn = function() ReplyWhisper(sender, replies[1], true) end })
+		table.insert(buttons, { text = BG.T("btn_reply_invite"), tip = BG.Fill(replies[1], { name = sender }), fn = function() ReplyWhisper(sender, replies[1], true) end })
 	end
 	for i = 2, math.min(nr, 3) do
 		local text = replies[i]
-		table.insert(buttons, { text = BG.T("btn_reply_n", i), tip = text, fn = function() ReplyWhisper(sender, text, false) end })
+		table.insert(buttons, { text = BG.T("btn_reply_n", i), tip = BG.Fill(text, { name = sender }), fn = function() ReplyWhisper(sender, text, false) end })
 	end
 	table.insert(buttons, { text = BG.T("btn_invite_only"), fn = function() BG.Invite(sender) end })
+	local other = (lang == "en") and "de" or "en"
+	table.insert(buttons, { text = BG.T("btn_other_lang", string.upper(other)),
+		fn = function() WhisperPopup(sender, msg, other) end })
 	table.insert(buttons, { text = BG.T("btn_ignore"), fn = function() end })
-	if string.len(msg) > 160 then msg = string.sub(msg, 1, 157) .. "..." end
+	local shown = msg
+	if string.len(shown) > 160 then shown = string.sub(shown, 1, 157) .. "..." end
 	BG.Popup.Push({
-		key = "whisper-" .. sender,
-		title = BG.T("pop_whisper_title", sender),
-		body = "|cffffffff\"" .. msg .. "\"|r",
+		key = "whisper-" .. sender .. "-" .. lang,
+		title = BG.T("pop_whisper_title", sender) .. "  |cff999999[" .. string.upper(lang) .. "]|r",
+		body = "|cffffffff\"" .. shown .. "\"|r",
 		buttons = buttons,
 	})
 end
@@ -245,7 +273,7 @@ BG.On("CHAT_MSG_WHISPER", function(msg, sender)
 	Recruit.whisperSeen[sender] = time()
 	Prospect(sender, "whisper")
 	BG.AddLog("prospect", sender, BG.T("src_whisper"))
-	WhisperPopup(sender, msg or "")
+	WhisperPopup(sender, msg or "", Recruit.DetectLang(msg))
 end)
 
 --------------------------------------------------------------------- scanner (/4 /5)

@@ -553,7 +553,7 @@ end
 
 --------------------------------------------------------------------- panel: texts
 
-local TEXT_KEYS = { "welcomeMsg", "welcomeGuild", "replies", "contactDE", "contactEN", "funny", "gz" }
+local TEXT_KEYS = { "welcomeMsg", "welcomeGuild", "funny", "gz", "repliesDE", "repliesEN", "contactDE", "contactEN" }
 
 local function BuildTexts(p)
 	local db = BG.db
@@ -566,21 +566,21 @@ local function BuildTexts(p)
 	p.btns = {}
 	for i = 1, table.getn(TEXT_KEYS) do
 		local k = TEXT_KEYS[i] -- Lua 5.0: closures share the loop variable, so copy it into a local
-		local b = MakeButton(p, NextName("Btn"), "txt_" .. k, 83, 22, function() UI.SelectText(k) end)
-		b:SetPoint("TOPLEFT", p, "TOPLEFT", (i - 1) * 85, -84)
+		local b = MakeButton(p, NextName("Btn"), "txt_" .. k, 146, 22, function() UI.SelectText(k) end)
+		local col = (i - 1) - math.floor((i - 1) / 4) * 4
+		local row = math.floor((i - 1) / 4)
+		b:SetPoint("TOPLEFT", p, "TOPLEFT", col * 150, -84 - row * 26)
 		p.btns[TEXT_KEYS[i]] = b
 	end
-	p.desc = Label(p, nil, 0, -112, "GameFontDisableSmall", 590)
+	p.desc = Label(p, nil, 0, -140, "GameFontDisableSmall", 590)
 	p.desc:SetHeight(32)
 	p.desc:SetJustifyV("TOP")
-	p.area = MakeTextArea("texts", p, 0, -148, 596, 220,
+	p.area = MakeTextArea("texts", p, 0, -176, 596, 192,
 		function() return db.texts[UI.textSel or TEXT_KEYS[1]] end,
 		function(v) db.texts[UI.textSel or TEXT_KEYS[1]] = v UI.UpdateTextCounter() end, 3000)
 	local reset = MakeButton(p, NextName("Btn"), "btn_default_text", 170, 22, function()
 		local k = UI.textSel
-		if k == "contactDE" then db.texts[k] = BG.DefaultText(k, "de")
-		elseif k == "contactEN" then db.texts[k] = BG.DefaultText(k, "en")
-		else db.texts[k] = BG.DefaultText(k) end
+		db.texts[k] = BG.DefaultText(k, BG.FixedLang(k))
 		p.area.edit:Load()
 		UI.UpdateTextCounter()
 	end)

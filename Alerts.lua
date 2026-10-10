@@ -236,11 +236,11 @@ local Popup = { queue = {}, current = nil }
 BG.Popup = Popup
 local pf
 
-local BTN_W, BTN_H, PER_ROW = 112, 24, 4
+local BTN_W, BTN_H, GAP, POP_W = 158, 26, 8, 540
 
 local function BuildPopup()
 	pf = CreateFrame("Frame", "BananaGuildPopup", UIParent)
-	pf:SetWidth(488)
+	pf:SetWidth(POP_W)
 	pf:SetHeight(200)
 	pf:SetPoint("CENTER", UIParent, "CENTER", 0, 160)
 	pf:SetFrameStrata("DIALOG")
@@ -257,13 +257,13 @@ local function BuildPopup()
 	icon:SetPoint("TOPLEFT", pf, "TOPLEFT", 12, -10)
 	pf.title = pf:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 	pf.title:SetPoint("TOPLEFT", pf, "TOPLEFT", 64, -14)
-	pf.title:SetWidth(380)
+	pf.title:SetWidth(POP_W - 130)
 	pf.title:SetJustifyH("LEFT")
 	pf.more = pf:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 	pf.more:SetPoint("TOPRIGHT", pf, "TOPRIGHT", -30, -16)
 	pf.body = pf:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 	pf.body:SetPoint("TOPLEFT", pf, "TOPLEFT", 64, -34)
-	pf.body:SetWidth(405)
+	pf.body:SetWidth(POP_W - 84)
 	pf.body:SetHeight(66)
 	pf.body:SetJustifyH("LEFT")
 	pf.body:SetJustifyV("TOP")
@@ -302,6 +302,11 @@ local function Show(item)
 	pf.body:SetText(item.body or "")
 	local n = table.getn(item.buttons)
 	if n > 8 then n = 8 end
+	-- balanced rows (max 3 per row), every row centred: 5 buttons -> 3 + 2, 6 -> 3 + 3, 4 -> 2 + 2
+	local perRow = n
+	if n > 3 then perRow = math.ceil(n / 2) end
+	if perRow > 3 then perRow = 3 end
+	local rows = math.ceil(n / perRow)
 	for i = 1, 8 do
 		local b = pf.buttons[i]
 		if i <= n then
@@ -309,17 +314,19 @@ local function Show(item)
 			b:SetText(def.text)
 			b.act = def.fn
 			b.tip = def.tip
-			local row = math.floor((i - 1) / PER_ROW)
-			local col = (i - 1) - row * PER_ROW
+			local row = math.floor((i - 1) / perRow)
+			local inRow = perRow
+			if row == rows - 1 then inRow = n - row * perRow end
+			local col = (i - 1) - row * perRow
+			local rowW = inRow * BTN_W + (inRow - 1) * GAP
 			b:ClearAllPoints()
-			b:SetPoint("TOPLEFT", pf, "TOPLEFT", 64 + col * (BTN_W + 4), -104 - row * (BTN_H + 4))
+			b:SetPoint("TOPLEFT", pf, "TOPLEFT", (POP_W - rowW) / 2 + col * (BTN_W + GAP), -108 - row * (BTN_H + GAP))
 			b:Show()
 		else
 			b:Hide()
 		end
 	end
-	local rows = math.floor((n - 1) / PER_ROW) + 1
-	pf:SetHeight(104 + rows * (BTN_H + 4) + 14)
+	pf:SetHeight(108 + rows * (BTN_H + GAP) + 10)
 	local q = table.getn(Popup.queue)
 	pf.more:SetText(q > 0 and BG.T("popup_more", q) or "")
 	pf:Show()

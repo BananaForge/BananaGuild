@@ -203,7 +203,15 @@ local function Merge(dst, src)
 	end
 end
 
-BG.TEXT_NAMES = { "recruitMsg", "welcomeMsg", "welcomeGuild", "replies", "contactDE", "contactEN", "funny", "gz" }
+BG.TEXT_NAMES = { "recruitMsg", "welcomeMsg", "welcomeGuild", "repliesDE", "repliesEN", "contactDE", "contactEN", "funny", "gz" }
+
+-- "contactDE" / "repliesEN" ... are tied to one language, independent of the UI language
+function BG.FixedLang(name)
+	local suffix = string.sub(name, -2)
+	if suffix == "DE" then return "de" end
+	if suffix == "EN" then return "en" end
+	return nil
+end
 
 function BG.DefaultText(name, lang)
 	lang = lang or BG.Lang()
@@ -216,9 +224,11 @@ function BG.ResetTexts(lang)
 		local n = BG.TEXT_NAMES[i]
 		BG.db.texts[n] = BG.DefaultText(n, lang)
 	end
-	-- the DE/EN contact message always exists in both languages
-	BG.db.texts.contactDE = BG.DefaultText("contactDE", "de")
-	BG.db.texts.contactEN = BG.DefaultText("contactEN", "en")
+	-- texts that exist once per language are always reset to their own language
+	for i = 1, table.getn(BG.TEXT_NAMES) do
+		local n = BG.TEXT_NAMES[i]
+		if BG.FixedLang(n) then BG.db.texts[n] = BG.DefaultText(n, BG.FixedLang(n)) end
+	end
 end
 
 function BG.ResetKeywords()
@@ -235,10 +245,8 @@ local function InitDB()
 	for i = 1, table.getn(BG.TEXT_NAMES) do
 		local n = BG.TEXT_NAMES[i]
 		if BG.db.texts[n] == nil then
-			if n == "contactEN" then
-				BG.db.texts[n] = BG.DefaultText(n, "en")
-			elseif n == "contactDE" then
-				BG.db.texts[n] = BG.DefaultText(n, "de")
+			if BG.FixedLang(n) then
+				BG.db.texts[n] = BG.DefaultText(n, BG.FixedLang(n))
 			else
 				BG.db.texts[n] = BG.DefaultText(n)
 			end
