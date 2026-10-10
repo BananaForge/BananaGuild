@@ -368,13 +368,8 @@ local function ApplyRecord(rec)
 	return true
 end
 
--- send the given characters in message-sized chunks (0.4 s apart)
-function Roster.SendRecords(names)
-	local recs = {}
-	for i = 1, table.getn(names) do
-		local e = Encode(names[i])
-		if e then table.insert(recs, e) end
-	end
+-- send records of one message kind in message-sized chunks (0.4 s apart)
+local function SendChunked(kind, recs)
 	local chunks, cur = {}, ""
 	for i = 1, table.getn(recs) do
 		if cur ~= "" and string.len(cur) + string.len(recs[i]) + 1 > 225 then
@@ -386,13 +381,113 @@ function Roster.SendRecords(names)
 	if cur ~= "" then table.insert(chunks, cur) end
 	for i = 1, table.getn(chunks) do
 		local data = chunks[i]
-		BG.After((i - 1) * 0.4, function() BG.Send("S", data) end)
+		BG.After((i - 1) * 0.4, function() BG.Send(kind, data) end)
 	end
 	return table.getn(recs)
 end
 
+-- send the given characters
+function Roster.SendRecords(names)
+	local recs = {}
+	for i = 1, table.getn(names) do
+		local e = Encode(names[i])
+		if e then table.insert(recs, e) end
+	end
+	return SendChunked("S", recs)
+end
+
+----------------------------------------------------------------- history (log) sync
+-- Every online client writes joins/promotions/... into its own log, so the same event exists several times
+-- with slightly different times. Merging therefore de-duplicates by content (+ 2 minute window).
+-- Private entries (prospects) are never shared.
+local LOG_SYNC_KINDS = { join = true, leave = true, kick = true, promote = true, demote = true, invite = true, levelup = true, decline = true }
+local LOG_WINDOW = 120
+local LOG_SEND_MAX = 100
+
+local function EscF(s)
+	return (string.gsub(tostring(s or ""), "[%%:;,|]", function(c) return string.format("%%%02X", string.byte(c)) end))
+end
+local function UnescF(s)
+	return (string.gsub(s or "", "%%(%x%x)", function(h) return string.char(tonumber(h, 16)) end))
+end
+
+local function LogKey(e)
+	return tostring(e.k) .. ":" .. tostring(e.a or "") .. ":" .. tostring(e.b or "") .. ":" .. tostring(e.c or "")
+end
+
+local function LogHas(e)
+	local log = BG.db.log
+	local key = LogKey(e)
+	for i = table.getn(log), 1, -1 do
+		local o = log[i]
+		if LogKey(o) == key then
+			if e.k == "levelup" then return true end -- one level up per character and level, whatever the time
+			if math.abs((o.t or 0) - (e.t or 0)) <= LOG_WINDOW then return true end
+		end
+		if e.k ~= "levelup" and (o.t or 0) < (e.t or 0) - LOG_WINDOW - 3600 then break end
+	end
+	return false
+end
+
+local function LogEncode(e)
+	return tostring(e.t) .. ":" .. EscF(e.k) .. ":" .. EscF(e.a) .. ":" .. EscF(e.b) .. ":" .. EscF(e.c)
+end
+
+Roster.heardLog = {}
+Roster.appliedLog = 0
+
+local function LogApply(rec, trusted)
+	local f = BG.SplitBy(rec, ":")
+	local t = tonumber(f[1])
+	local e = { t = t, k = UnescF(f[2]), a = UnescF(f[3]), b = UnescF(f[4]), c = UnescF(f[5]) }
+	if not t or not LOG_SYNC_KINDS[e.k] then return false end
+	Roster.heardLog[LogKey(e)] = true
+	if not trusted or LogHas(e) then return false end
+	if e.a == "" then e.a = nil end
+	if e.b == "" then e.b = nil end
+	if e.c == "" then e.c = nil end
+	if e.k == "levelup" and e.a and e.b and tonumber(e.b) then
+		BG.db.levels[e.a] = math.max(BG.db.levels[e.a] or 0, tonumber(e.b))
+	end
+	table.insert(BG.db.log, e)
+	return true
+end
+
+local function LogFinish()
+	local log = BG.db.log
+	table.sort(log, function(x, y) return (x.t or 0) < (y.t or 0) end)
+	while table.getn(log) > 600 do table.remove(log, 1) end
+end
+
+-- the entries we would send: newer than 'since', shareable kinds, newest LOG_SEND_MAX, nobody sent them yet
+local function LogCollect(since, skipHeard)
+	local out = {}
+	local log = BG.db.log
+	for i = table.getn(log), 1, -1 do
+		local e = log[i]
+		if (e.t or 0) > since and LOG_SYNC_KINDS[e.k] and not (skipHeard and Roster.heardLog[LogKey(e)]) then
+			table.insert(out, 1, LogEncode(e))
+			if table.getn(out) >= LOG_SEND_MAX then break end
+		end
+	end
+	return out
+end
+
+BG.OnComm("G", function(sender, p)
+	local trusted = Trusted(sender)
+	if trusted then Roster.ackAt = GetTime() end
+	for i = 1, table.getn(p) do
+		if LogApply(p[i], trusted) then Roster.appliedLog = Roster.appliedLog + 1 end
+	end
+	if trusted then
+		LogFinish()
+		if BG.UI and BG.UI.Refresh then BG.UI.Refresh("log") end
+	end
+end)
+
 BG.OnComm("S", function(sender, p)
 	local trusted = Trusted(sender)
+	if trusted then Roster.ackAt = GetTime() end
 	for i = 1, table.getn(p) do
 		if trusted then
 			if ApplyRecord(p[i]) then Roster.applied = Roster.applied + 1 end
@@ -414,13 +509,16 @@ function Roster.NewestTs()
 	return m
 end
 
--- somebody asks for everything newer than their newest stamp
+-- somebody asks for everything newer than their newest stamps: "SQ;<newest char ts>;<history since>"
 BG.OnComm("SQ", function(sender, p)
 	if not BG.db.sync.accept or not MeTrusted() then return end
 	local since = tonumber(p[1]) or 0
-	local any = false
-	for _, c in pairs(BG.db.chars) do
-		if (c.ts or 0) > since then any = true break end
+	local sinceLog = tonumber(p[2]) or 0
+	local any = table.getn(LogCollect(sinceLog, false)) > 0
+	if not any then
+		for _, c in pairs(BG.db.chars) do
+			if (c.ts or 0) > since then any = true break end
+		end
 	end
 	if not any then return end
 	BG.After(1 + math.random() * 6, function()
@@ -429,6 +527,8 @@ BG.OnComm("SQ", function(sender, p)
 			if (c.ts or 0) > since and (Roster.heard[name] or 0) < c.ts then table.insert(names, name) end
 		end
 		if table.getn(names) > 0 then table.sort(names) Roster.SendRecords(names) end
+		local recs = LogCollect(sinceLog, true)
+		if table.getn(recs) > 0 then SendChunked("G", recs) end
 	end)
 end)
 
@@ -443,8 +543,12 @@ function Roster.RequestSync(manual)
 		return false
 	end
 	Roster.applied = 0
+	Roster.appliedLog = 0
+	Roster.reqAt = GetTime()
+	local reqTime = time()
 	if GuildRoster then GuildRoster() end
-	BG.Send("SQ", manual and 0 or Roster.NewestTs())
+	local sinceLog = manual and 0 or (BG.db.sync.logSince or 0)
+	BG.Send("SQ", manual and 0 or Roster.NewestTs(), sinceLog)
 	local pushed = 0
 	if manual then
 		local all = {}
@@ -453,12 +557,19 @@ function Roster.RequestSync(manual)
 		end
 		table.sort(all)
 		pushed = Roster.SendRecords(all)
+		local recs = LogCollect(0, false)
+		if table.getn(recs) > 0 then
+			BG.After(2, function() SendChunked("G", recs) end)
+			pushed = pushed + table.getn(recs)
+		end
 	end
 	BG.db.sync.last = time()
 	BG.After(9, function()
-		BG.db.sync.lastApplied = Roster.applied
-		if manual then BG.Print(BG.T("sync_done", Roster.applied, pushed)) end
-		if BG.UI and BG.UI.Refresh then BG.UI.Refresh("settings") BG.UI.Refresh("members") end
+		-- somebody trusted answered: from now on only ask for what is newer than this request
+		if Roster.ackAt and Roster.ackAt >= Roster.reqAt then BG.db.sync.logSince = reqTime - 600 end
+		BG.db.sync.lastApplied = Roster.applied + Roster.appliedLog
+		if manual then BG.Print(BG.T("sync_done", Roster.applied + Roster.appliedLog, pushed)) end
+		if BG.UI and BG.UI.Refresh then BG.UI.Refresh("settings") BG.UI.Refresh("members") BG.UI.Refresh("log") end
 	end)
 	return true
 end
