@@ -10,6 +10,8 @@
 
 local BG = BananaGuild
 local Presence = {}
+BG.files = BG.files or {}
+if BananaPresence then BG.files.BananaPresence = true end
 BG.Presence = Presence
 
 -- state: 2 = loaded/running, 1 = installed but disabled, 0 = not found
