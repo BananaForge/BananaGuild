@@ -947,7 +947,9 @@ function UI.ApplyLocale()
 	if main then
 		main.sub:SetText(BG.T("subtitle"))
 		main.version:SetText(BG.T("version") .. " " .. BG.version)
-		if BG.db.lang == "de" then main.btnDE:Disable() main.btnEN:Enable() else main.btnEN:Disable() main.btnDE:Enable() end
+		local deOn = (BG.db.lang == "de")
+		main.btnDE.fs:SetTextColor(deOn and 1 or 0.5, deOn and 0.82 or 0.5, deOn and 0 or 0.5)
+		main.btnEN.fs:SetTextColor(deOn and 0.5 or 1, deOn and 0.5 or 0.82, deOn and 0.5 or 0)
 		UI.UpdateScannerLang()
 		if UI.current then UI.Refresh("all") end
 	end
@@ -987,16 +989,50 @@ function UI.Build()
 	local close = CreateFrame("Button", "BananaGuildFrameClose", main, "UIPanelCloseButton")
 	close:SetPoint("TOPRIGHT", main, "TOPRIGHT", -8, -8)
 
-	-- language switch + support (top right)
-	main.btnEN = BG.MakeButton(main, "BananaGuildLangEN", 38, 22, "EN")
-	main.btnEN:SetPoint("TOPRIGHT", main, "TOPRIGHT", -44, -16)
-	main.btnEN:SetScript("OnClick", function() BG.SetLang("en") end)
-	main.btnDE = BG.MakeButton(main, "BananaGuildLangDE", 38, 22, "DE")
-	main.btnDE:SetPoint("RIGHT", main.btnEN, "LEFT", -2, 0)
-	main.btnDE:SetScript("OnClick", function() BG.SetLang("de") end)
-	local sup = MakeButton(main, "BananaGuildSupportBtn", "btn_support", 96, 22, function() UI.ToggleSupport() end)
-	sup:SetPoint("RIGHT", main.btnDE, "LEFT", -8, 0)
-	Tooltip(sup, "tip_support")
+	-- support heart + language switch (top right) - same pattern as BananaCraft / BananaBank / BananaLootline
+	local infoBtn = CreateFrame("Button", "BananaGuildSupportBtn", main)
+	infoBtn:SetWidth(16)
+	infoBtn:SetHeight(16)
+	infoBtn:SetPoint("RIGHT", close, "LEFT", -2, 0)
+	local infoTex = infoBtn:CreateTexture(nil, "ARTWORK")
+	infoTex:SetAllPoints(infoBtn)
+	infoTex:SetTexture("Interface\\common\\friendship-heart")
+	if not infoTex:GetTexture() then infoTex:SetTexture("Interface\\Icons\\INV_ValentinesCard01") end
+	infoTex:SetVertexColor(1, 0.75, 0.3)
+	infoBtn.tex = infoTex
+	infoBtn:SetScript("OnEnter", function()
+		this.tex:SetVertexColor(1, 1, 1)
+		GameTooltip:SetOwner(this, "ANCHOR_LEFT")
+		GameTooltip:SetText(BG.T("about_tooltip"))
+		GameTooltip:Show()
+	end)
+	infoBtn:SetScript("OnLeave", function()
+		this.tex:SetVertexColor(1, 0.75, 0.3)
+		GameTooltip:Hide()
+	end)
+	infoBtn:SetScript("OnClick", function() UI.ToggleSupport() end)
+	main.infoBtn = infoBtn
+
+	local function LangButton(code, label, anchorTo, xoff)
+		local lb = CreateFrame("Button", "BananaGuildLang" .. string.upper(code), main)
+		lb:SetWidth(22)
+		lb:SetHeight(16)
+		lb:SetPoint("RIGHT", anchorTo, "LEFT", xoff, 0)
+		local fs = lb:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+		fs:SetAllPoints(lb)
+		fs:SetText(label)
+		lb.fs = fs
+		lb:SetScript("OnEnter", function()
+			GameTooltip:SetOwner(this, "ANCHOR_LEFT")
+			GameTooltip:SetText(BG.T("lang_tooltip"))
+			GameTooltip:Show()
+		end)
+		lb:SetScript("OnLeave", function() GameTooltip:Hide() end)
+		lb:SetScript("OnClick", function() BG.SetLang(code) end)
+		return lb
+	end
+	main.btnDE = LangButton("de", "DE", infoBtn, -4)
+	main.btnEN = LangButton("en", "EN", main.btnDE, -2)
 
 	-- tabs
 	for i = 1, table.getn(TABS) do
@@ -1036,56 +1072,108 @@ function UI.Build()
 	UI.ApplyLocale()
 end
 
---------------------------------------------------------------------- support window
+--------------------------------------------------------------------- support / thank-you window
+-- Same window as in the other Banana addons: character name to copy + one click to fill the mail recipient.
+
+local function UpdateSupportHint()
+	local tf = UI.support
+	if not tf then return end
+	if MailFrame and MailFrame:IsVisible() then
+		tf.hint:SetText(BG.T("mailbox_open"))
+		tf.mailBtn:Enable()
+	else
+		tf.hint:SetText(BG.T("mailbox_closed"))
+		tf.mailBtn:Disable()
+	end
+end
 
 function UI.ToggleSupport()
-	if UI.support then
-		if UI.support:IsVisible() then UI.support:Hide() else UI.support:Show() end
-		return
-	end
-	local f = CreateFrame("Frame", "BananaGuildSupport", UIParent)
-	f:SetWidth(400)
-	f:SetHeight(270)
-	f:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
-	f:SetFrameStrata("DIALOG")
-	f:SetMovable(true)
-	f:EnableMouse(true)
-	f:RegisterForDrag("LeftButton")
-	f:SetScript("OnDragStart", function() this:StartMoving() end)
-	f:SetScript("OnDragStop", function() this:StopMovingOrSizing() end)
-	BG.Backdrop(f, true)
-	table.insert(UISpecialFrames, "BananaGuildSupport")
-	local logo = f:CreateTexture(nil, "ARTWORK")
-	logo:SetTexture(BG.LOGO)
-	logo:SetWidth(72)
-	logo:SetHeight(72)
-	logo:SetPoint("TOPLEFT", f, "TOPLEFT", 24, -20)
-	local h = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-	h:SetPoint("TOPLEFT", f, "TOPLEFT", 108, -30)
-	Reg(h, "support_title")
-	local t = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-	t:SetPoint("TOPLEFT", f, "TOPLEFT", 28, -104)
-	t:SetWidth(344)
-	t:SetHeight(70)
-	t:SetJustifyH("LEFT")
-	t:SetJustifyV("TOP")
-	Reg(t, "support_text")
-	local y = -178
-	for i = 1, table.getn(BG.SUPPORT) do
-		local s = BG.SUPPORT[i]
-		local fs = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-		fs:SetPoint("TOPLEFT", f, "TOPLEFT", 28, y)
-		fs:SetText(s.name .. GRAY .. "  -  " .. (s.role or "") .. "|r")
-		local b = MakeButton(f, NextName("Btn"), "btn_whisper_support", 150, 22, function()
-			if ChatFrame_SendTell then ChatFrame_SendTell(s.name) end
+	local tf = UI.support
+	if not tf then
+		tf = CreateFrame("Frame", "BananaGuildSupport", UIParent)
+		tf:SetWidth(340)
+		tf:SetHeight(275)
+		tf:SetPoint("CENTER", UIParent, "CENTER", 0, 40)
+		BG.Backdrop(tf, true)
+		tf:SetMovable(true)
+		tf:EnableMouse(true)
+		tf:RegisterForDrag("LeftButton")
+		tf:SetScript("OnDragStart", function() this:StartMoving() end)
+		tf:SetScript("OnDragStop", function() this:StopMovingOrSizing() end)
+		tf:SetFrameStrata("DIALOG")
+		table.insert(UISpecialFrames, "BananaGuildSupport")
+
+		local tt = tf:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+		tt:SetPoint("TOP", tf, "TOP", 0, -18)
+		Reg(tt, "support_title")
+
+		local tclose = CreateFrame("Button", nil, tf, "UIPanelCloseButton")
+		tclose:SetPoint("TOPRIGHT", tf, "TOPRIGHT", -6, -6)
+
+		local body = tf:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+		body:SetPoint("TOPLEFT", tf, "TOPLEFT", 24, -52)
+		body:SetWidth(292)
+		body:SetJustifyH("LEFT")
+		body:SetJustifyV("TOP")
+		Reg(body, "support_text")
+
+		local nameLabel = tf:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+		nameLabel:SetPoint("TOPLEFT", tf, "TOPLEFT", 24, -158)
+		Reg(nameLabel, "lbl_character")
+
+		-- selectable box so the name can be copied with Ctrl+C
+		local nameBox = CreateFrame("EditBox", nil, tf, "InputBoxTemplate")
+		nameBox:SetWidth(150)
+		nameBox:SetHeight(20)
+		nameBox:SetPoint("LEFT", nameLabel, "RIGHT", 12, 0)
+		nameBox:SetAutoFocus(false)
+		nameBox:SetText(BG.AUTHOR_CHAR)
+		nameBox:SetScript("OnTextChanged", function()
+			if this:GetText() ~= BG.AUTHOR_CHAR then this:SetText(BG.AUTHOR_CHAR) end
 		end)
-		b:SetPoint("TOPLEFT", f, "TOPLEFT", 28, y - 22)
-		y = y - 50
+		nameBox:SetScript("OnEscapePressed", function() this:ClearFocus() end)
+		nameBox:SetScript("OnEnterPressed", function() this:ClearFocus() end)
+		tf.nameBox = nameBox
+
+		local hint = tf:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+		hint:SetPoint("TOPLEFT", tf, "TOPLEFT", 24, -184)
+		hint:SetWidth(292)
+		hint:SetJustifyH("LEFT")
+		tf.hint = hint
+
+		local mailBtn = CreateFrame("Button", nil, tf, "UIPanelButtonTemplate")
+		mailBtn:SetWidth(150)
+		mailBtn:SetHeight(24)
+		mailBtn:SetPoint("BOTTOMLEFT", tf, "BOTTOMLEFT", 24, 22)
+		Reg(mailBtn, "btn_fill_name")
+		mailBtn:SetScript("OnClick", function()
+			if MailFrame and MailFrame:IsVisible() and SendMailNameEditBox then
+				if MailFrameTab2 and MailFrameTab_OnClick then MailFrameTab_OnClick(2) end
+				SendMailNameEditBox:SetText(BG.AUTHOR_CHAR)
+				if SendMailSubjectEditBox and SendMailSubjectEditBox:GetText() == "" then
+					SendMailSubjectEditBox:SetText("BananaGuild")
+				end
+				BG.Print(BG.T("recipient_set", BG.AUTHOR_CHAR))
+				tf:Hide()
+			else
+				BG.Print(BG.T("need_mailbox"))
+			end
+		end)
+		tf.mailBtn = mailBtn
+
+		local okBtn = CreateFrame("Button", nil, tf, "UIPanelButtonTemplate")
+		okBtn:SetWidth(110)
+		okBtn:SetHeight(24)
+		okBtn:SetPoint("BOTTOMRIGHT", tf, "BOTTOMRIGHT", -24, 22)
+		Reg(okBtn, "btn_close")
+		okBtn:SetScript("OnClick", function() tf:Hide() end)
+
+		tf:SetScript("OnShow", UpdateSupportHint)
+		UI.support = tf
+		tf.RelabelSupport = UpdateSupportHint
 	end
-	local c = CreateFrame("Button", "BananaGuildSupportClose", f, "UIPanelCloseButton")
-	c:SetPoint("TOPRIGHT", f, "TOPRIGHT", -8, -8)
-	f.RelabelSupport = function() end
-	UI.support = f
+	if tf:IsShown() then tf:Hide() else tf:Show() end
+	UpdateSupportHint()
 end
 
 --------------------------------------------------------------------- minimap button

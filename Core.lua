@@ -13,10 +13,8 @@ BG.SEP     = ";"
 BG.LOGO    = "Interface\\AddOns\\BananaGuild\\Media\\logo" -- replaced in Boot() with the real folder name
 BG.errors  = {}
 
--- People / links shown in the Support window. Edit freely.
-BG.SUPPORT = {
-	{ name = "Lumihunt", role = "Addon Author & Support" },
-}
+-- Character that receives thank-you mail (same as in all other Banana addons)
+BG.AUTHOR_CHAR = "Lumihunt"
 
 -- The Banana addons the dashboard looks for. 'aliases' are the folder names tried in order.
 BG.TRACKED = {

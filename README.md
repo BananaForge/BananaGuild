@@ -26,7 +26,7 @@ Ingame: `/bgd` (oder `/bananaguild`, oder Minimap-Button). **Als Erstes im Reite
 | **Willkommen** | Button (oder automatisch) für die Willkommensnachricht mit Discord-Link + Hinweis auf den Willkommen-Kanal. |
 | **Selbsttest** | Prüft API, Gilde, Channels, Texte, Hooks, Übersetzungen, Laufzeitfehler. |
 
-Alle Texte sind editierbar, alle Funktionen einzeln ein-/ausschaltbar (Reiter *Einstellungen*), die Sprache DE/EN oben rechts umschaltbar. Support-Fenster oben rechts (Lumihunt), Version + Selbsttest unten rechts.
+Alle Texte sind editierbar, alle Funktionen einzeln ein-/ausschaltbar (Reiter *Einstellungen*), die Sprache DE/EN oben rechts umschaltbar. Herz-Symbol oben rechts (Danke-Fenster mit Charakter Lumihunt, wie in den anderen Banana-Addons), Version + Selbsttest unten rechts.
 
 ### Slash-Befehle
 
