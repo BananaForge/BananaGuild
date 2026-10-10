@@ -146,7 +146,9 @@ function Presence.Apply()
 	BananaPresence.SetWorldChannel(BG.db.recruit.chMain)
 end
 
-BG.OnInit(function()
+-- The registry must be filled at PLAYER_LOGIN, not at load time: addons that load after BananaGuild
+-- (BananaLoot, BananaLootline ...) are not "loaded" yet while our own files execute.
+local function RegisterLocal()
 	if not BananaPresence then return end
 	for key, ver in pairs(Presence.LocalAddons()) do
 		local label = key
@@ -155,6 +157,10 @@ BG.OnInit(function()
 		end
 		BananaPresence.Register(key, label, ver)
 	end
+end
+
+BG.OnInit(function()
+	if not BananaPresence then return end
 	Presence.Apply()
 	BananaPresence.Listen(function(sender, addons, source)
 		Presence.Record(sender, addons, source)
@@ -162,6 +168,7 @@ BG.OnInit(function()
 end)
 
 BG.OnLogin(function()
+	RegisterLocal()
 	-- our own record (this also counts our own session for the analytics)
 	Presence.Record(BG.me, Presence.LocalAddons(), "self")
 end)
