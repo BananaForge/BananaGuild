@@ -462,6 +462,19 @@ end
 
 --------------------------------------------------------------------- panel: scanner
 
+-- selected selector button: stays clickable, gold text + locked highlight (a greyed-out button looked "dead")
+function UI.MarkSelected(b, on)
+	b:Enable()
+	local fs = b.GetFontString and b:GetFontString()
+	if on then
+		if b.LockHighlight then b:LockHighlight() end
+		if fs then fs:SetTextColor(1, 0.82, 0) end
+	else
+		if b.UnlockHighlight then b:UnlockHighlight() end
+		if fs then fs:SetTextColor(1, 1, 1) end
+	end
+end
+
 local KW_KEYS = { "kwGuildDE", "kwGuildEN", "kwSeekDE", "kwSeekEN", "kwExclude" }
 
 local function BuildScanner(p)
@@ -531,7 +544,7 @@ function UI.SelectKeyword(k)
 	if not p or not p.kwBtns then return end
 	UI.kwSel = k
 	for key, b in pairs(p.kwBtns) do
-		if key == k then b:Disable() else b:Enable() end
+		UI.MarkSelected(b, key == k)
 	end
 	p.kwDesc:SetText(BG.T("kwdesc_" .. k))
 	p.area.edit:Load()
@@ -598,7 +611,7 @@ function UI.SelectText(k)
 	if not p or not p.btns then return end
 	UI.textSel = k
 	for key, b in pairs(p.btns) do
-		if key == k then b:Disable() else b:Enable() end
+		UI.MarkSelected(b, key == k)
 	end
 	p.desc:SetText(BG.T("txtdesc_" .. k))
 	p.area.edit:Load()
