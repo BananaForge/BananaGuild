@@ -149,6 +149,7 @@ BG.On("CHAT_MSG_SYSTEM", function(msg)
 		ch.approx = nil
 		local inv = BG.pendingInvites and BG.pendingInvites[name]
 		if inv then ch.invitedBy = inv.by end
+		ch.ts = time()
 		BG.AddLog("join", name, ch.invitedBy or "")
 		db.levels[name] = db.levels[name] or 1
 		if GuildRoster then GuildRoster() end
@@ -224,6 +225,12 @@ function Roster.IsAssigned(name)
 	return false
 end
 
+-- Every change stamps the character with ts = time(); the newest stamp wins when data is merged (sync).
+local function Touch(list)
+	local t = time()
+	for i = 1, table.getn(list) do Char(list[i]).ts = t end
+end
+
 -- alt becomes twink of main
 function Roster.SetMain(alt, main, silent)
 	alt, main = BG.NormName(alt), BG.NormName(main)
@@ -233,11 +240,12 @@ function Roster.SetMain(alt, main, silent)
 	Char(alt).main = main
 	Char(alt).isMain = nil
 	Char(main).isMain = true
+	local changed = { alt, main }
 	-- twinks of the alt move with it
 	for name, c in pairs(BG.db.chars) do
-		if c.main == alt then c.main = main end
+		if c.main == alt then c.main = main table.insert(changed, name) end
 	end
-	if not silent then BG.Send("M", alt, main) end
+	if not silent then Touch(changed) Roster.SendRecords(changed) end
 	if BG.UI and BG.UI.Refresh then BG.UI.Refresh("members") end
 	return true
 end
@@ -247,7 +255,7 @@ function Roster.MarkMain(name, silent)
 	if name == "" then return false end
 	Char(name).main = nil
 	Char(name).isMain = true
-	if not silent then BG.Send("M", name, "-") end
+	if not silent then Touch({ name }) Roster.SendRecords({ name }) end
 	if BG.UI and BG.UI.Refresh then BG.UI.Refresh("members") end
 	return true
 end
@@ -258,7 +266,7 @@ function Roster.Unassign(name, silent)
 	if not c then return false end
 	c.main = nil
 	c.isMain = nil
-	if not silent then BG.Send("M", name, "!") end
+	if not silent then Touch({ name }) Roster.SendRecords({ name }) end
 	if BG.UI and BG.UI.Refresh then BG.UI.Refresh("members") end
 	return true
 end
@@ -269,7 +277,7 @@ function Roster.SetDetails(name, joined, invitedBy, note, silent)
 	if joined ~= nil then c.joined = (joined ~= "" and joined) or nil; c.approx = nil end
 	if invitedBy ~= nil then c.invitedBy = (invitedBy ~= "" and BG.NormName(invitedBy)) or nil end
 	if note ~= nil then c.note = (note ~= "" and note) or nil end
-	if not silent then BG.Send("D", name, c.joined or "-", c.invitedBy or "-") end
+	if not silent then Touch({ name }) Roster.SendRecords({ name }) end
 	if BG.UI and BG.UI.Refresh then BG.UI.Refresh("members") end
 end
 
@@ -313,6 +321,9 @@ function Roster.Rows(filter, onlyUnassigned)
 end
 
 --------------------------------------------------------------------- sync
+-- Records travel as "S;rec;rec;..." with rec = name:main:flag:joined:invitedBy:ts   ('_' = empty,
+-- flag m = is a main, t = twink, n = nothing). Newest ts wins. Pull = "SQ;<my newest ts>": officers answer
+-- with everything newer (random delay, duplicates suppressed). That is the same ping/pong idea as BananaCraft.
 
 local function Trusted(sender)
 	if not BG.db.sync.accept then return false end
@@ -321,58 +332,157 @@ local function Trusted(sender)
 	return (info.rankIndex or 99) <= (BG.db.sync.trustRank or 2)
 end
 
-BG.OnComm("M", function(sender, p)
-	if not Trusted(sender) then return end
-	local alt, main = p[1], p[2]
-	if not alt or not main then return end
-	if main == "-" then Roster.MarkMain(alt, true)
-	elseif main == "!" then Roster.Unassign(alt, true)
-	else Roster.SetMain(alt, main, true) end
-end)
+local function MeTrusted()
+	local info = BG.roster[BG.me]
+	return info ~= nil and (info.rankIndex or 99) <= (BG.db.sync.trustRank or 2)
+end
 
-BG.OnComm("MB", function(sender, p, raw)
-	if not Trusted(sender) then return end
-	for i = 1, table.getn(p) do
-		local _, _, alt, main = string.find(p[i], "^(.-)>(.-)$")
-		if alt and main then
-			if main == "-" then Roster.MarkMain(alt, true) else Roster.SetMain(alt, main, true) end
-		end
+local function Enc(x) if x == nil or x == "" then return "_" end return tostring(x) end
+local function Dec(x) if x == nil or x == "_" or x == "" then return nil end return x end
+
+local function Encode(name)
+	local c = BG.db.chars[name]
+	if not c then return nil end
+	local flag = c.main and "t" or (c.isMain and "m" or "n")
+	return name .. ":" .. Enc(c.main) .. ":" .. flag .. ":" .. Enc(c.joined) .. ":" .. Enc(c.invitedBy) .. ":" .. tostring(c.ts or 1)
+end
+
+Roster.heard = {}   -- name -> newest ts we saw on the wire (to suppress duplicate answers)
+Roster.applied = 0  -- records changed by incoming data since the last report
+
+local function ApplyRecord(rec)
+	local f = BG.SplitBy(rec, ":")
+	local name = BG.NormName(f[1] or "")
+	if name == "" then return false end
+	local ts = tonumber(f[6]) or 0
+	if (Roster.heard[name] or 0) < ts then Roster.heard[name] = ts end
+	local c = BG.db.chars[name]
+	if c and (c.ts or 0) >= ts then return false end
+	c = Char(name)
+	c.main = Dec(f[2])
+	c.isMain = (f[3] == "m") or nil
+	c.joined = Dec(f[4])
+	c.invitedBy = Dec(f[5])
+	c.approx = nil
+	c.ts = ts
+	return true
+end
+
+-- send the given characters in message-sized chunks (0.4 s apart)
+function Roster.SendRecords(names)
+	local recs = {}
+	for i = 1, table.getn(names) do
+		local e = Encode(names[i])
+		if e then table.insert(recs, e) end
 	end
-end)
-
-BG.OnComm("D", function(sender, p)
-	if not Trusted(sender) then return end
-	local name = p[1]
-	if not name then return end
-	local joined = (p[2] ~= "-") and p[2] or ""
-	local by = (p[3] ~= "-") and p[3] or ""
-	Roster.SetDetails(name, joined, by, nil, true)
-end)
-
--- bundle format: "MB;alt>main;alt>main;..." (several messages if it does not fit)
-function Roster.SyncAll()
-	if not IsInGuild or not IsInGuild() then BG.Print(BG.T("not_in_guild")) return end
-	local items = {}
-	for name, c in pairs(BG.db.chars) do
-		if c.main then table.insert(items, name .. ">" .. c.main)
-		elseif c.isMain then table.insert(items, name .. ">-") end
-	end
-	table.sort(items)
 	local chunks, cur = {}, ""
-	for i = 1, table.getn(items) do
-		if string.len(cur) + string.len(items[i]) + 1 > 230 then
+	for i = 1, table.getn(recs) do
+		if cur ~= "" and string.len(cur) + string.len(recs[i]) + 1 > 225 then
 			table.insert(chunks, cur)
 			cur = ""
 		end
-		cur = (cur == "") and items[i] or (cur .. BG.SEP .. items[i])
+		cur = (cur == "") and recs[i] or (cur .. BG.SEP .. recs[i])
 	end
 	if cur ~= "" then table.insert(chunks, cur) end
 	for i = 1, table.getn(chunks) do
 		local data = chunks[i]
-		BG.After((i - 1) * 0.4, function() BG.Send("MB", data) end)
+		BG.After((i - 1) * 0.4, function() BG.Send("S", data) end)
 	end
-	BG.Print(BG.T("sync_sent", table.getn(items)))
+	return table.getn(recs)
 end
+
+BG.OnComm("S", function(sender, p)
+	local trusted = Trusted(sender)
+	for i = 1, table.getn(p) do
+		if trusted then
+			if ApplyRecord(p[i]) then Roster.applied = Roster.applied + 1 end
+		else
+			-- still remember it was sent, so we do not answer with the same data
+			local f = BG.SplitBy(p[i], ":")
+			local name, ts = BG.NormName(f[1] or ""), tonumber(f[6]) or 0
+			if name ~= "" and (Roster.heard[name] or 0) < ts then Roster.heard[name] = ts end
+		end
+	end
+	if BG.UI and BG.UI.Refresh then BG.UI.Refresh("members") end
+end)
+
+function Roster.NewestTs()
+	local m = 0
+	for _, c in pairs(BG.db.chars) do
+		if (c.ts or 0) > m then m = c.ts end
+	end
+	return m
+end
+
+-- somebody asks for everything newer than their newest stamp
+BG.OnComm("SQ", function(sender, p)
+	if not BG.db.sync.accept or not MeTrusted() then return end
+	local since = tonumber(p[1]) or 0
+	local any = false
+	for _, c in pairs(BG.db.chars) do
+		if (c.ts or 0) > since then any = true break end
+	end
+	if not any then return end
+	BG.After(1 + math.random() * 6, function()
+		local names = {}
+		for name, c in pairs(BG.db.chars) do
+			if (c.ts or 0) > since and (Roster.heard[name] or 0) < c.ts then table.insert(names, name) end
+		end
+		if table.getn(names) > 0 then table.sort(names) Roster.SendRecords(names) end
+	end)
+end)
+
+-- Pull what is outdated. manual = also push everything we have and report the result in chat.
+function Roster.RequestSync(manual)
+	if not IsInGuild or not IsInGuild() then
+		if manual then BG.Print(BG.T("not_in_guild")) end
+		return false
+	end
+	if not SendAddonMessage or not BG.db.features.guildBroadcast then
+		if manual then BG.Print(BG.T("comm_disabled")) end
+		return false
+	end
+	Roster.applied = 0
+	if GuildRoster then GuildRoster() end
+	BG.Send("SQ", manual and 0 or Roster.NewestTs())
+	local pushed = 0
+	if manual then
+		local all = {}
+		for name, c in pairs(BG.db.chars) do
+			if c.main or c.isMain or c.joined or c.invitedBy then table.insert(all, name) end
+		end
+		table.sort(all)
+		pushed = Roster.SendRecords(all)
+	end
+	BG.db.sync.last = time()
+	BG.After(9, function()
+		BG.db.sync.lastApplied = Roster.applied
+		if manual then BG.Print(BG.T("sync_done", Roster.applied, pushed)) end
+		if BG.UI and BG.UI.Refresh then BG.UI.Refresh("settings") BG.UI.Refresh("members") end
+	end)
+	return true
+end
+
+-- Automatic background update: every time the window opens (at most every 90 s) and once after login.
+function Roster.AutoSync()
+	if not BG.loaded or not BG.db.sync.accept then return end
+	local now = GetTime()
+	if Roster.lastAuto and now - Roster.lastAuto < 90 then return end
+	Roster.lastAuto = now
+	Roster.RequestSync(false)
+	-- refresh the "who has which addon" data at most every 5 minutes
+	if not Roster.lastPresence or now - Roster.lastPresence > 300 then
+		Roster.lastPresence = now
+		if BG.Presence then BG.Presence.Query(true) end
+	end
+end
+
+BG.OnLogin(function()
+	BG.After(25, function() Roster.AutoSync() end)
+end)
+
+-- the old "send my assignments" button now does the full two-way sync
+function Roster.SyncAll() return Roster.RequestSync(true) end
 
 BananaGuild = BananaGuild or {}
 BananaGuild.files = BananaGuild.files or {}

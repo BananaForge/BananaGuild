@@ -378,9 +378,12 @@ function Recruit.Welcome(name)
 	db.stats.welcomes = db.stats.welcomes + 1
 end
 
+-- Only the guild member who is recruiting right now reacts to a new member (otherwise everybody with
+-- the addon would pop up / whisper the same welcome).
 function Recruit.OnJoin(name)
 	local db = BG.db
 	if name == BG.me then return end
+	if not Recruit.active then return end
 	if db.features.autoWelcome then
 		BG.After(3, function() Recruit.Welcome(name) end)
 	elseif db.features.welcomePopup then

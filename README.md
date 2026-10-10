@@ -23,7 +23,8 @@ Ingame: `/bgd` (oder `/bananaguild`, oder Minimap-Button). **Als Erstes im Reite
 | **Flüster-Popup** | Meldet sich jemand per Flüstern, erscheint ein Popup mit vorbereiteten Antworten und Einladen-Button. |
 | **Scanner** | Filtert `/4` und `/5` nach Spielern, die (deutsch oder englisch) eine Gilde suchen, ignoriert werbende Gilden, Popup mit Kontakt-Nachricht + Einladen. Schlagwörter sind editierbar, es gibt ein Testfeld. |
 | **Rechtsklick-Einladen** | Rechtsklick auf einen Namen im Chat → „In Gilde einladen". |
-| **Willkommen** | Button (oder automatisch) für die Willkommensnachricht mit Discord-Link + Hinweis auf den Willkommen-Kanal. |
+| **Willkommen** | Popup (oder automatisch) mit Willkommensnachricht inkl. Discord-Link + Hinweis auf den Willkommen-Kanal – **nur bei dem Spieler, der gerade rekrutiert**, nicht bei jedem mit dem Addon. |
+| **Sync** | Main/Twink-Daten, Beitrittsdatum und Einlader werden mit allen Gildenmitgliedern abgeglichen: automatisch bei jedem Öffnen des Fensters (im Hintergrund, max. alle 90 s) und per Button „Jetzt synchronisieren" in den Einstellungen. Es wird nur Neueres übertragen (Zeitstempel pro Charakter, der neueste Stand gewinnt), angenommen nur von Rängen bis zur eingestellten Grenze. |
 | **Selbsttest** | Prüft API, Gilde, Channels, Texte, Hooks, Übersetzungen, Laufzeitfehler. |
 
 Alle Texte sind editierbar, alle Funktionen einzeln ein-/ausschaltbar (Reiter *Einstellungen*), die Sprache DE/EN oben rechts umschaltbar. Herz-Symbol oben rechts (Danke-Fenster mit Charakter Lumihunt, wie in den anderen Banana-Addons), Version + Selbsttest unten rechts.

@@ -862,6 +862,11 @@ local function BuildSettings(p)
 		function() return db.sync.accept end, function(v) db.sync.accept = v end, "tip_sync_accept")
 	Label(p, "lbl_trust_rank", 300, y - 4)
 	MakeEdit("settings", p, 540, y, 40, function() return db.sync.trustRank end, NumberSetter(db.sync, "trustRank", 0), 2)
+	y = y - 36
+	local syncNow = MakeButton(p, NextName("Btn"), "btn_sync_now", 190, 24, function() BG.Roster.RequestSync(true) end)
+	syncNow:SetPoint("TOPLEFT", p, "TOPLEFT", 0, y)
+	Tooltip(syncNow, "tip_sync_now")
+	p.syncStatus = Label(p, nil, 200, y - 6, "GameFontDisableSmall", 390)
 	y = y - 40
 	local rp = MakeButton(p, NextName("Btn"), "btn_reset_presence", 190, 22, function()
 		db.presence = {}
@@ -877,7 +882,14 @@ local function BuildSettings(p)
 		BG.Print(BG.T("done"))
 	end)
 	rt:SetPoint("TOPLEFT", p, "TOPLEFT", 200, y)
-	p.refresh = function() end
+	p.refresh = function()
+		local last = BG.db.sync.last
+		if last then
+			p.syncStatus:SetText(BG.T("sync_status", BG.Stamp(last), BG.db.sync.lastApplied or 0))
+		else
+			p.syncStatus:SetText(BG.T("sync_never"))
+		end
+	end
 end
 
 --------------------------------------------------------------------- panel: self test
@@ -1068,6 +1080,8 @@ function UI.Build()
 	credit:SetPoint("BOTTOMLEFT", main, "BOTTOMLEFT", 24, 22)
 	credit:SetText("BananaForge")
 
+	-- every time the window opens: quietly bring the shared data up to date (throttled in Roster.AutoSync)
+	main:SetScript("OnShow", function() BG.Roster.AutoSync() end)
 	main:Hide()
 	UI.ApplyLocale()
 end

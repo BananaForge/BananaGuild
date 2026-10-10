@@ -129,13 +129,13 @@ function Presence.Rows(showAll)
 	return rows
 end
 
-function Presence.Query()
-	if not IsInGuild or not IsInGuild() then BG.Print(BG.T("not_in_guild")) return end
-	if not SendAddonMessage then BG.Print(BG.T("no_addon_msg")) return end
+function Presence.Query(quiet)
+	if not IsInGuild or not IsInGuild() then if not quiet then BG.Print(BG.T("not_in_guild")) end return end
+	if not SendAddonMessage then if not quiet then BG.Print(BG.T("no_addon_msg")) end return end
 	if BG.Send("Q") then
-		BG.Print(BG.T("query_sent"))
+		if not quiet then BG.Print(BG.T("query_sent")) end
 		if BananaPresence then BananaPresence.SendGuildHello() end
-	else
+	elseif not quiet then
 		BG.Print(BG.T("comm_disabled"))
 	end
 end
