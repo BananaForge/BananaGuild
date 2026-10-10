@@ -215,10 +215,10 @@ function Alerts.OnLevel(name, level, source)
 	BG.lastLevelUp = { name = name, level = level }
 	local f = BG.db.features
 	local isSelf = (name == BG.me)
-	if level == 60 and f.level60 then
+	if level == 60 and f.level60 and not BG.QuietBlocks("level60") then
 		Alerts.ShowLevel60(name)
 	end
-	if f.levelup and (not isSelf or f.selfToast) and Alerts.LevelWanted(level) then
+	if f.levelup and (not isSelf or f.selfToast) and Alerts.LevelWanted(level) and not BG.QuietBlocks("levelup") then
 		BG.Print(BG.T("levelup_chat", GOLD .. name .. "|r", level))
 		Alerts.LevelToast(name, level)
 	end
@@ -342,6 +342,17 @@ local function Show(item)
 end
 
 function Popup.Push(item)
+	-- instance / raid mode: item.type says what kind of message it is; item.force skips the check (user-triggered)
+	if item.type and not item.force and BG.QuietBlocks(item.type) then
+		if item.defer and BG.db.quiet.catchup and table.getn(BG.quiet.deferred) < 10 then
+			local dup = false
+			for i = 1, table.getn(BG.quiet.deferred) do
+				if BG.quiet.deferred[i].key == item.key then dup = true end
+			end
+			if not dup then table.insert(BG.quiet.deferred, item) end
+		end
+		return
+	end
 	if item.key then
 		if Popup.current and Popup.current.key == item.key then return end
 		for i = 1, table.getn(Popup.queue) do

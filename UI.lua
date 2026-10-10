@@ -833,9 +833,80 @@ local FEATURES = {
 	{ "sound", "feat_sound", "tip_sound" },
 }
 
-local function BuildSettings(p)
+local QUIET_KINDS = { "levelup", "level60", "whisper", "scanner", "welcome", "conflict" }
+
+-- page 2 of the settings: instance / raid mode
+local function BuildQuietPage(root, q)
 	local db = BG.db
-	Label(p, "settings_header", 0, -2, "GameFontNormal")
+	Label(q, "quiet_header", 0, -2, "GameFontNormal")
+	local desc = Label(q, "quiet_desc", 0, -26, "GameFontHighlightSmall", 590)
+	desc:SetHeight(58)
+	desc:SetJustifyV("TOP")
+	MakeCheck("settings", q, 0, -88, "quiet_enabled",
+		function() return db.quiet.enabled end,
+		function(v) db.quiet.enabled = v UI.UpdateQuiet() end, "tip_quiet_enabled")
+	q.status = Label(q, nil, 4, -122, "GameFontNormal", 590)
+	Label(q, "quiet_allow_header", 0, -152, "GameFontNormalSmall", 590)
+	for idx = 1, table.getn(QUIET_KINDS) do
+		local kind = QUIET_KINDS[idx] -- local per iteration (Lua 5.0 closures share the loop variable)
+		local col = (idx - 1) - math.floor((idx - 1) / 2) * 2
+		local row = math.floor((idx - 1) / 2)
+		MakeCheck("settings", q, col * 300, -172 - row * 26, "quiet_allow_" .. kind,
+			function() return db.quiet.allow[kind] end,
+			function(v) db.quiet.allow[kind] = v end, "tip_quiet_allow")
+	end
+	MakeCheck("settings", q, 0, -262, "quiet_catchup",
+		function() return db.quiet.catchup end, function(v) db.quiet.catchup = v end, "tip_quiet_catchup")
+	MakeCheck("settings", q, 0, -288, "quiet_summary_chk",
+		function() return db.quiet.summary end, function(v) db.quiet.summary = v end)
+	q.elapsed = 0
+	q:SetScript("OnUpdate", function()
+		this.elapsed = this.elapsed + arg1
+		if this.elapsed < 1 then return end
+		this.elapsed = 0
+		UI.UpdateQuiet()
+	end)
+	root.quietStatus = q.status
+end
+
+function UI.UpdateQuiet()
+	local p = panels.settings
+	if not p or not p.quietStatus then return end
+	local q = BG.db.quiet
+	if not q.enabled then
+		p.quietStatus:SetText(GRAY .. BG.T("quiet_status_disabled") .. "|r")
+	elseif BG.QuietActive() then
+		p.quietStatus:SetText(YELLOW .. BG.T("quiet_status_on") .. "|r")
+	else
+		p.quietStatus:SetText(GREEN .. BG.T("quiet_status_off") .. "|r")
+	end
+end
+
+function UI.SettingsPage(which)
+	local root = panels.settings
+	if not root or not root.pages then return end
+	UI.settingsPage = which
+	for k, f in pairs(root.pages) do
+		if k == which then f:Show() else f:Hide() end
+	end
+	UI.MarkSelected(root.btnGeneral, which == "general")
+	UI.MarkSelected(root.btnQuiet, which == "quiet")
+	UI.UpdateQuiet()
+end
+
+local function BuildSettings(root)
+	local db = BG.db
+	local p = CreateFrame("Frame", NextName("SetGeneral"), root)
+	p:SetAllPoints(root)
+	local qp = CreateFrame("Frame", NextName("SetQuiet"), root)
+	qp:SetAllPoints(root)
+	root.pages = { general = p, quiet = qp }
+	root.btnQuiet = MakeButton(root, NextName("Btn"), "btn_set_quiet", 130, 20, function() UI.SettingsPage("quiet") end)
+	root.btnQuiet:SetPoint("TOPRIGHT", root, "TOPRIGHT", 0, 2)
+	root.btnGeneral = MakeButton(root, NextName("Btn"), "btn_set_general", 100, 20, function() UI.SettingsPage("general") end)
+	root.btnGeneral:SetPoint("RIGHT", root.btnQuiet, "LEFT", -4, 0)
+	BuildQuietPage(root, qp)
+	Label(p, "settings_header", 0, -2, "GameFontNormal", 330)
 	for i = 1, table.getn(FEATURES) do
 		local f = FEATURES[i]
 		local col = (i - 1) - math.floor((i - 1) / 2) * 2
@@ -901,7 +972,9 @@ local function BuildSettings(p)
 		BG.Print(BG.T("done"))
 	end)
 	rt:SetPoint("TOPLEFT", p, "TOPLEFT", 200, y)
-	p.refresh = function()
+	root.gzBtn = p.gzBtn
+	root.gzChecks = p.gzChecks
+	root.refresh = function()
 		UI.UpdateGZ()
 		local last = BG.db.sync.last
 		if last then
@@ -909,6 +982,7 @@ local function BuildSettings(p)
 		else
 			p.syncStatus:SetText(BG.T("sync_never"))
 		end
+		UI.SettingsPage(UI.settingsPage or "general")
 	end
 end
 
@@ -994,6 +1068,7 @@ function UI.ApplyLocale()
 		main.btnEN.fs:SetTextColor(deOn and 0.5 or 1, deOn and 0.5 or 0.82, deOn and 0.5 or 0)
 		UI.UpdateScannerLang()
 		UI.UpdateGZ()
+		UI.UpdateQuiet()
 		if UI.current then UI.Refresh("all") end
 	end
 	if BG.Alerts then BG.Alerts.RelabelToast() BG.Alerts.RelabelSplash() end

@@ -172,6 +172,13 @@ function ST.Run()
 		Add("WARN", BG.T("st_menu"), BG.T("st_menu_bad"))
 	end
 
+	-- instance / raid mode
+	do
+		local q = db.quiet
+		local state = (not q.enabled) and BG.T("quiet_status_disabled") or (BG.QuietActive() and BG.T("quiet_status_on") or BG.T("quiet_status_off"))
+		Add("INFO", BG.T("st_quiet"), state)
+	end
+
 	-- 12. locale parity
 	local missing = {}
 	for k in pairs(BG.L.en) do if BG.L.de[k] == nil then table.insert(missing, "de:" .. k) end end

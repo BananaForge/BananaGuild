@@ -179,6 +179,10 @@ local DEFAULTS = {
 	},
 	-- which level ups trigger the GZ popup + chat notice: mode "all" or "tens" (only the ticked full tens)
 	gz = { mode = "all", levels = { [10] = true, [20] = true, [30] = true, [40] = true, [50] = true, [60] = true } },
+	-- instance / raid mode: while in an instance, battleground or raid group every popup, notice and sound is muted,
+	-- except the kinds ticked in 'allow'. Missed prospects are shown again after leaving (catchup).
+	quiet = { enabled = true, catchup = true, summary = true,
+		allow = { levelup = false, level60 = false, whisper = false, scanner = false, welcome = false, conflict = false } },
 	sync = { accept = true, trustRank = 2 },
 	minimap = { angle = 200 },
 	texts = {},
@@ -492,6 +496,56 @@ function BG.InInstance()
 	end
 	return false
 end
+
+--------------------------------------------------------------------- instance / raid mode
+
+BG.quiet = { was = false, missed = { levelup = 0, level60 = 0, whisper = 0, scanner = 0, welcome = 0, conflict = 0 }, deferred = {} }
+
+function BG.InRaid()
+	return (GetNumRaidMembers and (GetNumRaidMembers() or 0) > 0) and true or false
+end
+
+-- true while the instance mode is on AND we are in an instance / battleground / raid group
+function BG.QuietActive()
+	local q = BG.db and BG.db.quiet
+	if not q or not q.enabled then return false end
+	return BG.InInstance() or BG.InRaid()
+end
+
+-- ask once per message: true = suppress it (and count it as missed)
+function BG.QuietBlocks(kind)
+	if not BG.QuietActive() then return false end
+	if BG.db.quiet.allow[kind] then return false end
+	BG.quiet.missed[kind] = (BG.quiet.missed[kind] or 0) + 1
+	return true
+end
+
+function BG.QuietRelease()
+	if BG.QuietActive() then return end
+	local q = BG.quiet
+	local m = q.missed
+	local total = 0
+	for _, n in pairs(m) do total = total + n end
+	local list = q.deferred
+	q.deferred = {}
+	for i = 1, table.getn(list) do BG.Popup.Push(list[i]) end
+	if total > 0 and BG.db.quiet.summary then
+		BG.Print(BG.T("quiet_summary", m.levelup, m.level60, m.whisper + m.scanner, m.welcome))
+	end
+	for k in pairs(m) do m[k] = 0 end
+end
+
+BG.OnLogin(function()
+	BG.Ticker("quiet", 2, function()
+		local now = BG.QuietActive()
+		if now then
+			BG.quiet.was = true
+		elseif BG.quiet.was then
+			BG.quiet.was = false
+			BG.After(4, BG.QuietRelease) -- small delay: loading screens / zoning back and forth
+		end
+	end)
+end)
 
 --------------------------------------------------------------------- slash commands
 

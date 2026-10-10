@@ -95,6 +95,7 @@ function Recruit.Stop(reason, by)
 	if reason == "conflict" then
 		BG.Print(BG.T("rec_conflict_stop", by or "?"))
 		BG.Popup.Push({
+			type = "conflict",
 			key = "conflict-" .. tostring(by),
 			title = BG.T("pop_conflict_title"),
 			body = BG.T("rec_conflict_stop", by or "?"),
@@ -236,7 +237,7 @@ local function ReplyWhisper(name, text, invite)
 end
 
 local WhisperPopup
-WhisperPopup = function(sender, msg, lang)
+WhisperPopup = function(sender, msg, lang, force)
 	local buttons = {}
 	local replies = Recruit.RepliesList(lang)
 	local nr = table.getn(replies)
@@ -250,11 +251,12 @@ WhisperPopup = function(sender, msg, lang)
 	table.insert(buttons, { text = BG.T("btn_invite_only"), fn = function() BG.Invite(sender) end })
 	local other = (lang == "en") and "de" or "en"
 	table.insert(buttons, { text = BG.T("btn_other_lang", string.upper(other)),
-		fn = function() WhisperPopup(sender, msg, other) end })
+		fn = function() WhisperPopup(sender, msg, other, true) end })
 	table.insert(buttons, { text = BG.T("btn_ignore"), fn = function() end })
 	local shown = msg
 	if string.len(shown) > 160 then shown = string.sub(shown, 1, 157) .. "..." end
 	BG.Popup.Push({
+		type = "whisper", defer = true, force = force,
 		key = "whisper-" .. sender .. "-" .. lang,
 		title = BG.T("pop_whisper_title", sender) .. "  |cff999999[" .. string.upper(lang) .. "]|r",
 		body = "|cffffffff\"" .. shown .. "\"|r",
@@ -332,6 +334,7 @@ local function ScannerPopup(author, msg, lang, chan)
 	local shown = msg
 	if string.len(shown) > 150 then shown = string.sub(shown, 1, 147) .. "..." end
 	BG.Popup.Push({
+		type = "scanner", defer = true,
 		key = "scan-" .. author,
 		title = BG.T("pop_scan_title", author),
 		body = "|cff999999[" .. tostring(chan) .. "]|r |cffffffff" .. shown .. "|r",
@@ -388,6 +391,7 @@ function Recruit.OnJoin(name)
 		BG.After(3, function() Recruit.Welcome(name) end)
 	elseif db.features.welcomePopup then
 		BG.Popup.Push({
+			type = "welcome", defer = true,
 			key = "join-" .. name,
 			title = BG.T("pop_join_title", name),
 			body = BG.T("pop_join_body", name),
