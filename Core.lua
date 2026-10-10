@@ -177,6 +177,8 @@ local DEFAULTS = {
 		cooldown = 30,     -- minutes before the same player triggers again
 		channels = "4,5",
 	},
+	-- which level ups trigger the GZ popup + chat notice: mode "all" or "tens" (only the ticked full tens)
+	gz = { mode = "all", levels = { [10] = true, [20] = true, [30] = true, [40] = true, [50] = true, [60] = true } },
 	sync = { accept = true, trustRank = 2 },
 	minimap = { angle = 200 },
 	texts = {},

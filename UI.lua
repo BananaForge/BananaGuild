@@ -840,7 +840,7 @@ local function BuildSettings(p)
 		local f = FEATURES[i]
 		local col = (i - 1) - math.floor((i - 1) / 2) * 2
 		local row = math.floor((i - 1) / 2)
-		MakeCheck("settings", p, col * 300, -24 - row * 26, f[2],
+		MakeCheck("settings", p, col * 300, -24 - row * 24, f[2],
 			function() return db.features[f[1]] end,
 			function(v)
 				db.features[f[1]] = v
@@ -850,11 +850,30 @@ local function BuildSettings(p)
 				if f[1] == "scanner" and UI.panelsBuilt and panels.scanner then UI.Refresh("scanner") end
 			end, f[3])
 	end
-	local y = -24 - 7 * 26 - 10
+	local y = -24 - 7 * 24 - 4
 	local warn = Label(p, "worldping_warn", 0, y, "GameFontDisableSmall", 590)
-	warn:SetHeight(30)
+	warn:SetHeight(28)
 	warn:SetJustifyV("TOP")
-	y = y - 40
+
+	-- GZ popup: every level, or only the chosen full tens (10, 20 ... 60)
+	y = y - 34
+	p.gzBtn = BG.MakeButton(p, NextName("Btn"), 270, 22, "")
+	p.gzBtn:SetPoint("TOPLEFT", p, "TOPLEFT", 0, y)
+	p.gzBtn:SetScript("OnClick", function()
+		db.gz.mode = (db.gz.mode == "tens") and "all" or "tens"
+		UI.UpdateGZ()
+	end)
+	Tooltip(p.gzBtn, "tip_gz_mode")
+	p.gzChecks = {}
+	for step = 1, 6 do
+		local lvl = step * 10 -- own local per iteration: Lua 5.0 closures would otherwise share the loop variable
+		local c = MakeCheck("settings", p, 280 + (step - 1) * 52, y + 1, "gz_lvl_" .. lvl,
+			function() return db.gz.levels[lvl] end,
+			function(v) db.gz.levels[lvl] = v end, "tip_gz_level")
+		getglobal(c:GetName() .. "Text"):SetWidth(24)
+		p.gzChecks[lvl] = c
+	end
+	y = y - 56
 	Label(p, "lbl_whisper_window", 0, y - 4)
 	MakeEdit("settings", p, 250, y, 40, function() return db.recruit.window end, NumberSetter(db.recruit, "window", 1), 4)
 	y = y - 30
@@ -883,6 +902,7 @@ local function BuildSettings(p)
 	end)
 	rt:SetPoint("TOPLEFT", p, "TOPLEFT", 200, y)
 	p.refresh = function()
+		UI.UpdateGZ()
 		local last = BG.db.sync.last
 		if last then
 			p.syncStatus:SetText(BG.T("sync_status", BG.Stamp(last), BG.db.sync.lastApplied or 0))
@@ -915,6 +935,16 @@ local BUILDERS = {
 	addons = BuildAddons, recruit = BuildRecruit, scanner = BuildScanner, texts = BuildTexts,
 	members = BuildMembers, log = BuildLog, settings = BuildSettings, selftest = BuildSelfTest,
 }
+
+function UI.UpdateGZ()
+	local p = panels.settings
+	if not p or not p.gzBtn then return end
+	local tens = (BG.db.gz.mode == "tens")
+	p.gzBtn:SetText(BG.T("gz_mode") .. ": " .. BG.T(tens and "gz_mode_tens" or "gz_mode_all"))
+	for lvl, c in pairs(p.gzChecks) do
+		if tens then c:Enable() else c:Disable() end
+	end
+end
 
 function UI.Refresh(kind)
 	if not main or not main:IsVisible() then return end
@@ -963,6 +993,7 @@ function UI.ApplyLocale()
 		main.btnDE.fs:SetTextColor(deOn and 1 or 0.5, deOn and 0.82 or 0.5, deOn and 0 or 0.5)
 		main.btnEN.fs:SetTextColor(deOn and 0.5 or 1, deOn and 0.5 or 0.82, deOn and 0.5 or 0)
 		UI.UpdateScannerLang()
+		UI.UpdateGZ()
 		if UI.current then UI.Refresh("all") end
 	end
 	if BG.Alerts then BG.Alerts.RelabelToast() BG.Alerts.RelabelSplash() end

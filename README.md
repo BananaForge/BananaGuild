@@ -15,7 +15,7 @@ Ingame: `/bgd` (oder `/bananaguild`, oder Minimap-Button). **Als Erstes im Reite
 | Bereich | Was es macht |
 |---|---|
 | **Addons & Analytics** | Zeigt, wer in der Gilde BananaCraft / BananaBank / Banana Lootline / Bananaloot / BananaGuild installiert hat und ob es läuft (Version, zuletzt gesehen, Logins, Anteil, 7/30-Tage-Aktivität). |
-| **Levelup-Hinweis** | Chat-Meldung + kleines Fenster mit **GZ-Button** (zufälliger GZ-Spruch in den Gildenchat). |
+| **Levelup-Hinweis** | Chat-Meldung + kleines Fenster mit **GZ-Button** (zufälliger GZ-Spruch in den Gildenchat). In den Einstellungen wählbar: bei **jeder Stufe** oder **nur bei den vollen 10er-Stufen** (10, 20 … 60, jede einzeln an-/abschaltbar). |
 | **Stufe 60** | Große Bildschirmanzeige mit BananaGuild-Logo + Spielername. |
 | **Mitglieder & Twinks** | Wer ist Main, wer Twink von wem, Beitrittsdatum, wer hat eingeladen, Notiz – alles selbst pflegbar und unsichtbar an andere BananaGuild-Nutzer synchronisierbar. |
 | **Verlauf** | Beitritte, Einladungen, Beförderungen/Degradierungen, Kicks, Austritte, Levelups. |

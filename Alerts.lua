@@ -198,6 +198,14 @@ end
 
 --------------------------------------------------------------------- level up entry point
 
+-- Does this level up get a GZ popup / chat notice? (settings: all levels, or only chosen full tens)
+function Alerts.LevelWanted(level)
+	local g = BG.db.gz
+	if not g or g.mode ~= "tens" then return true end
+	if math.mod(level, 10) ~= 0 then return false end
+	return g.levels[level] and true or false
+end
+
 function Alerts.OnLevel(name, level, source)
 	if not name or not level then return end
 	if BG.announced[name] and BG.announced[name] >= level then return end
@@ -210,7 +218,7 @@ function Alerts.OnLevel(name, level, source)
 	if level == 60 and f.level60 then
 		Alerts.ShowLevel60(name)
 	end
-	if f.levelup and (not isSelf or f.selfToast) then
+	if f.levelup and (not isSelf or f.selfToast) and Alerts.LevelWanted(level) then
 		BG.Print(BG.T("levelup_chat", GOLD .. name .. "|r", level))
 		Alerts.LevelToast(name, level)
 	end
