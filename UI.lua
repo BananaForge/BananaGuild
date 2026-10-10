@@ -497,8 +497,9 @@ local function BuildScanner(p)
 
 	p.kwBtns = {}
 	for i = 1, table.getn(KW_KEYS) do
-		local b = MakeButton(p, NextName("Btn"), "kw_" .. KW_KEYS[i], 117, 22, function()
-			UI.SelectKeyword(KW_KEYS[i])
+		local k = KW_KEYS[i] -- Lua 5.0: closures share the loop variable, so copy it into a local
+		local b = MakeButton(p, NextName("Btn"), "kw_" .. k, 117, 22, function()
+			UI.SelectKeyword(k)
 		end)
 		b:SetPoint("TOPLEFT", p, "TOPLEFT", (i - 1) * 119, -92)
 		p.kwBtns[KW_KEYS[i]] = b
@@ -564,7 +565,8 @@ local function BuildTexts(p)
 
 	p.btns = {}
 	for i = 1, table.getn(TEXT_KEYS) do
-		local b = MakeButton(p, NextName("Btn"), "txt_" .. TEXT_KEYS[i], 83, 22, function() UI.SelectText(TEXT_KEYS[i]) end)
+		local k = TEXT_KEYS[i] -- Lua 5.0: closures share the loop variable, so copy it into a local
+		local b = MakeButton(p, NextName("Btn"), "txt_" .. k, 83, 22, function() UI.SelectText(k) end)
 		b:SetPoint("TOPLEFT", p, "TOPLEFT", (i - 1) * 85, -84)
 		p.btns[TEXT_KEYS[i]] = b
 	end
