@@ -163,3 +163,7 @@ BG.OnLogin(function()
 	-- our own record (this also counts our own session for the analytics)
 	Presence.Record(BG.me, Presence.LocalAddons(), "self")
 end)
+
+BananaGuild = BananaGuild or {}
+BananaGuild.files = BananaGuild.files or {}
+BananaGuild.files.Presence = true

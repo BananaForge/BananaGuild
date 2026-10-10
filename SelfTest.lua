@@ -50,13 +50,15 @@ function ST.Run()
 
 	-- 1. load state / folder name (the logo path needs the folder to be called exactly BananaGuild)
 	Add("OK", BG.T("st_version"), BG.version)
-	local folderOk = false
-	if GetAddOnInfo then
-		local ok, name = pcall(GetAddOnInfo, "BananaGuild")
-		folderOk = ok and name ~= nil
+	local folder = BG.folder or "?"
+	if string.lower(folder) == "bananaguild" then Add("OK", BG.T("st_folder"), "Interface\\AddOns\\" .. folder)
+	else Add("WARN", BG.T("st_folder"), BG.T("st_folder_bad", folder)) end
+	local missing = {}
+	for _, f in ipairs({ "BananaPresence", "Locale", "Core", "Presence", "Roster", "Alerts", "Recruit", "UI", "SelfTest" }) do
+		if not (BG.files and BG.files[f]) then table.insert(missing, f) end
 	end
-	if folderOk then Add("OK", BG.T("st_folder"), "Interface\\AddOns\\BananaGuild")
-	else Add("FAIL", BG.T("st_folder"), BG.T("st_folder_bad")) end
+	if table.getn(missing) > 0 then Add("FAIL", BG.T("st_files"), table.concat(missing, ", "))
+	else Add("OK", BG.T("st_files"), "") end
 
 	-- 2. saved variables
 	if type(BananaGuildDB) == "table" and BananaGuildDB == db then
@@ -201,3 +203,7 @@ function ST.Run()
 	BG.Print(ST.summary)
 	if BG.UI then BG.UI.Refresh("selftest") end
 end
+
+BananaGuild = BananaGuild or {}
+BananaGuild.files = BananaGuild.files or {}
+BananaGuild.files.SelfTest = true

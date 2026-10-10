@@ -373,3 +373,7 @@ function Roster.SyncAll()
 	end
 	BG.Print(BG.T("sync_sent", table.getn(items)))
 end
+
+BananaGuild = BananaGuild or {}
+BananaGuild.files = BananaGuild.files or {}
+BananaGuild.files.Roster = true

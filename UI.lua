@@ -1143,3 +1143,7 @@ BG.OnLogin(function()
 	BG.Print(BG.T("loaded", BG.version))
 	if string.find(BG.db.discord or "", "DEIN-LINK", 1, true) then BG.Print(BG.T("discord_hint")) end
 end)
+
+BananaGuild = BananaGuild or {}
+BananaGuild.files = BananaGuild.files or {}
+BananaGuild.files.UI = true

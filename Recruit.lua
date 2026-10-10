@@ -432,3 +432,7 @@ BG.OnInit(function()
 		end
 	end
 end)
+
+BananaGuild = BananaGuild or {}
+BananaGuild.files = BananaGuild.files or {}
+BananaGuild.files.Recruit = true

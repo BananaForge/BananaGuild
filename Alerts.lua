@@ -356,3 +356,7 @@ function Popup.Clear()
 	Popup.current = nil
 	if pf then pf:Hide() end
 end
+
+BananaGuild = BananaGuild or {}
+BananaGuild.files = BananaGuild.files or {}
+BananaGuild.files.Alerts = true

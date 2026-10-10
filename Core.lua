@@ -10,7 +10,7 @@ BG.name    = "BananaGuild"
 BG.version = (GetAddOnMetadata and GetAddOnMetadata("BananaGuild", "Version")) or "1.0.0"
 BG.PREFIX  = "BGLD"
 BG.SEP     = ";"
-BG.LOGO    = "Interface\\AddOns\\BananaGuild\\Media\\logo"
+BG.LOGO    = "Interface\\AddOns\\BananaGuild\\Media\\logo" -- replaced in Boot() with the real folder name
 BG.errors  = {}
 
 -- People / links shown in the Support window. Edit freely.
@@ -299,6 +299,29 @@ local function RunList(list, where)
 	end
 end
 
+-- Find the real folder name (it may be "bananaguild", "BananaGuild-main", ...)
+local function FindFolder()
+	if GetNumAddOns and GetAddOnInfo then
+		for i = 1, GetNumAddOns() do
+			local n = GetAddOnInfo(i)
+			if n and string.find(string.lower(n), "bananaguild", 1, true) then return n end
+		end
+	end
+	return "BananaGuild"
+end
+
+local function Boot(name)
+	if BG.booted then return end
+	BG.booted = true
+	BG.folder = name or FindFolder()
+	BG.LOGO = "Interface\\AddOns\\" .. BG.folder .. "\\Media\\logo"
+	local ok, err = pcall(InitDB)
+	if not ok then Fail("InitDB", err) return end
+	BG.loaded = true
+	RunList(BG.initHooks, "init")
+end
+BG.Boot = Boot
+
 frame:RegisterEvent("ADDON_LOADED")
 frame:RegisterEvent("PLAYER_LOGIN")
 
@@ -306,13 +329,10 @@ frame:SetScript("OnEvent", function()
 	local ev = event
 	local a1, a2, a3, a4, a5, a6, a7, a8, a9 = arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9
 	if ev == "ADDON_LOADED" then
-		if a1 ~= "BananaGuild" then return end
-		local ok, err = pcall(InitDB)
-		if not ok then Fail("InitDB", err) return end
-		BG.loaded = true
-		RunList(BG.initHooks, "init")
+		if a1 and string.lower(a1) == "bananaguild" then Boot(a1) end
 		return
 	elseif ev == "PLAYER_LOGIN" then
+		if not BG.loaded then Boot(nil) end
 		if not BG.loaded then return end
 		BG.me = UnitName("player")
 		BG.loggedIn = true
@@ -471,8 +491,20 @@ SLASH_BANANAGUILD1 = "/bananaguild"
 SLASH_BANANAGUILD2 = "/bguild"
 SLASH_BANANAGUILD3 = "/bgd"
 
-SlashCmdList["BANANAGUILD"] = function(msg)
-	if not BG.loaded then return end
+local function Slash(msg)
+	if not BG.loaded then
+		if not BG.booted then pcall(Boot, nil) end
+		if not BG.loaded then
+			local missing = {}
+			for _, f in ipairs({ "BananaPresence", "Locale", "Core", "Presence", "Roster", "Alerts", "Recruit", "UI", "SelfTest" }) do
+				if not (BG.files and BG.files[f]) then table.insert(missing, f) end
+			end
+			DEFAULT_CHAT_FRAME:AddMessage("|cffff5555[BananaGuild] not initialised.|r folder=" .. tostring(BG.folder)
+				.. " files not loaded: " .. (table.getn(missing) > 0 and table.concat(missing, ",") or "none")
+				.. " last error: " .. tostring(BG.errors[table.getn(BG.errors)]))
+			return
+		end
+	end
 	msg = BG.Trim(msg or "")
 	local _, _, cmd, rest = string.find(msg, "^(%S*)%s*(.-)$")
 	cmd = string.lower(cmd or "")
@@ -503,7 +535,16 @@ SlashCmdList["BANANAGUILD"] = function(msg)
 	end
 end
 
+SlashCmdList["BANANAGUILD"] = function(msg)
+	local ok, err = pcall(Slash, msg)
+	if not ok then Fail("slash", err) end
+end
+
 function BG.SetLang(lang)
 	BG.db.lang = (lang == "en") and "en" or "de"
 	if BG.UI and BG.UI.ApplyLocale then BG.UI.ApplyLocale() end
 end
+
+BananaGuild = BananaGuild or {}
+BananaGuild.files = BananaGuild.files or {}
+BananaGuild.files.Core = true

@@ -6,7 +6,7 @@ Dashboard für Gildenleitung & Recruiting. / Dashboard for guild leaders & recru
 
 GitHub-Link zum Installieren: **https://github.com/bananaforge/bananaguild**
 
-Der Ordner muss am Ende **`Interface\AddOns\BananaGuild`** heißen (nicht `BananaGuild-main`) – sonst wird das Logo nicht gefunden. Der Selbsttest (Button unten rechts im Fenster) prüft das.
+Der Ordnername ist egal (`BananaGuild`, `bananaguild`, `BananaGuild-main` …) – das Addon findet ihn selbst. Falls nichts passiert: `/bgd` tippen, es meldet dann, was nicht geladen wurde.
 
 Ingame: `/bgd` (oder `/bananaguild`, oder Minimap-Button). **Als Erstes im Reiter „Texte" deinen Discord-Link eintragen!**
 
@@ -60,6 +60,6 @@ Zusammenarbeit der Gilde: Gildensuche-Sperre = Herzschlag alle 45 s, gilt 110 s;
 
 ## English summary
 
-Install via OctoLauncher from `https://github.com/bananaforge/bananaguild`; the folder must be named `BananaGuild`. Open with `/bgd`. Set your Discord link in the *Texts* tab first.
+Install via OctoLauncher from `https://github.com/bananaforge/bananaguild`; the folder name does not matter. Open with `/bgd`. Set your Discord link in the *Texts* tab first.
 
 Features: addon-usage overview/analytics for BananaCraft / BananaBank / Banana Lootline / Bananaloot, level-up notice with GZ button, full-screen level-60 splash with the logo, main/twink manager with join/invite/promote history, timed auto-recruiting in `/4` (`/5` in instances) with a single-recruiter lock over the guild addon channel (funny whispers to the other recruiter), whisper popup with predefined replies, `/4` `/5` scanner for players looking for a guild (German + English, editable keywords), right-click "Invite to guild", welcome message with Discord link, DE/EN switch, support window, version + self test. All texts are editable and every feature can be toggled.
