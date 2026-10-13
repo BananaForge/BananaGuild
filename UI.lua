@@ -553,7 +553,16 @@ end
 
 --------------------------------------------------------------------- panel: texts
 
-local TEXT_KEYS = { "welcomeMsg", "welcomeGuild", "funny", "gz", "repliesDE", "repliesEN", "contactDE", "contactEN" }
+local TEXT_KEYS = { "welcome", "funny", "gz", "repliesDE", "repliesEN", "contactDE", "contactEN" }
+
+-- the texts of the language that is NOT active are greyed out (they are still used automatically for
+-- whispers in that language)
+local function TextOff(kind)
+	local suffix = string.sub(kind, -2)
+	if suffix == "EN" and BG.Lang() == "de" then return true end
+	if suffix == "DE" and BG.Lang() == "en" then return true end
+	return false
+end
 
 local function BuildTexts(p)
 	local db = BG.db
@@ -563,59 +572,106 @@ local function BuildTexts(p)
 	Label(p, "lbl_guildtag", 0, -56)
 	MakeEdit("texts", p, 130, -52, 200, function() return db.guildTag end, function(t) db.guildTag = t end, 60)
 
+	-- row 1: greeting, funny, GZ; row 2: replies and contact messages (DE / EN)
 	p.btns = {}
 	for i = 1, table.getn(TEXT_KEYS) do
 		local k = TEXT_KEYS[i] -- Lua 5.0: closures share the loop variable, so copy it into a local
 		local b = MakeButton(p, NextName("Btn"), "txt_" .. k, 146, 22, function() UI.SelectText(k) end)
-		local col = (i - 1) - math.floor((i - 1) / 4) * 4
-		local row = math.floor((i - 1) / 4)
+		local row, col = 0, i - 1
+		if i > 3 then row, col = 1, i - 4 end
 		b:SetPoint("TOPLEFT", p, "TOPLEFT", col * 150, -84 - row * 26)
-		p.btns[TEXT_KEYS[i]] = b
+		p.btns[k] = b
 	end
-	p.desc = Label(p, nil, 0, -140, "GameFontDisableSmall", 590)
-	p.desc:SetHeight(32)
+	-- the 5 variants of the chosen kind
+	Label(p, "lbl_variant", 0, -146, "GameFontNormalSmall", 70)
+	p.slotBtns = {}
+	for s = 1, BG.VARIANTS do
+		local slot = s
+		local b = BG.MakeButton(p, NextName("Btn"), 40, 22, tostring(s))
+		b:SetPoint("TOPLEFT", p, "TOPLEFT", 74 + (s - 1) * 44, -141)
+		b:SetScript("OnClick", function() UI.SelectSlot(slot) end)
+		p.slotBtns[s] = b
+	end
+	p.desc = Label(p, nil, 0, -172, "GameFontDisableSmall", 590)
+	p.desc:SetHeight(30)
 	p.desc:SetJustifyV("TOP")
-	p.area = MakeTextArea("texts", p, 0, -176, 596, 192,
-		function() return db.texts[UI.textSel or TEXT_KEYS[1]] end,
-		function(v) db.texts[UI.textSel or TEXT_KEYS[1]] = v UI.UpdateTextCounter() end, 3000)
-	local reset = MakeButton(p, NextName("Btn"), "btn_default_text", 170, 22, function()
-		local k = UI.textSel
-		db.texts[k] = BG.DefaultText(k, BG.FixedLang(k))
+	p.area = MakeTextArea("texts", p, 0, -204, 596, 162,
+		function()
+			local v = db.variants[UI.textSel or TEXT_KEYS[1]]
+			return v and v[UI.slotSel or 1] or ""
+		end,
+		function(v)
+			local kind = UI.textSel or TEXT_KEYS[1]
+			db.variants[kind] = db.variants[kind] or {}
+			db.variants[kind][UI.slotSel or 1] = (string.gsub(v, "[\r\n]+", " "))
+			UI.UpdateTextCounter()
+		end, 255)
+	local reset = MakeButton(p, NextName("Btn"), "btn_reset_variant", 170, 22, function()
+		BG.ResetVariant(UI.textSel, UI.slotSel)
 		p.area.edit:Load()
 		UI.UpdateTextCounter()
 	end)
 	reset:SetPoint("TOPLEFT", p, "TOPLEFT", 0, -376)
-	local prev = MakeButton(p, NextName("Btn"), "btn_preview", 170, 22, function()
-		local k = UI.textSel
-		local line = BG.RandomLine(db.texts[k])
-		if line then BG.Print(BG.T("preview") .. " " .. BG.Fill(line, { name = BG.me, level = 60 })) end
+	local resetAll = MakeButton(p, NextName("Btn"), "btn_reset_all5", 150, 22, function()
+		BG.ResetVariants(UI.textSel)
+		p.area.edit:Load()
+		UI.UpdateTextCounter()
 	end)
-	prev:SetPoint("TOPLEFT", p, "TOPLEFT", 180, -376)
-	p.counter = Label(p, nil, 400, -380, "GameFontDisableSmall", 190)
+	resetAll:SetPoint("TOPLEFT", p, "TOPLEFT", 178, -376)
+	local prev = MakeButton(p, NextName("Btn"), "btn_preview", 140, 22, function()
+		local line, idx = BG.PickVariant(UI.textSel)
+		if line then BG.Print(BG.T("preview_variant", idx) .. " " .. BG.Fill(line, { name = BG.me, level = 60 })) end
+	end)
+	prev:SetPoint("TOPLEFT", p, "TOPLEFT", 336, -376)
+	p.counter = Label(p, nil, 400, -402, "GameFontDisableSmall", 190)
 	p.counter:SetJustifyH("RIGHT")
 	UI.textSel = TEXT_KEYS[1]
+	UI.slotSel = 1
 	p.refresh = function() UI.SelectText(UI.textSel) end
 end
 
 function UI.UpdateTextCounter()
 	local p = panels.texts
 	if not p or not p.counter then return end
-	local worst = 0
-	for _, l in ipairs(BG.Lines(BG.db.texts[UI.textSel] or "")) do
-		if string.len(l) > worst then worst = string.len(l) end
+	local v = BG.db.variants[UI.textSel]
+	local n = string.len(BG.Fill(v and v[UI.slotSel or 1] or "", { name = "Playername", level = 60 }))
+	local col = (n > 255) and RED or GRAY
+	p.counter:SetText(col .. BG.T("longest_line", n) .. "|r")
+end
+
+-- highlight the chosen kind and variant, grey out the kinds of the other language
+function UI.UpdateTextButtons()
+	local p = panels.texts
+	if not p or not p.btns then return end
+	if TextOff(UI.textSel) then
+		UI.textSel = TEXT_KEYS[1]
+		UI.slotSel = 1
 	end
-	local col = (worst > 255) and RED or GRAY
-	p.counter:SetText(col .. BG.T("longest_line", worst) .. "|r")
+	for key, b in pairs(p.btns) do
+		UI.MarkSelected(b, key == UI.textSel)
+		if TextOff(key) then b:Disable() end
+	end
+	for s = 1, BG.VARIANTS do
+		UI.MarkSelected(p.slotBtns[s], s == UI.slotSel)
+	end
 end
 
 function UI.SelectText(k)
 	local p = panels.texts
-	if not p or not p.btns then return end
+	if not p or not p.btns or TextOff(k) then return end
 	UI.textSel = k
-	for key, b in pairs(p.btns) do
-		UI.MarkSelected(b, key == k)
-	end
+	UI.slotSel = 1
+	UI.UpdateTextButtons()
 	p.desc:SetText(BG.T("txtdesc_" .. k))
+	p.area.edit:Load()
+	UI.UpdateTextCounter()
+end
+
+function UI.SelectSlot(s)
+	local p = panels.texts
+	if not p or not p.btns then return end
+	UI.slotSel = s
+	UI.UpdateTextButtons()
 	p.area.edit:Load()
 	UI.UpdateTextCounter()
 end
@@ -730,11 +786,6 @@ local function BuildMembers(p)
 		end
 	end)
 	save:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -270)
-	local wel = MakeButton(d, NextName("Btn"), "btn_welcome", 116, 22, function()
-		if UI.selectedMember then BG.Recruit.Welcome(UI.selectedMember) end
-	end)
-	wel:SetPoint("TOPLEFT", d, "TOPLEFT", 122, -270)
-	Tooltip(wel, "tip_welcome_btn")
 	local hint = Label(d, "members_hint", 12, -304, "GameFontDisableSmall", 222)
 	hint:SetHeight(66)
 	hint:SetJustifyV("TOP")
@@ -826,7 +877,6 @@ local FEATURES = {
 	{ "rightClickInvite", "feat_rightclick", "tip_rightclick" },
 	{ "welcomePopup", "feat_welcomepopup", "tip_welcomepopup" },
 	{ "autoWelcome", "feat_autowelcome", "tip_autowelcome" },
-	{ "welcomeGuild", "feat_welcomeguild", "tip_welcomeguild" },
 	{ "guildBroadcast", "feat_broadcast", "tip_broadcast" },
 	{ "worldPing", "feat_worldping", "tip_worldping" },
 	{ "minimap", "feat_minimap", "tip_minimap" },
@@ -1069,6 +1119,7 @@ function UI.ApplyLocale()
 		UI.UpdateScannerLang()
 		UI.UpdateGZ()
 		UI.UpdateQuiet()
+		UI.UpdateTextButtons()
 		if UI.current then UI.Refresh("all") end
 	end
 	if BG.Alerts then BG.Alerts.RelabelToast() BG.Alerts.RelabelSplash() end

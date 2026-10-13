@@ -157,7 +157,6 @@ local DEFAULTS = {
 		scanner          = true,   -- /4 /5 scanner for "looking for a guild"
 		rightClickInvite = true,   -- "Invite to guild" in the chat-name context menu
 		welcomePopup     = true,   -- popup when somebody joins the guild
-		welcomeGuild     = true,   -- also greet the new member in guild chat
 		autoWelcome      = false,  -- send the welcome whisper automatically
 		guildBroadcast   = true,   -- invisible addon channel (presence, recruiter lock, sync)
 		worldPing        = false,  -- hidden world-chat presence ping (see README)
@@ -186,6 +185,7 @@ local DEFAULTS = {
 	sync = { accept = true, trustRank = 2 },
 	minimap = { angle = 200 },
 	texts = {},
+	variants = {},   -- 5 editable chat variants per kind (welcome, funny, gz, repliesDE/EN, contactDE/EN)
 	keywords = {},
 	chars = {},
 	log = {},
@@ -207,7 +207,10 @@ local function Merge(dst, src)
 	end
 end
 
-BG.TEXT_NAMES = { "recruitMsg", "welcomeMsg", "welcomeGuild", "repliesDE", "repliesEN", "contactDE", "contactEN", "funny", "gz" }
+BG.TEXT_NAMES = { "recruitMsg" }
+-- every kind has exactly 5 variants; one chat message per variant
+BG.VARIANT_KINDS = { "welcome", "funny", "gz", "repliesDE", "repliesEN", "contactDE", "contactEN" }
+BG.VARIANTS = 5
 
 -- "contactDE" / "repliesEN" ... are tied to one language, independent of the UI language
 function BG.FixedLang(name)
@@ -228,10 +231,95 @@ function BG.ResetTexts(lang)
 		local n = BG.TEXT_NAMES[i]
 		BG.db.texts[n] = BG.DefaultText(n, lang)
 	end
-	-- texts that exist once per language are always reset to their own language
-	for i = 1, table.getn(BG.TEXT_NAMES) do
-		local n = BG.TEXT_NAMES[i]
-		if BG.FixedLang(n) then BG.db.texts[n] = BG.DefaultText(n, BG.FixedLang(n)) end
+	BG.ResetAllVariants()
+end
+
+---------------------------------------------------------------- variants (5 per kind)
+
+-- default text of variant i; kinds ending in DE/EN keep their own language, the others follow the UI language
+function BG.DefaultVariant(kind, i, lang)
+	lang = lang or BG.FixedLang(kind) or BG.Lang()
+	local key = "def_" .. kind .. "_" .. i
+	local L = BG.L
+	return (L and L[lang] and L[lang][key]) or (L and L.en and L.en[key]) or ""
+end
+
+function BG.ResetVariant(kind, i)
+	BG.db.variants[kind] = BG.db.variants[kind] or {}
+	BG.db.variants[kind][i] = BG.DefaultVariant(kind, i)
+end
+
+function BG.ResetVariants(kind)
+	for i = 1, BG.VARIANTS do BG.ResetVariant(kind, i) end
+end
+
+function BG.ResetAllVariants()
+	for k = 1, table.getn(BG.VARIANT_KINDS) do BG.ResetVariants(BG.VARIANT_KINDS[k]) end
+end
+
+BG.lastVariant = {}
+
+-- Random variant of a kind, never the same one twice in a row. Returns text, index (nil if all are empty).
+function BG.PickVariant(kind)
+	local v = BG.db and BG.db.variants and BG.db.variants[kind]
+	if not v then return nil end
+	local idx = {}
+	for i = 1, BG.VARIANTS do
+		if v[i] and BG.Trim(v[i]) ~= "" then table.insert(idx, i) end
+	end
+	local n = table.getn(idx)
+	if n == 0 then return nil end
+	local last = BG.lastVariant[kind]
+	local pool = idx
+	if n > 1 and last then
+		pool = {}
+		for j = 1, n do
+			if idx[j] ~= last then table.insert(pool, idx[j]) end
+		end
+	end
+	local pick = pool[math.random(1, table.getn(pool))]
+	BG.lastVariant[kind] = pick
+	return (string.gsub(BG.Trim(v[pick]), "[\r\n]+", " ")), pick
+end
+
+-- Migration from the old single text fields (1.3.x): own texts are kept as variant 1, the rest are the new defaults
+local OLD_KEY = { welcome = "welcomeGuild", funny = "funny", gz = "gz", repliesDE = "repliesDE", repliesEN = "repliesEN",
+	contactDE = "contactDE", contactEN = "contactEN" }
+local OLD_DEFAULT_START = {
+	welcome = { "Willkommen in der Bananenrepublik, {name}! Schau gern", "Welcome to the Bananenrepublik, {name}! Feel free", "Grüß dich und" },
+	funny = { "Halt ein, edler {name}", "Hold, noble {name}" },
+	gz = { "GZ {name}!" },
+	repliesDE = { "Hey {name}, schön dass du Interesse hast" },
+	repliesEN = { "Hey {name}, nice that you are interested" },
+	contactDE = { "Hey {name}, wir sind die {guild} und freuen uns" },
+	contactEN = { "Hey {name}, we are {guild} and would love to have you join us" },
+}
+local function IsOldDefault(kind, line)
+	local list = OLD_DEFAULT_START[kind]
+	for i = 1, table.getn(list) do
+		if string.sub(line, 1, string.len(list[i])) == list[i] then return true end
+	end
+	return false
+end
+
+local function MigrateVariants()
+	local db = BG.db
+	for i = 1, table.getn(BG.VARIANT_KINDS) do
+		local kind = BG.VARIANT_KINDS[i]
+		local cur = db.variants[kind]
+		if type(cur) ~= "table" then
+			cur = {}
+			for k = 1, BG.VARIANTS do cur[k] = BG.DefaultVariant(kind, k) end
+			local old = BG.Lines(db.texts[OLD_KEY[kind]] or "")
+			if old[1] and not IsOldDefault(kind, old[1]) then cur[1] = old[1] end
+			db.variants[kind] = cur
+		end
+		for k = 1, BG.VARIANTS do
+			if cur[k] == nil then cur[k] = BG.DefaultVariant(kind, k) end
+		end
+	end
+	for _, n in ipairs({ "welcomeMsg", "welcomeGuild", "repliesDE", "repliesEN", "contactDE", "contactEN", "funny", "gz" }) do
+		db.texts[n] = nil
 	end
 end
 
@@ -256,6 +344,7 @@ local function InitDB()
 			end
 		end
 	end
+	MigrateVariants()
 	for k, v in pairs(BG.KEYWORD_DEFAULTS) do
 		if BG.db.keywords[k] == nil then BG.db.keywords[k] = v end
 	end

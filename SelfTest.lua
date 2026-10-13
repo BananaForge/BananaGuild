@@ -140,11 +140,19 @@ function ST.Run()
 	elseif string.len(msg) > 255 then Add("FAIL", BG.T("st_recmsg"), BG.T("st_too_long", string.len(msg)))
 	else Add("OK", BG.T("st_recmsg"), string.len(msg) .. "/255") end
 	local longest = 0
-	for _, k in ipairs(BG.TEXT_NAMES) do
-		for _, l in ipairs(BG.Lines(db.texts[k] or "")) do
-			if string.len(BG.Fill(l, { name = "Playername", level = 60 })) > longest then longest = string.len(BG.Fill(l, { name = "Playername", level = 60 })) end
+	local emptyKinds = {}
+	for _, kind in ipairs(BG.VARIANT_KINDS) do
+		local filled = 0
+		for i = 1, BG.VARIANTS do
+			local t = db.variants[kind] and db.variants[kind][i] or ""
+			if BG.Trim(t) ~= "" then filled = filled + 1 end
+			local n = string.len(BG.Fill(t, { name = "Playername", level = 60 }))
+			if n > longest then longest = n end
 		end
+		if filled == 0 then table.insert(emptyKinds, kind) end
 	end
+	if table.getn(emptyKinds) > 0 then Add("WARN", BG.T("st_variants"), BG.T("st_variants_empty") .. " " .. table.concat(emptyKinds, ", "))
+	else Add("OK", BG.T("st_variants"), "") end
 	if longest > 255 then Add("WARN", BG.T("st_textlen"), BG.T("st_too_long", longest))
 	else Add("OK", BG.T("st_textlen"), BG.T("longest_line", longest)) end
 	if string.find(db.discord or "", "DEIN-LINK", 1, true) or BG.Trim(db.discord or "") == "" then

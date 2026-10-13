@@ -116,7 +116,7 @@ end
 
 function Recruit.Tease(name)
 	if not name then return end
-	local line = BG.RandomLine(BG.db.texts.funny)
+	local line = BG.PickVariant("funny")
 	if not line then return end
 	BG.SendChat(BG.Fill(line, { name = name }), "WHISPER", name)
 end
@@ -224,11 +224,6 @@ function Recruit.DetectLang(msg)
 	return "de"
 end
 
-function Recruit.RepliesList(lang)
-	local key = (lang == "en") and "repliesEN" or "repliesDE"
-	return BG.Lines(BG.db.texts[key])
-end
-
 local function ReplyWhisper(name, text, invite)
 	BG.SendChat(BG.Fill(text, { name = name }), "WHISPER", name)
 	if invite then
@@ -236,17 +231,17 @@ local function ReplyWhisper(name, text, invite)
 	end
 end
 
+-- The reply variant is rolled when the popup opens, so the tooltip shows exactly what will be sent.
+-- "Another variant" rolls again (never the same one twice in a row).
 local WhisperPopup
-WhisperPopup = function(sender, msg, lang, force)
+WhisperPopup = function(sender, msg, lang, force, nonce)
+	local reply = BG.PickVariant(lang == "en" and "repliesEN" or "repliesDE")
 	local buttons = {}
-	local replies = Recruit.RepliesList(lang)
-	local nr = table.getn(replies)
-	if nr >= 1 then
-		table.insert(buttons, { text = BG.T("btn_reply_invite"), tip = BG.Fill(replies[1], { name = sender }), fn = function() ReplyWhisper(sender, replies[1], true) end })
-	end
-	for i = 2, math.min(nr, 3) do
-		local text = replies[i]
-		table.insert(buttons, { text = BG.T("btn_reply_n", i), tip = BG.Fill(text, { name = sender }), fn = function() ReplyWhisper(sender, text, false) end })
+	if reply then
+		local tip = BG.Fill(reply, { name = sender })
+		table.insert(buttons, { text = BG.T("btn_reply_invite"), tip = tip, fn = function() ReplyWhisper(sender, reply, true) end })
+		table.insert(buttons, { text = BG.T("btn_reply"), tip = tip, fn = function() ReplyWhisper(sender, reply, false) end })
+		table.insert(buttons, { text = BG.T("btn_other_variant"), fn = function() WhisperPopup(sender, msg, lang, true, (nonce or 0) + 1) end })
 	end
 	table.insert(buttons, { text = BG.T("btn_invite_only"), fn = function() BG.Invite(sender) end })
 	local other = (lang == "en") and "de" or "en"
@@ -257,7 +252,7 @@ WhisperPopup = function(sender, msg, lang, force)
 	if string.len(shown) > 160 then shown = string.sub(shown, 1, 157) .. "..." end
 	BG.Popup.Push({
 		type = "whisper", defer = true, force = force,
-		key = "whisper-" .. sender .. "-" .. lang,
+		key = "whisper-" .. sender .. "-" .. lang .. (nonce and ("-" .. nonce) or ""),
 		title = BG.T("pop_whisper_title", sender) .. "  |cff999999[" .. string.upper(lang) .. "]|r",
 		body = "|cffffffff\"" .. shown .. "\"|r",
 		buttons = buttons,
@@ -328,23 +323,28 @@ local function ScanChannels()
 	return set
 end
 
-local function ScannerPopup(author, msg, lang, chan)
-	local text = (lang == "en") and BG.db.texts.contactEN or BG.db.texts.contactDE
-	local function whisper() BG.SendChat(BG.Fill(text, { name = author }), "WHISPER", author) end
+local ScannerPopup
+ScannerPopup = function(author, msg, lang, chan, force, nonce)
+	local text = BG.PickVariant(lang == "en" and "contactEN" or "contactDE")
 	local shown = msg
 	if string.len(shown) > 150 then shown = string.sub(shown, 1, 147) .. "..." end
+	local buttons = {}
+	if text then
+		local tip = BG.Fill(text, { name = author })
+		local function whisper() BG.SendChat(tip, "WHISPER", author) end
+		table.insert(buttons, { text = BG.T("btn_contact_invite"), tip = tip,
+			fn = function() whisper() BG.After(1.2, function() BG.Invite(author) end) end })
+		table.insert(buttons, { text = BG.T("btn_contact"), tip = tip, fn = whisper })
+		table.insert(buttons, { text = BG.T("btn_other_variant"), fn = function() ScannerPopup(author, msg, lang, chan, true, (nonce or 0) + 1) end })
+	end
+	table.insert(buttons, { text = BG.T("btn_invite_only"), fn = function() BG.Invite(author) end })
+	table.insert(buttons, { text = BG.T("btn_ignore"), fn = function() end })
 	BG.Popup.Push({
-		type = "scanner", defer = true,
-		key = "scan-" .. author,
+		type = "scanner", defer = true, force = force,
+		key = "scan-" .. author .. (nonce and ("-" .. nonce) or ""),
 		title = BG.T("pop_scan_title", author),
 		body = "|cff999999[" .. tostring(chan) .. "]|r |cffffffff" .. shown .. "|r",
-		buttons = {
-			{ text = BG.T("btn_contact_invite"), tip = BG.Fill(text, { name = author }),
-			  fn = function() whisper() BG.After(1.2, function() BG.Invite(author) end) end },
-			{ text = BG.T("btn_contact"), tip = BG.Fill(text, { name = author }), fn = whisper },
-			{ text = BG.T("btn_invite_only"), fn = function() BG.Invite(author) end },
-			{ text = BG.T("btn_ignore"), fn = function() end },
-		},
+		buttons = buttons,
 	})
 end
 
@@ -371,12 +371,13 @@ end)
 
 --------------------------------------------------------------------- welcome
 
-function Recruit.Welcome(name)
+-- The greeting goes to guild chat (random variant of "Willk. Gilde"); there is no whisper any more.
+function Recruit.Welcome(name, text)
 	local db = BG.db
 	if not name or name == "" then return end
-	BG.SendChat(BG.Fill(db.texts.welcomeMsg, { name = name }), "WHISPER", name)
-	if db.features.welcomeGuild and BG.Trim(db.texts.welcomeGuild) ~= "" then
-		BG.SendChat(BG.Fill(db.texts.welcomeGuild, { name = name }), "GUILD")
+	text = text or BG.PickVariant("welcome")
+	if text and BG.Trim(text) ~= "" then
+		BG.SendChat(BG.Fill(text, { name = name }), "GUILD")
 	end
 	db.stats.welcomes = db.stats.welcomes + 1
 end
@@ -390,13 +391,14 @@ function Recruit.OnJoin(name)
 	if db.features.autoWelcome then
 		BG.After(3, function() Recruit.Welcome(name) end)
 	elseif db.features.welcomePopup then
+		local text = BG.PickVariant("welcome")
 		BG.Popup.Push({
 			type = "welcome", defer = true,
 			key = "join-" .. name,
 			title = BG.T("pop_join_title", name),
 			body = BG.T("pop_join_body", name),
 			buttons = {
-				{ text = BG.T("btn_welcome"), tip = BG.Fill(db.texts.welcomeMsg, { name = name }), fn = function() Recruit.Welcome(name) end },
+				{ text = BG.T("btn_welcome"), tip = text and BG.Fill(text, { name = name }), fn = function() Recruit.Welcome(name, text) end },
 				{ text = BG.T("btn_ignore"), fn = function() end },
 			},
 		})

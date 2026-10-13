@@ -57,7 +57,7 @@ function Alerts.SendGZ(name, level)
 	name = name or (BG.lastLevelUp and BG.lastLevelUp.name)
 	level = level or (BG.lastLevelUp and BG.lastLevelUp.level) or ""
 	if not name then BG.Print(BG.T("no_levelup_yet")) return end
-	local line = BG.RandomLine(BG.db.texts.gz) or "GZ {name}!"
+	local line = BG.PickVariant("gz") or "GZ {name}!"
 	BG.SendChat(BG.Fill(line, { name = name, level = level }), "GUILD")
 end
 

@@ -20,15 +20,15 @@ Ingame: `/bgd` (oder `/bananaguild`, oder Minimap-Button). **Als Erstes im Reite
 | **Mitglieder & Twinks** | Wer ist Main, wer Twink von wem, Beitrittsdatum, wer hat eingeladen, Notiz – alles selbst pflegbar und unsichtbar an andere BananaGuild-Nutzer synchronisierbar. |
 | **Verlauf** | Beitritte, Einladungen, Beförderungen/Degradierungen, Kicks, Austritte, Levelups. |
 | **Gildensuche (Auto-Recruiting)** | Postet deine Nachricht im frei wählbaren Minutenabstand in `/4` (in Instanzen in `/5`). Nur **eine** Person der Gilde kann gleichzeitig werben; sonst Warnung + Option, der Person etwas Witziges zu flüstern. |
-| **Flüster-Popup** | Meldet sich jemand per Flüstern, erscheint ein Popup mit vorbereiteten Antworten und Einladen-Button. |
+| **Flüster-Popup** | Meldet sich jemand per Flüstern, erscheint ein Popup: Antwort + Einladen, Nur Antwort, Andere Variante, Nur einladen, Sprache wechseln, Ignorieren. |
 | **Scanner** | Filtert `/4` und `/5` nach Spielern, die (deutsch oder englisch) eine Gilde suchen, ignoriert werbende Gilden, Popup mit Kontakt-Nachricht + Einladen. Schlagwörter sind editierbar, es gibt ein Testfeld. |
 | **Rechtsklick-Einladen** | Rechtsklick auf einen Namen im Chat → „In Gilde einladen". |
-| **Willkommen** | Popup (oder automatisch) mit Willkommensnachricht inkl. Discord-Link + Hinweis auf den Willkommen-Kanal – **nur bei dem Spieler, der gerade rekrutiert**, nicht bei jedem mit dem Addon. |
+| **Willkommen** | Popup (oder automatisch) mit Begrüßung im Gildenchat (zufällige von 5 Varianten) – **nur bei dem Spieler, der gerade rekrutiert**, nicht bei jedem mit dem Addon. |
 | **Sync** | Main/Twink-Daten, Beitrittsdatum, Einlader und der **Verlauf** (Beitritte, Austritte, Kicks, Einladungen, Beförderungen, Levelups; doppelte Einträge werden erkannt, Interessenten bleiben privat) werden mit allen Gildenmitgliedern abgeglichen: automatisch bei jedem Öffnen des Fensters (im Hintergrund, max. alle 90 s) und per Button „Jetzt synchronisieren" in den Einstellungen. Es wird nur Neueres übertragen (Zeitstempel pro Charakter bzw. Eintrag, der neueste Stand gewinnt), angenommen nur von Rängen bis zur eingestellten Grenze. |
 | **Instanz-/Raid-Modus** | In Instanzen, Schlachtfeldern und Raids sind alle Popups, Meldungen und Töne automatisch stumm. In den Einstellungen (Seite „Instanzmodus") kann jede Meldungsart einzeln trotzdem erlaubt werden; verpasste Interessenten kommen nach dem Verlassen nachgeholt. |
 | **Selbsttest** | Prüft API, Gilde, Channels, Texte, Hooks, Übersetzungen, Laufzeitfehler. |
 
-Alle Texte sind editierbar, alle Funktionen einzeln ein-/ausschaltbar (Reiter *Einstellungen*), die Sprache DE/EN oben rechts umschaltbar. Herz-Symbol oben rechts (Danke-Fenster mit Charakter Lumihunt, wie in den anderen Banana-Addons), Version + Selbsttest unten rechts.
+Alle Texte sind editierbar (je 5 Varianten, zufällig und nie zweimal dieselbe hintereinander), alle Funktionen einzeln ein-/ausschaltbar (Reiter *Einstellungen*), die Sprache DE/EN oben rechts umschaltbar. Herz-Symbol oben rechts (Danke-Fenster mit Charakter Lumihunt, wie in den anderen Banana-Addons), Version + Selbsttest unten rechts.
 
 ### Slash-Befehle
 

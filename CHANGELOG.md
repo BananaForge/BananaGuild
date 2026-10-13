@@ -3,6 +3,14 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 1.4.0
+- Reiter „Texte" überarbeitet: Jede Textart (Willk. Gilde, Witzig, GZ, Antwort DE/EN, Kontakt DE/EN) hat genau 5 einzeln editierbare Varianten. Beim Senden wird zufällig eine gewählt, nie zweimal dieselbe hintereinander. Zurücksetzen pro Variante oder alle 5, Vorschau inklusive.
+- Die Willkommens-Flüsternachricht und ihr Button sind entfernt; Willkommen heißt jetzt nur noch Begrüßung im Gildenchat (Popup/Auto-Willkommen bleiben).
+- Der jeweils andere Sprachtext (Antwort/Kontakt EN bei DE-Oberfläche und umgekehrt) ist im Reiter ausgegraut, wird für Flüsterer dieser Sprache aber weiter automatisch genutzt.
+- Antworttexte enthalten keinen Discord-Link mehr.
+- Flüster-Popup: Antwort + Einladen, Nur Antwort, Andere Variante, Nur einladen, Sprache wechseln, Ignorieren. Die Variante wird beim Öffnen vorgewürfelt, der Tooltip zeigt den genauen Text.
+- Bestehende eigene Texte werden als Variante 1 übernommen.
+
 ## 1.3.0
 - Neuer Instanz-/Raid-Modus (Einstellungen → Reiter „Instanzmodus"): In Instanzen, Schlachtfeldern und Raids sind alle Popups, Chat-Meldungen und Töne von BananaGuild automatisch stumm. Einzelne Meldungen (Levelup, Stufe 60, Interessenten, Scanner, Willkommen, Rekrutierer-Konflikt) lassen sich individuell trotzdem erlauben.
 - Verpasste Interessenten-Popups werden nach dem Verlassen nachgeholt, dazu gibt es optional eine Zusammenfassung im Chat.
