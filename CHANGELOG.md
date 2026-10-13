@@ -3,6 +3,9 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 1.4.1
+- Reiter „Gildensuche": Die Such-Nachricht hat jetzt ebenfalls 5 Varianten (Variante 1 = bisheriger Text, dazu 4 neue deutsche). Bei aktiver Suche wird bei jedem Post zufällig eine andere Variante genutzt, nie dieselbe zweimal hintereinander. Varianten einzeln oder alle 5 zurücksetzbar. Ein eigener bisheriger Text wird als Variante 1 übernommen.
+
 ## 1.4.0
 - Reiter „Texte" überarbeitet: Jede Textart (Willk. Gilde, Witzig, GZ, Antwort DE/EN, Kontakt DE/EN) hat genau 5 einzeln editierbare Varianten. Beim Senden wird zufällig eine gewählt, nie zweimal dieselbe hintereinander. Zurücksetzen pro Variante oder alle 5, Vorschau inklusive.
 - Die Willkommens-Flüsternachricht und ihr Button sind entfernt; Willkommen heißt jetzt nur noch Begrüßung im Gildenchat (Popup/Auto-Willkommen bleiben).

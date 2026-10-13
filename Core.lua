@@ -207,9 +207,9 @@ local function Merge(dst, src)
 	end
 end
 
-BG.TEXT_NAMES = { "recruitMsg" }
+BG.TEXT_NAMES = {}
 -- every kind has exactly 5 variants; one chat message per variant
-BG.VARIANT_KINDS = { "welcome", "funny", "gz", "repliesDE", "repliesEN", "contactDE", "contactEN" }
+BG.VARIANT_KINDS = { "recruit", "welcome", "funny", "gz", "repliesDE", "repliesEN", "contactDE", "contactEN" }
 BG.VARIANTS = 5
 
 -- "contactDE" / "repliesEN" ... are tied to one language, independent of the UI language
@@ -283,9 +283,10 @@ function BG.PickVariant(kind)
 end
 
 -- Migration from the old single text fields (1.3.x): own texts are kept as variant 1, the rest are the new defaults
-local OLD_KEY = { welcome = "welcomeGuild", funny = "funny", gz = "gz", repliesDE = "repliesDE", repliesEN = "repliesEN",
+local OLD_KEY = { recruit = "recruitMsg", welcome = "welcomeGuild", funny = "funny", gz = "gz", repliesDE = "repliesDE", repliesEN = "repliesEN",
 	contactDE = "contactDE", contactEN = "contactEN" }
 local OLD_DEFAULT_START = {
+	recruit = {},
 	welcome = { "Willkommen in der Bananenrepublik, {name}! Schau gern", "Welcome to the Bananenrepublik, {name}! Feel free", "Grüß dich und" },
 	funny = { "Halt ein, edler {name}", "Hold, noble {name}" },
 	gz = { "GZ {name}!" },
@@ -318,7 +319,7 @@ local function MigrateVariants()
 			if cur[k] == nil then cur[k] = BG.DefaultVariant(kind, k) end
 		end
 	end
-	for _, n in ipairs({ "welcomeMsg", "welcomeGuild", "repliesDE", "repliesEN", "contactDE", "contactEN", "funny", "gz" }) do
+	for _, n in ipairs({ "recruitMsg", "welcomeMsg", "welcomeGuild", "repliesDE", "repliesEN", "contactDE", "contactEN", "funny", "gz" }) do
 		db.texts[n] = nil
 	end
 end

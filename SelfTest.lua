@@ -135,10 +135,6 @@ function ST.Run()
 	Add("INFO", BG.T("st_zone"), tostring(GetRealZoneText and GetRealZoneText() or "?") .. " | " .. (BG.InInstance() and BG.T("st_in_instance") or BG.T("st_outside")))
 
 	-- 9. recruiting texts
-	local msg = db.texts.recruitMsg or ""
-	if BG.Trim(msg) == "" then Add("FAIL", BG.T("st_recmsg"), BG.T("rec_nomsg"))
-	elseif string.len(msg) > 255 then Add("FAIL", BG.T("st_recmsg"), BG.T("st_too_long", string.len(msg)))
-	else Add("OK", BG.T("st_recmsg"), string.len(msg) .. "/255") end
 	local longest = 0
 	local emptyKinds = {}
 	for _, kind in ipairs(BG.VARIANT_KINDS) do

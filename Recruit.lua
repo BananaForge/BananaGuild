@@ -72,7 +72,7 @@ function Recruit.Start(force)
 	if Recruit.active then return end
 	local db = BG.db
 	if not db.features.recruit then BG.Print(BG.T("feature_off")) return end
-	if BG.Trim(db.texts.recruitMsg) == "" then BG.Print(BG.T("rec_nomsg")) return end
+	if not BG.PickVariant("recruit") then BG.Print(BG.T("rec_nomsg")) return end
 	if not IsInGuild or not IsInGuild() then BG.Print(BG.T("not_in_guild")) return end
 	local other, info = Recruit.OtherActive()
 	if other and not force then
@@ -160,7 +160,9 @@ function Recruit.PostNow()
 		BG.Print(BG.T("rec_no_channel", n or "?"))
 		return false
 	end
-	local msg = BG.Fill(BG.db.texts.recruitMsg, {})
+	local line = BG.PickVariant("recruit")
+	if not line then Recruit.lastChannelText = BG.T("rec_nomsg") return false end
+	local msg = BG.Fill(line, {})
 	if BG.SendChat(msg, "CHANNEL", id) then
 		Recruit.lastPost = time()
 		Recruit.posts = Recruit.posts + 1

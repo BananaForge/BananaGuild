@@ -406,20 +406,43 @@ local function BuildRecruit(p)
 	Label(p, "rec_message", 0, -160, "GameFontNormal")
 	p.counter = Label(p, nil, 400, -160, "GameFontDisableSmall", 190)
 	p.counter:SetJustifyH("RIGHT")
-	p.area = MakeTextArea("recruit", p, 0, -178, 596, 130,
-		function() return db.texts.recruitMsg end,
-		function(v) db.texts.recruitMsg = v UI.UpdateCounter() end, 255)
+	Label(p, "lbl_variant", 0, -186, "GameFontNormalSmall", 70)
+	p.slotBtns = {}
+	for s = 1, BG.VARIANTS do
+		local slot = s
+		local b = BG.MakeButton(p, NextName("Btn"), 40, 22, tostring(s))
+		b:SetPoint("TOPLEFT", p, "TOPLEFT", 74 + (s - 1) * 44, -181)
+		b:SetScript("OnClick", function() UI.SelectRecruitSlot(slot) end)
+		p.slotBtns[s] = b
+	end
+	UI.recSlot = 1
+	p.area = MakeTextArea("recruit", p, 0, -210, 596, 100,
+		function()
+			local v = db.variants.recruit
+			return v and v[UI.recSlot or 1] or ""
+		end,
+		function(v)
+			db.variants.recruit = db.variants.recruit or {}
+			db.variants.recruit[UI.recSlot or 1] = (string.gsub(v, "[\r\n]+", " "))
+			UI.UpdateCounter()
+		end, 255)
 
-	local reset = MakeButton(p, NextName("Btn"), "btn_default_text", 170, 22, function()
-		db.texts.recruitMsg = BG.DefaultText("recruitMsg")
+	local reset = MakeButton(p, NextName("Btn"), "btn_reset_variant", 170, 22, function()
+		BG.ResetVariant("recruit", UI.recSlot or 1)
 		p.area.edit:Load()
 		UI.UpdateCounter()
 	end)
-	reset:SetPoint("TOPLEFT", p, "TOPLEFT", 0, -314)
-	local hint = Label(p, "rec_hint", 0, -344, "GameFontDisableSmall", 590)
+	reset:SetPoint("TOPLEFT", p, "TOPLEFT", 0, -316)
+	local resetAll = MakeButton(p, NextName("Btn"), "btn_reset_all5", 150, 22, function()
+		BG.ResetVariants("recruit")
+		p.area.edit:Load()
+		UI.UpdateCounter()
+	end)
+	resetAll:SetPoint("TOPLEFT", p, "TOPLEFT", 178, -316)
+	local hint = Label(p, "rec_hint", 0, -346, "GameFontDisableSmall", 590)
 	hint:SetHeight(70)
 	hint:SetJustifyV("TOP")
-	p.stats = Label(p, nil, 0, -416, "GameFontDisableSmall", 590)
+	p.stats = Label(p, nil, 0, -420, "GameFontDisableSmall", 590)
 
 	p.elapsed = 0
 	p:SetScript("OnUpdate", function()
@@ -434,9 +457,21 @@ end
 function UI.UpdateCounter()
 	local p = panels.recruit
 	if not p or not p.counter then return end
-	local n = string.len(BG.db.texts.recruitMsg or "")
+	local v = BG.db.variants.recruit
+	local n = string.len(v and v[UI.recSlot or 1] or "")
 	local col = (n > 255) and RED or GRAY
 	p.counter:SetText(col .. n .. "/255|r")
+	if p.slotBtns then
+		for s = 1, BG.VARIANTS do UI.MarkSelected(p.slotBtns[s], s == (UI.recSlot or 1)) end
+	end
+end
+
+function UI.SelectRecruitSlot(s)
+	local p = panels.recruit
+	if not p or not p.slotBtns then return end
+	UI.recSlot = s
+	p.area.edit:Load()
+	UI.UpdateCounter()
 end
 
 function UI.UpdateRecruitStatus()
