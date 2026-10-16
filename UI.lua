@@ -717,26 +717,23 @@ local function BuildMembers(p)
 	local db = BG.db
 	Label(p, "members_header", 0, -2, "GameFontNormal")
 	Label(p, "lbl_search", 0, -28)
-	p.search = MakeEdit(nil, p, 60, -24, 112, function() return UI.memberFilter or "" end, function(t)
+	p.search = MakeEdit(nil, p, 60, -24, 150, function() return UI.memberFilter or "" end, function(t)
 		UI.memberFilter = t
 		UI.Refresh("members")
 	end, 30)
-	p.rankDrop = BG.Dropdown(p, 180, -24, 118, function(v)
+	p.rankDrop = BG.Dropdown(p, 218, -24, 130, function(v)
 		UI.rankFilter = (v ~= "") and v or nil
 		UI.Refresh("members")
 	end)
-	MakeCheck("members", p, 304, -24, "chk_unassigned",
+	MakeCheck("members", p, 360, -24, "chk_unassigned",
 		function() return UI.onlyUnassigned end,
 		function(v) UI.onlyUnassigned = v UI.Refresh("members") end)
-	local sync = MakeButton(p, NextName("Btn"), "btn_sync", 130, 22, function() BG.Roster.SyncAll() end)
-	sync:SetPoint("TOPLEFT", p, "TOPLEFT", 466, -25)
-	Tooltip(sync, "tip_sync")
 
 	local hdr = { { 24, 94, "col_name" }, { 120, 24, "col_lvl" }, { 146, 66, "col_prof" }, { 214, 48, "col_spec" }, { 264, 44, "col_role" } }
 	for i = 1, table.getn(hdr) do
 		Label(p, hdr[i][3], hdr[i][1], -54, "GameFontNormalSmall", hdr[i][2])
 	end
-	p.list = MakeList(p, 0, -68, 344, 19, 18,
+	p.list = MakeList(p, 0, -68, 344, 18, 18,
 		function(r)
 			r.mark = CreateFrame("CheckButton", NextName("RowMark"), r, "UICheckButtonTemplate")
 			r.mark:SetWidth(18)
@@ -798,7 +795,7 @@ local function BuildMembers(p)
 	-- detail panel: everything comes from the guild note, the note window edits it
 	local d = CreateFrame("Frame", NextName("Detail"), p)
 	d:SetWidth(246)
-	d:SetHeight(346)
+	d:SetHeight(322)
 	d:SetPoint("TOPLEFT", p, "TOPLEFT", 350, -54)
 	BG.Backdrop(d, false)
 	p.detail = d
@@ -858,7 +855,7 @@ local function BuildMembers(p)
 	p.markInfo:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -266)
 	p.markInfo:SetWidth(222)
 	p.markInfo:SetJustifyH("LEFT")
-	local markAll = MakeButton(d, NextName("Btn"), "btn_mark_all", 140, 22, function()
+	local markAll = MakeButton(p, NextName("Btn"), "btn_mark_all", 170, 22, function()
 		for i = 1, table.getn(p.list.data) do
 			local it = p.list.data[i]
 			if BG.roster[it.name] then UI.marked[it.name] = true end
@@ -866,17 +863,17 @@ local function BuildMembers(p)
 		p.list.Draw()
 		UI.UpdateMarkInfo()
 	end)
-	markAll:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -284)
-	local markNone = MakeButton(d, NextName("Btn"), "btn_mark_none", 76, 22, function()
+	markAll:SetPoint("TOPLEFT", p, "TOPLEFT", 0, -406)
+	local markNone = MakeButton(p, NextName("Btn"), "btn_mark_none", 170, 22, function()
 		UI.marked = {}
 		p.list.Draw()
 		UI.UpdateMarkInfo()
 	end)
-	markNone:SetPoint("LEFT", markAll, "RIGHT", 6, 0)
+	markNone:SetPoint("LEFT", markAll, "RIGHT", 4, 0)
 	p.changeMarked = MakeButton(d, NextName("Btn"), "btn_change_marked", 222, 22, function()
 		BG.Promo.OpenChange(UI.MarkedNames())
 	end)
-	p.changeMarked:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -312)
+	p.changeMarked:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -288)
 
 	p.refresh = function()
 		local rows = BG.Roster.Rows(UI.memberFilter, UI.onlyUnassigned)
@@ -1385,6 +1382,11 @@ function UI.Build()
 	main:SetScript("OnDragStart", function() this:StartMoving() end)
 	main:SetScript("OnDragStop", function() this:StopMovingOrSizing() end)
 	BG.Backdrop(main, true)
+	-- the dialog texture is quite see-through: a dark layer on top makes the text readable (not fully opaque)
+	local shade = main:CreateTexture(nil, "BACKGROUND")
+	shade:SetTexture(0.02, 0.03, 0.08, 0.62)
+	shade:SetPoint("TOPLEFT", main, "TOPLEFT", 11, -11)
+	shade:SetPoint("BOTTOMRIGHT", main, "BOTTOMRIGHT", -11, 11)
 	table.insert(UISpecialFrames, "BananaGuildFrame")
 
 	local logo = main:CreateTexture(nil, "ARTWORK")
