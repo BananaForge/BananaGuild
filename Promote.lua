@@ -124,10 +124,11 @@ local function Note(msg)
 	BG.Print(msg)
 end
 
+-- queue entries: { name, to = target rank name, toIdx, auto = true for the reminder promotion (start rank -> target rank) }
 function Promo.Enqueue(names)
 	local pr = BG.db.promo
 	if not Promo.CanPromote() then BG.Print(BG.T("promo_no_right")) return 0 end
-	local steps = Promo.Steps()
+	local steps, a, b = Promo.Steps()
 	if not steps then BG.Print(BG.T("promo_bad_ranks")) return 0 end
 	local added = 0
 	for i = 1, table.getn(names) do
@@ -135,7 +136,7 @@ function Promo.Enqueue(names)
 		local info = BG.roster[name]
 		if info and info.rank == pr.from and not Promo.busy[name] then
 			Promo.busy[name] = true
-			table.insert(Promo.queue, name)
+			table.insert(Promo.queue, { name = name, to = pr.to, toIdx = b, auto = true })
 			added = added + 1
 		end
 	end
@@ -143,49 +144,76 @@ function Promo.Enqueue(names)
 	return added
 end
 
+-- manual promotion of any member to any rank that is higher than his rank and below mine
+function Promo.ManualTargets(name)
+	local out = {}
+	local info = BG.roster[name]
+	local me = BG.roster[BG.me]
+	if not info or not me then return out end
+	local ranks = Promo.Ranks()
+	for i = info.rankIndex - 1, me.rankIndex + 1, -1 do
+		if ranks[i] then table.insert(out, { idx = i, name = ranks[i] }) end
+	end
+	return out
+end
+
+function Promo.EnqueueManual(name, toName)
+	if not Promo.CanPromote() then BG.Print(BG.T("promo_no_right")) return false end
+	local info = BG.roster[name]
+	local me = BG.roster[BG.me]
+	local toIdx = Promo.RankIndex(toName)
+	if not info or not me or not toIdx or Promo.busy[name] then return false end
+	if info.rankIndex <= me.rankIndex or toIdx >= info.rankIndex or toIdx <= me.rankIndex then
+		BG.Print(BG.T("pman_none"))
+		return false
+	end
+	Promo.busy[name] = true
+	table.insert(Promo.queue, { name = name, to = toName, toIdx = toIdx, auto = false })
+	Promo.Refresh()
+	return true
+end
+
 function Promo.Cancel()
-	for i = 1, table.getn(Promo.queue) do Promo.busy[Promo.queue[i]] = nil end
+	for i = 1, table.getn(Promo.queue) do Promo.busy[Promo.queue[i].name] = nil end
 	Promo.queue = {}
 	if Promo.cur then Promo.busy[Promo.cur.name] = nil Promo.cur = nil end
 	Promo.Refresh()
 end
 
-local function Done(name, ok, rankNow)
-	Promo.busy[name] = nil
+local function Done(cur, ok, rankNow)
+	Promo.busy[cur.name] = nil
 	Promo.cur = nil
-	local pr = BG.db.promo
 	if ok then
-		BG.AddLog("promote", BG.me, name, pr.to)
-		BG.db.promo.snooze[name] = nil
-		Note(BG.T("promo_done", name, pr.to))
+		BG.AddLog("promote", BG.me, cur.name, cur.to)
+		BG.db.promo.snooze[cur.name] = nil
+		Note(BG.T("promo_done", cur.name, cur.to))
 	else
-		Note(BG.T("promo_fail", name, rankNow or "?"))
+		Note(BG.T("promo_fail", cur.name, rankNow or "?"))
 	end
 	Promo.Refresh()
 end
 
 -- one tick per second
 local function Tick()
-	local pr = BG.db.promo
 	if not Promo.cur then
-		local name = table.remove(Promo.queue, 1)
-		if not name then return end
-		Promo.cur = { name = name, wait = false }
+		local q = table.remove(Promo.queue, 1)
+		if not q then return end
+		local info0 = BG.roster[q.name]
+		Promo.cur = { name = q.name, to = q.to, toIdx = q.toIdx, auto = q.auto, wait = false,
+			startIdx = info0 and info0.rankIndex or 99 }
 		Promo.Refresh()
 	end
 	local cur = Promo.cur
 	local info = BG.roster[cur.name]
-	local steps, a, b = Promo.Steps()
-	if not info or not steps or not Promo.CanPromote() then
-		Done(cur.name, false, info and info.rank)
+	if not info or not Promo.CanPromote() then
+		Done(cur, false, info and info.rank)
 		return
 	end
 	local idx = info.rankIndex
-	if info.rank == pr.to or idx == b then Done(cur.name, true) return end
-	if idx < b then Done(cur.name, false, info.rank) return end -- somebody else already promoted further
+	if info.rank == cur.to or idx == cur.toIdx then Done(cur, true) return end
+	if idx < cur.toIdx then Done(cur, false, info.rank) return end -- somebody else already promoted further
 	if not cur.wait then
-		-- only members on the start rank (or already on the way) are touched
-		if idx > a or idx <= b then Done(cur.name, false, info.rank) return end
+		if idx > cur.startIdx then Done(cur, false, info.rank) return end -- demoted in the meantime: stop
 		cur.wait = true
 		cur.lastIdx = idx
 		cur.t0 = GetTime()
@@ -197,7 +225,7 @@ local function Tick()
 			cur.wait = false -- the rank changed: next step (or done) on the next tick
 			Promo.Refresh()
 		elseif GetTime() - cur.t0 > 15 then
-			Done(cur.name, false, info.rank)
+			Done(cur, false, info.rank)
 		elseif GetTime() - cur.poll >= 2 then
 			cur.poll = GetTime()
 			if GuildRoster then GuildRoster() end
@@ -354,12 +382,8 @@ function Promo.Refresh()
 	local cur = Promo.cur
 	if cur then
 		local info = BG.roster[cur.name]
-		local done = 0
-		if info and steps then
-			local _, a = Promo.Steps()
-			done = a - info.rankIndex
-		end
-		win.status:SetText(GREEN .. BG.T("promo_status", cur.name, done, steps or "?") .. "|r")
+		local done = info and (cur.startIdx - info.rankIndex) or 0
+		win.status:SetText(GREEN .. BG.T("promo_status", cur.name, done, cur.startIdx - cur.toIdx) .. "|r")
 	elseif table.getn(Promo.queue) > 0 then
 		win.status:SetText(GREEN .. BG.T("promo_running") .. "|r")
 	else
@@ -374,6 +398,100 @@ function Promo.Open()
 	if not win then Build() end
 	win:Show()
 	Promo.Refresh()
+end
+
+--------------------------------------------------------------------- manual promotion window
+
+local mw
+
+local function BuildManual()
+	mw = CreateFrame("Frame", "BananaGuildPromoManual", UIParent)
+	mw:SetWidth(380)
+	mw:SetHeight(176)
+	mw:SetPoint("CENTER", UIParent, "CENTER", 0, 40)
+	mw:SetFrameStrata("DIALOG")
+	mw:EnableMouse(true)
+	mw:SetMovable(true)
+	mw:RegisterForDrag("LeftButton")
+	mw:SetScript("OnDragStart", function() this:StartMoving() end)
+	mw:SetScript("OnDragStop", function() this:StopMovingOrSizing() end)
+	BG.Backdrop(mw, false)
+	mw:Hide()
+	local close = CreateFrame("Button", Name("MClose"), mw, "UIPanelCloseButton")
+	close:SetPoint("TOPRIGHT", mw, "TOPRIGHT", -2, -2)
+	close:SetScript("OnClick", function() mw:Hide() end)
+	mw.title = mw:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+	mw.title:SetPoint("TOPLEFT", mw, "TOPLEFT", 16, -14)
+	mw.cur = mw:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+	mw.cur:SetPoint("TOPLEFT", mw, "TOPLEFT", 16, -42)
+	mw.cur:SetWidth(348)
+	mw.cur:SetJustifyH("LEFT")
+	mw.lbl = mw:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+	mw.lbl:SetPoint("TOPLEFT", mw, "TOPLEFT", 16, -70)
+	mw.target = BG.MakeButton(mw, Name("MBtn"), 200, 22, "")
+	mw.target:SetPoint("TOPLEFT", mw, "TOPLEFT", 90, -66)
+	mw.target:SetScript("OnClick", function()
+		local list = mw.targets or {}
+		if table.getn(list) == 0 then return end
+		mw.sel = (mw.sel or 1) + 1
+		if mw.sel > table.getn(list) then mw.sel = 1 end
+		Promo.RefreshManual()
+	end)
+	mw.info = mw:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+	mw.info:SetPoint("TOPLEFT", mw, "TOPLEFT", 16, -98)
+	mw.info:SetWidth(348)
+	mw.info:SetHeight(28)
+	mw.info:SetJustifyH("LEFT")
+	mw.info:SetJustifyV("TOP")
+	mw.go = BG.MakeButton(mw, Name("MBtn"), 150, 24, "")
+	mw.go:SetPoint("BOTTOMLEFT", mw, "BOTTOMLEFT", 16, 14)
+	mw.go:SetScript("OnClick", function()
+		local t = mw.targets and mw.targets[mw.sel or 1]
+		if t and Promo.EnqueueManual(mw.name, t.name) then mw:Hide() end
+	end)
+	mw.cancel = BG.MakeButton(mw, Name("MBtn"), 110, 24, "")
+	mw.cancel:SetPoint("BOTTOMRIGHT", mw, "BOTTOMRIGHT", -16, 14)
+	mw.cancel:SetScript("OnClick", function() mw:Hide() end)
+end
+
+function Promo.RefreshManual()
+	if not mw or not mw:IsShown() then return end
+	local info = BG.roster[mw.name]
+	mw.title:SetText(GOLD .. BG.T("pman_title", mw.name) .. "|r")
+	mw.lbl:SetText(BG.T("promo_to"))
+	mw.cancel:SetText(BG.T("btn_close"))
+	mw.go:SetText(BG.T("pman_go"))
+	if not info then mw.cur:SetText("") mw.go:Disable() return end
+	mw.cur:SetText(BG.T("pman_cur", info.rank or "?"))
+	local list = mw.targets
+	local t = list and list[mw.sel or 1]
+	if not t or not Promo.CanPromote() then
+		mw.target:SetText("-")
+		mw.info:SetText(RED .. BG.T(Promo.CanPromote() and "pman_none" or "promo_no_right") .. "|r")
+		mw.go:Disable()
+		return
+	end
+	mw.target:SetText(t.name)
+	local steps = info.rankIndex - t.idx
+	local ranks = Promo.Ranks()
+	local path = {}
+	for i = info.rankIndex, t.idx, -1 do table.insert(path, ranks[i] or "?") end
+	mw.info:SetText(BG.T("promo_steps_hint", steps, table.concat(path, " > ")))
+	mw.go:Enable()
+end
+
+function Promo.OpenManual(name)
+	if not name or not BG.roster[name] then return end
+	if not mw then BuildManual() end
+	mw.name = name
+	mw.targets = Promo.ManualTargets(name)
+	-- default: the automatic target rank when it fits, otherwise one rank up
+	mw.sel = table.getn(mw.targets) > 0 and 1 or nil
+	for i = 1, table.getn(mw.targets) do
+		if mw.targets[i].name == BG.db.promo.to then mw.sel = i end
+	end
+	mw:Show()
+	Promo.RefreshManual()
 end
 
 BananaGuild.files = BananaGuild.files or {}

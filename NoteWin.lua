@@ -8,7 +8,7 @@ local BG = BananaGuild
 local NW = {}
 BG.NoteWin = NW
 
-local W, H = 460, 372
+local W, H = 460, 424
 local GOLD, WHITE, GRAY, GREEN, RED = "|cffffd100", "|cffffffff", "|cff999999", "|cff40ff40", "|cffff5555"
 local win
 local counter = 0
@@ -281,6 +281,18 @@ local function Build()
 	win.info:SetHeight(26)
 	win.info:SetJustifyV("TOP")
 
+	-- own note (stays in the addon, synced to other BananaGuild users): saved when the window closes
+	win.intLbl = Text(win, 16, -338, "GameFontNormalSmall", W - 32)
+	win.intEdit = CreateFrame("EditBox", Name("IntEdit"), win, "InputBoxTemplate")
+	win.intEdit:SetWidth(W - 44)
+	win.intEdit:SetHeight(20)
+	win.intEdit:SetPoint("TOPLEFT", win, "TOPLEFT", 20, -352)
+	win.intEdit:SetAutoFocus(false)
+	win.intEdit:SetMaxLetters(80)
+	win.intEdit:SetScript("OnEscapePressed", function() this:ClearFocus() end)
+	win.intEdit:SetScript("OnEnterPressed", function() this:ClearFocus() end)
+	win:SetScript("OnHide", function() NW.SaveInternal() end)
+
 	-- actions
 	win.btnGo = BG.MakeButton(win, Name("Btn"), 186, 24, "")
 	win.btnGo:SetPoint("BOTTOMLEFT", win, "BOTTOMLEFT", 16, 14)
@@ -298,6 +310,17 @@ end
 
 --------------------------------------------------------------------- actions
 
+function NW.SaveInternal()
+	if not win or not win.target or not win.intLoaded then return end
+	local txt = win.intEdit:GetText() or ""
+	local c = BG.db.chars[win.target]
+	local old = (c and c.note) or ""
+	if txt ~= old and BG.Roster then
+		BG.Roster.SetDetails(win.target, nil, nil, txt)
+	end
+	win.intLoaded = false
+end
+
 function NW.Apply(greet)
 	if not win or not win.target then return end
 	local name = win.target
@@ -313,6 +336,7 @@ end
 -- name: guild member; mode: "join" (new member, recruiter) or "edit"; opts.greet = offer the guild-chat greeting
 function NW.Open(name, mode, opts)
 	if not win then Build() end
+	NW.SaveInternal() -- the previous member's own note
 	opts = opts or {}
 	win.target = name
 	win.mode = mode or "edit"
@@ -338,6 +362,10 @@ function NW.Open(name, mode, opts)
 			if g2 then win.noprof = true end
 		end
 	end
+	local c0 = BG.db.chars[name]
+	win.intEdit:SetText((c0 and c0.note) or "")
+	win.intLoaded = true
+	win.intLbl:SetText(GOLD .. BG.T("nwin_intnote") .. "|r")
 	win.who:SetText(BG.T("nwin_who"))
 	win.btnMain:SetText(BG.T("nwin_main"))
 	win.btnTwink:SetText(BG.T("nwin_twink"))

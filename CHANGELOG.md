@@ -3,6 +3,10 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 1.5.1
+- Manuelle Beförderung: Im Mitglieder-Reiter öffnet „Rang ändern ..." ein Fenster, in dem du für jedes Mitglied einen höheren Zielrang wählst (nur Ränge über dem aktuellen und unter deinem eigenen). Das Addon befördert Schritt für Schritt, genau wie bei der automatischen Erinnerung.
+- Mitglieder-Detail aufgeräumt: Beigetreten und Eingeladen von stehen als kleine, nicht mehr editierbare Schrift oben rechts neben dem Namen. Das freie Notizfeld liegt jetzt im Fenster „Notiz bearbeiten ..." (wird beim Schließen gespeichert). Speichern-Button und grauer Hinweistext unten entfallen.
+
 ## 1.5.0
 - Mains, Twinks, Berufe und Spec werden aus der öffentlichen Gildennotiz gelesen: `[MAIN] [AL+VZ] [Retri]` bzw. `[TWINK Name] [..] [..]` (Kurzform `[T Name]`). Die Notiz gewinnt, die alte Zuordnung bleibt als Ersatz. Fehler (unbekanntes Kürzel, Main nicht in der Gilde, Main ist selbst Twink) werden im Detail angezeigt.
 - Mitglieder-Liste mit Spalten Name, Level, Beruf, Spec, Rolle (Tank/Heal/DD). Der Rang steht im Detailbereich. Filter „Nur ohne gültige Notiz".

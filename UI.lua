@@ -777,13 +777,13 @@ local function BuildMembers(p)
 	-- detail panel: everything comes from the guild note, the note window edits it
 	local d = CreateFrame("Frame", NextName("Detail"), p)
 	d:SetWidth(246)
-	d:SetHeight(378)
+	d:SetHeight(266)
 	d:SetPoint("TOPLEFT", p, "TOPLEFT", 350, -54)
 	BG.Backdrop(d, false)
 	p.detail = d
 	d.title = d:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
 	d.title:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -12)
-	d.title:SetWidth(222)
+	d.title:SetWidth(104)
 	d.title:SetJustifyH("LEFT")
 	d.info = d:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	d.info:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -36)
@@ -812,27 +812,25 @@ local function BuildMembers(p)
 	end)
 	editNote:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -176)
 
-	Label(d, "lbl_joined", 12, -208, "GameFontNormalSmall")
-	d.approx = d:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-	d.approx:SetPoint("TOPLEFT", d, "TOPLEFT", 74, -209)
-	d.joined = MakeEdit(nil, d, 14, -222, 110, function() return "" end, function() end, 12)
-	Label(d, "lbl_invited_by", 130, -208, "GameFontNormalSmall")
-	d.by = MakeEdit(nil, d, 132, -222, 100, function() return "" end, function() end, 20)
-	Label(d, "lbl_note", 12, -250, "GameFontNormalSmall")
-	d.note = MakeEdit(nil, d, 14, -264, 218, function() return "" end, function() end, 80)
-	local save = MakeButton(d, NextName("Btn"), "btn_save_details", 110, 22, function()
-		if UI.selectedMember then
-			BG.Roster.SetDetails(UI.selectedMember, d.joined:GetText(), d.by:GetText(), d.note:GetText())
-			BG.Print(BG.T("saved"))
-		end
+	-- joined / invited by: fixed facts, small print top right next to the name
+	d.since = d:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	d.since:SetFont("Fonts\\FRIZQT__.TTF", 8)
+	d.since:SetPoint("TOPRIGHT", d, "TOPRIGHT", -10, -14)
+	d.since:SetWidth(118)
+	d.since:SetJustifyH("RIGHT")
+	d.by = d:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	d.by:SetFont("Fonts\\FRIZQT__.TTF", 8)
+	d.by:SetPoint("TOPRIGHT", d, "TOPRIGHT", -10, -26)
+	d.by:SetWidth(118)
+	d.by:SetJustifyH("RIGHT")
+
+	local manual = MakeButton(d, NextName("Btn"), "btn_promote_manual", 222, 22, function()
+		if UI.selectedMember and BG.roster[UI.selectedMember] then BG.Promo.OpenManual(UI.selectedMember) end
 	end)
-	save:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -292)
+	manual:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -204)
 	p.promoBtn = BG.MakeButton(d, NextName("Btn"), 222, 22, "")
-	p.promoBtn:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -320)
+	p.promoBtn:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -232)
 	p.promoBtn:SetScript("OnClick", function() BG.Promo.Open() end)
-	local hint = Label(d, "members_hint", 12, -346, "GameFontDisableSmall", 222)
-	hint:SetHeight(28)
-	hint:SetJustifyV("TOP")
 
 	p.refresh = function()
 		p.list.SetData(BG.Roster.Rows(UI.memberFilter, UI.onlyUnassigned))
@@ -860,7 +858,8 @@ function UI.LoadDetail()
 		d.twinks:SetText("")
 		d.gnote:SetText("")
 		d.parse:SetText("")
-		d.approx:SetText("")
+		d.since:SetText("")
+		d.by:SetText("")
 		return
 	end
 	local info = BG.roster[name]
@@ -901,10 +900,11 @@ function UI.LoadDetail()
 	local probs = BG.Roster.NoteProblems(name)
 	for i = 1, table.getn(probs) do table.insert(lines, RED .. probs[i] .. "|r") end
 	d.parse:SetText(table.concat(lines, "\n"))
-	d.joined:SetText(c.joined or "")
-	d.approx:SetText(c.approx and (GRAY .. BG.T("detail_approx") .. "|r") or "")
-	d.by:SetText(c.invitedBy or "")
-	d.note:SetText(c.note or "")
+	local _, _, jy, jm, jd = string.find(c.joined or "", "^(%d%d%d%d)%-(%d%d?)%-(%d%d?)$")
+	local joined = c.joined or "?"
+	if jy then joined = string.format("%02d.%02d.%s", tonumber(jd), tonumber(jm), string.sub(jy, 3)) end
+	d.since:SetText(GRAY .. BG.T("det_joined", (c.approx and "~" or "") .. joined) .. "|r")
+	d.by:SetText(GRAY .. BG.T("det_invited", (c.invitedBy and c.invitedBy ~= "") and c.invitedBy or "?") .. "|r")
 end
 
 --------------------------------------------------------------------- panel: log
