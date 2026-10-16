@@ -3,6 +3,10 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 1.7.3
+- Notiz-Fenster: Neuer Beruf Juwelenschleifen (Kürzel `JC`, auch `Juwelenschleifer`, `Juwe` u.a. werden erkannt). Die Berufe stehen als ausgeschriebener Name in kleiner Schrift auf den Buttons (Sprache wie im Addon), in die Notiz kommt weiterhin das kurze Kürzel. Mouse-over zeigt beide Namen, das Kürzel und ob Haupt- oder Nebenberuf.
+- Mouse-over bei den Specs: Name in Deutsch und Englisch sowie die Rolle (Tank, Heiler, Schaden) mit kurzer Erklärung, immer in beiden Sprachen.
+
 ## 1.7.2
 - Notiz-Fenster: Der Main eines Twinks wird nicht mehr getippt, sondern aus einer aufklappbaren Liste aller Gildenmitglieder gewählt (A-Z, mit Level, scrollbar per Mausrad oder Schieber, 10 Zeilen sichtbar). Nicht angeboten werden das Mitglied selbst und Mitglieder, deren Notiz sie als Twink ausweist. Beim erneuten Öffnen springt die Liste zum gewählten Namen.
 

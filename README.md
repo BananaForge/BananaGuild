@@ -40,7 +40,7 @@ Alle Texte sind editierbar (je 5 Varianten, zufällig und nie zweimal dieselbe h
 [TWINK Bananenbank] [KO] [Frost]  Twink von Bananenbank (Kurzform: [T Bananenbank])
 ```
 
-1. Klammer = Rolle (Pflicht), 2. = Berufe (optional, `-` = keine), 3. = Spec (optional). Gross/Klein und Leerzeichen sind egal, getrennt wird mit `+`, `,`, `/` oder Leerzeichen. Mehr als 31 Zeichen lässt WoW nicht zu, deshalb gibt es Kürzel (Berufe: AL SM VZ IN KR LE BB KS SN KO EH AN; Specs je Klasse, z.B. Retri, Prot, Holy, Resto, Eule, Katze, Baer). Die längeren deutschen und englischen Namen werden ebenfalls erkannt. Die Notiz gewinnt immer; Charaktere ohne Notiz behalten ihre alte Zuordnung als Ersatz.
+1. Klammer = Rolle (Pflicht), 2. = Berufe (optional, `-` = keine), 3. = Spec (optional). Gross/Klein und Leerzeichen sind egal, getrennt wird mit `+`, `,`, `/` oder Leerzeichen. Mehr als 31 Zeichen lässt WoW nicht zu, deshalb gibt es Kürzel (Berufe: AL SM VZ IN KR LE BB KS SN JC KO EH AN; Specs je Klasse, z.B. Retri, Prot, Holy, Resto, Eule, Katze, Baer). Die längeren deutschen und englischen Namen werden ebenfalls erkannt. Die Notiz gewinnt immer; Charaktere ohne Notiz behalten ihre alte Zuordnung als Ersatz.
 
 ### Slash-Befehle
 

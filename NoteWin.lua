@@ -8,7 +8,7 @@ local BG = BananaGuild
 local NW = {}
 BG.NoteWin = NW
 
-local W, H = 460, 424
+local W, H = 460, 448
 local GOLD, WHITE, GRAY, GREEN, RED = "|cffffd100", "|cffffffff", "|cff999999", "|cff40ff40", "|cffff5555"
 local win
 local counter = 0
@@ -75,6 +75,7 @@ function NW.Redraw()
 		if not win.noprof then
 			for j = 1, table.getn(win.profs) do if win.profs[j] == b.code then on = true end end
 		end
+		b:SetText(BG.Notes.ProfName(b.code))
 		Mark(b, on)
 	end
 	win.noprofChk:SetChecked(win.noprof and 1 or nil)
@@ -86,11 +87,13 @@ function NW.Redraw()
 		local s = specs[i]
 		if i <= table.getn(specs) then
 			b.spec = s[1]
+			b.specInfo = s
 			b:SetText(s[1])
 			b:Show()
 			Mark(b, win.spec == s[1])
 		elseif i == table.getn(specs) + 1 then
 			b.spec = ""
+			b.specInfo = nil
 			b:SetText(BG.T("nwin_spec_none"))
 			b:Show()
 			Mark(b, not win.spec or win.spec == "")
@@ -177,16 +180,18 @@ local function Build()
 		NW.Redraw()
 	end, 10)
 
-	-- professions: 12 buttons in two rows of six
+	-- professions: written out in small letters (the note gets the short keyword), 5 per row
 	win.profLbl = Text(win, 16, -110, "GameFontNormalSmall", W - 32)
 	win.profBtns = {}
 	for i = 1, table.getn(BG.Notes.PROFS) do
 		local code = BG.Notes.PROFS[i][1] -- local copy: Lua 5.0 closures share the loop variable
-		local b = BG.MakeButton(win, Name("Btn"), 60, 20, code)
+		local b = BG.MakeButton(win, Name("Btn"), 82, 20, "")
+		local fs = b:GetFontString()
+		if fs then fs:SetFont("Fonts\\FRIZQT__.TTF", 8) end
 		b.code = code
-		local row, col = 0, i - 1
-		if i > 6 then row, col = 1, i - 7 end
-		b:SetPoint("TOPLEFT", win, "TOPLEFT", 16 + col * 64, -126 - row * 24)
+		local row = math.floor((i - 1) / 5)
+		local col = (i - 1) - row * 5
+		b:SetPoint("TOPLEFT", win, "TOPLEFT", 16 + col * 86, -126 - row * 24)
 		b:SetScript("OnClick", function()
 			win.noprof = false
 			local at
@@ -213,8 +218,11 @@ local function Build()
 			NW.Redraw()
 		end)
 		b:SetScript("OnEnter", function()
+			local p = BG.Notes.ProfByCode(this.code)
 			GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
-			GameTooltip:SetText(BG.Notes.ProfName(this.code), 1, 1, 1)
+			GameTooltip:SetText(BG.Notes.ProfName(this.code, "de") .. " / " .. BG.Notes.ProfName(this.code, "en"), 1, 0.82, 0)
+			GameTooltip:AddLine(BG.T("tip_prof_code", this.code), 1, 1, 1)
+			GameTooltip:AddLine(BG.T((p and p[2]) and "tip_prof_main" or "tip_prof_secondary"), 0.7, 0.7, 0.7)
 			GameTooltip:Show()
 		end)
 		b:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -223,7 +231,7 @@ local function Build()
 	win.noprofChk = CreateFrame("CheckButton", Name("Check"), win, "UICheckButtonTemplate")
 	win.noprofChk:SetWidth(24)
 	win.noprofChk:SetHeight(24)
-	win.noprofChk:SetPoint("TOPLEFT", win, "TOPLEFT", 12, -170)
+	win.noprofChk:SetPoint("TOPLEFT", win, "TOPLEFT", 12, -198)
 	win.noprofText = getglobal(win.noprofChk:GetName() .. "Text")
 	win.noprofText:SetJustifyH("LEFT")
 	win.noprofText:SetWidth(300)
@@ -234,27 +242,44 @@ local function Build()
 	end)
 
 	-- spec
-	win.specLbl = Text(win, 16, -200, "GameFontNormalSmall", W - 32)
+	win.specLbl = Text(win, 16, -228, "GameFontNormalSmall", W - 32)
 	win.specBtns = {}
 	for i = 1, 5 do
 		local b = BG.MakeButton(win, Name("Btn"), 80, 20, "")
-		b:SetPoint("TOPLEFT", win, "TOPLEFT", 16 + (i - 1) * 84, -216)
+		b:SetPoint("TOPLEFT", win, "TOPLEFT", 16 + (i - 1) * 84, -244)
 		b:SetScript("OnClick", function()
 			if this.spec == nil then return end
 			win.spec = (this.spec ~= "") and this.spec or nil
 			NW.Redraw()
 		end)
+		b:SetScript("OnEnter", function()
+			GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
+			local sp = this.specInfo
+			if not sp then
+				GameTooltip:SetText(BG.T("tip_spec_none"), 1, 1, 1)
+			else
+				-- both languages, whatever language the addon is set to
+				GameTooltip:SetText(sp[1], 1, 0.82, 0)
+				GameTooltip:AddLine("DE: " .. BG.Notes.SpecName(sp, "de"), 1, 1, 1)
+				GameTooltip:AddLine("EN: " .. BG.Notes.SpecName(sp, "en"), 1, 1, 1)
+				local col = (sp[4] == "T") and { 0.42, 0.65, 1 } or ((sp[4] == "H") and { 0.48, 0.88, 0.61 } or { 1, 0.56, 0.52 })
+				GameTooltip:AddLine(BG.T("rolefull_de_" .. sp[4]), col[1], col[2], col[3], 1)
+				GameTooltip:AddLine(BG.T("rolefull_en_" .. sp[4]), col[1], col[2], col[3], 1)
+			end
+			GameTooltip:Show()
+		end)
+		b:SetScript("OnLeave", function() GameTooltip:Hide() end)
 		b:Hide()
 		win.specBtns[i] = b
 	end
-	win.specHint = Text(win, 16, -240, "GameFontHighlightSmall", W - 32)
+	win.specHint = Text(win, 16, -268, "GameFontHighlightSmall", W - 32)
 
 	-- note preview (an edit box so it can be selected and copied, but not changed)
-	win.noteLbl = Text(win, 16, -258, "GameFontNormalSmall", W - 32)
+	win.noteLbl = Text(win, 16, -286, "GameFontNormalSmall", W - 32)
 	win.preview = CreateFrame("EditBox", Name("Preview"), win, "InputBoxTemplate")
 	win.preview:SetWidth(W - 44)
 	win.preview:SetHeight(20)
-	win.preview:SetPoint("TOPLEFT", win, "TOPLEFT", 20, -274)
+	win.preview:SetPoint("TOPLEFT", win, "TOPLEFT", 20, -302)
 	win.preview:SetAutoFocus(false)
 	win.preview:SetScript("OnTextChanged", function()
 		if this.locked then return end
@@ -268,22 +293,22 @@ local function Build()
 	back:SetTexture(0, 0, 0, 0.6)
 	back:SetWidth(W - 40)
 	back:SetHeight(5)
-	back:SetPoint("TOPLEFT", win, "TOPLEFT", 20, -298)
+	back:SetPoint("TOPLEFT", win, "TOPLEFT", 20, -326)
 	win.bar = win:CreateTexture(nil, "OVERLAY")
 	win.bar:SetTexture(0.3, 0.9, 0.45, 1)
 	win.bar:SetWidth(10)
 	win.bar:SetHeight(5)
-	win.bar:SetPoint("TOPLEFT", win, "TOPLEFT", 20, -298)
-	win.info = Text(win, 16, -308, "GameFontHighlightSmall", W - 32)
+	win.bar:SetPoint("TOPLEFT", win, "TOPLEFT", 20, -326)
+	win.info = Text(win, 16, -336, "GameFontHighlightSmall", W - 32)
 	win.info:SetHeight(26)
 	win.info:SetJustifyV("TOP")
 
 	-- own note (stays in the addon, synced to other BananaGuild users): saved when the window closes
-	win.intLbl = Text(win, 16, -338, "GameFontNormalSmall", W - 32)
+	win.intLbl = Text(win, 16, -366, "GameFontNormalSmall", W - 32)
 	win.intEdit = CreateFrame("EditBox", Name("IntEdit"), win, "InputBoxTemplate")
 	win.intEdit:SetWidth(W - 44)
 	win.intEdit:SetHeight(20)
-	win.intEdit:SetPoint("TOPLEFT", win, "TOPLEFT", 20, -352)
+	win.intEdit:SetPoint("TOPLEFT", win, "TOPLEFT", 20, -380)
 	win.intEdit:SetAutoFocus(false)
 	win.intEdit:SetMaxLetters(80)
 	win.intEdit:SetScript("OnEscapePressed", function() this:ClearFocus() end)

@@ -25,6 +25,7 @@ Notes.PROFS = {
 	{ "BB", true,  "Bergbau",           "Mining",         { "min" } },
 	{ "KS", true,  "Kuerschnerei",      "Skinning",       { "kuerschner", "skin" } },
 	{ "SN", true,  "Schneiderei",       "Tailoring",      { "schneider", "tail" } },
+	{ "JC", true,  "Juwelenschleifen",  "Jewelcrafting",  { "juwe", "juwi", "juwelier", "juwelenschleifer", "jc", "js", "jewel", "jewelcrafter" } },
 	{ "KO", false, "Kochkunst",         "Cooking",        { "koch", "cook" } },
 	{ "EH", false, "Erste Hilfe",       "First Aid",      { "erstehilfe", "fa" } },
 	{ "AN", false, "Angeln",            "Fishing",        { "angler", "fischen", "fish" } },
@@ -93,10 +94,11 @@ local function Umlauts(s)
 	return s
 end
 
-function Notes.ProfName(code)
+-- name of a profession in a given language ("de" / "en"), default: the language of the addon
+function Notes.ProfName(code, lang)
 	local p = Notes.ProfByCode(code)
 	if not p then return code end
-	if BG.Lang() == "de" then return Umlauts(p[3]) end
+	if (lang or BG.Lang()) == "de" then return Umlauts(p[3]) end
 	return p[4]
 end
 
@@ -120,8 +122,8 @@ function Notes.Specs(classKey)
 	return {}
 end
 
-function Notes.SpecName(spec)
-	if BG.Lang() == "de" then return Umlauts(spec[2]) end
+function Notes.SpecName(spec, lang)
+	if (lang or BG.Lang()) == "de" then return Umlauts(spec[2]) end
 	return spec[3]
 end
 
