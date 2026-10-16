@@ -233,6 +233,110 @@ local function ReplyWhisper(name, text, invite)
 	end
 end
 
+--------------------------------------------------------------------- who lookup (class / level / guild of a prospect)
+-- WoW 1.12 shows class and level of strangers only through /who. The answer is read from the WHO_LIST_UPDATE event;
+-- SetWhoToUI keeps it out of the chat and the friends window stays closed. One query at a time, at most one per 5 s.
+
+Recruit.whoCache = {}
+local whoQueue, whoCur, lastWho = {}, nil, -100
+local whoFrameHad = false
+
+local function WhoRestore()
+	if SetWhoToUI then SetWhoToUI(0) end
+	if whoFrameHad and FriendsFrame then FriendsFrame:RegisterEvent("WHO_LIST_UPDATE") end
+	whoFrameHad = false
+end
+
+local WhoNext
+
+local function WhoFinish(info)
+	local cur = whoCur
+	whoCur = nil
+	WhoRestore()
+	if cur then
+		Recruit.whoCache[string.lower(cur.name)] = { t = time(), info = info }
+		for i = 1, table.getn(cur.cbs) do
+			local ok, err = pcall(cur.cbs[i], info)
+			if not ok then BG.Fail("who", err) end
+		end
+	end
+	BG.After(1, WhoNext)
+end
+
+WhoNext = function()
+	if whoCur or table.getn(whoQueue) == 0 then return end
+	local wait = 5 - (GetTime() - lastWho)
+	if wait > 0 then BG.After(wait + 0.2, WhoNext) return end
+	local q = table.remove(whoQueue, 1)
+	whoCur = q
+	lastWho = GetTime()
+	if SetWhoToUI then SetWhoToUI(1) end
+	if FriendsFrame and FriendsFrame.UnregisterEvent then
+		FriendsFrame:UnregisterEvent("WHO_LIST_UPDATE")
+		whoFrameHad = true
+	end
+	local ok = SendWho and pcall(SendWho, "n-" .. q.name)
+	if not ok then WhoFinish(nil) return end
+	BG.After(6, function() if whoCur == q then WhoFinish(nil) end end)
+end
+
+BG.On("WHO_LIST_UPDATE", function()
+	if not whoCur then return end
+	local n = GetNumWhoResults and GetNumWhoResults() or 0
+	local found
+	for i = 1, n do
+		local name, guild, level, race, class, zone = GetWhoInfo(i)
+		if name and string.lower(name) == string.lower(whoCur.name) then
+			found = { name = name, guild = guild, level = level, race = race, class = class, zone = zone }
+		end
+	end
+	WhoFinish(found)
+end)
+
+-- cb(info) with info = { level, class, race, guild, zone } or nil (offline / no answer); immediately when cached
+function Recruit.Lookup(name, cb)
+	local key = string.lower(name)
+	local c = Recruit.whoCache[key]
+	if c and time() - c.t < 900 and (c.info or time() - c.t < 120) then cb(c.info) return end
+	if whoCur and string.lower(whoCur.name) == key then table.insert(whoCur.cbs, cb) return end
+	for i = 1, table.getn(whoQueue) do
+		if string.lower(whoQueue[i].name) == key then table.insert(whoQueue[i].cbs, cb) return end
+	end
+	table.insert(whoQueue, { name = name, cbs = { cb } })
+	WhoNext()
+end
+
+-- one or two lines about the player for the popup
+function Recruit.InfoText(info, waiting)
+	if waiting then return "|cff999999" .. BG.T("pop_info_wait") .. "|r" end
+	if not info then return "|cff999999" .. BG.T("pop_info_none") .. "|r" end
+	local col = "|cffffffff"
+	local key = BG.Notes and BG.Notes.ClassKey(info.class)
+	local rc = key and RAID_CLASS_COLORS and RAID_CLASS_COLORS[key]
+	if rc then col = string.format("|cff%02x%02x%02x", math.floor(rc.r * 255 + 0.5), math.floor(rc.g * 255 + 0.5), math.floor(rc.b * 255 + 0.5)) end
+	local line1 = "|cffffd100" .. BG.T("pop_info_level", info.level or "?") .. "|r  " .. col .. (info.class or "?") .. "|r"
+	if info.race and info.race ~= "" then line1 = line1 .. "  |cffcccccc" .. info.race .. "|r" end
+	local guild = (info.guild and info.guild ~= "") and BG.T("pop_info_guild", info.guild) or BG.T("pop_info_noguild")
+	local line2 = "|cffcccccc" .. guild
+	if info.zone and info.zone ~= "" then line2 = line2 .. "  -  " .. info.zone end
+	return line1 .. "\n" .. line2 .. "|r"
+end
+
+-- push a popup item and fill in the player info as soon as it is known
+local function PushWithInfo(item, name)
+	local base = item.body
+	local cached = Recruit.whoCache[string.lower(name)]
+	local known = cached and time() - cached.t < 900 and (cached.info or time() - cached.t < 120)
+	item.body = base .. "\n" .. Recruit.InfoText(known and cached.info, not known)
+	BG.Popup.Push(item)
+	if not known then
+		Recruit.Lookup(name, function(info)
+			item.body = base .. "\n" .. Recruit.InfoText(info, false)
+			BG.Popup.Refresh(item)
+		end)
+	end
+end
+
 -- The reply variant is rolled when the popup opens, so the tooltip shows exactly what will be sent.
 -- "Another variant" rolls again (never the same one twice in a row).
 local WhisperPopup
@@ -252,13 +356,13 @@ WhisperPopup = function(sender, msg, lang, force, nonce)
 	table.insert(buttons, { text = BG.T("btn_ignore"), fn = function() end })
 	local shown = msg
 	if string.len(shown) > 160 then shown = string.sub(shown, 1, 157) .. "..." end
-	BG.Popup.Push({
+	PushWithInfo({
 		type = "whisper", defer = true, force = force,
 		key = "whisper-" .. sender .. "-" .. lang .. (nonce and ("-" .. nonce) or ""),
 		title = BG.T("pop_whisper_title", sender) .. "  |cff999999[" .. string.upper(lang) .. "]|r",
 		body = "|cffffffff\"" .. shown .. "\"|r",
 		buttons = buttons,
-	})
+	}, sender)
 end
 
 BG.On("CHAT_MSG_WHISPER", function(msg, sender)
@@ -341,13 +445,13 @@ ScannerPopup = function(author, msg, lang, chan, force, nonce)
 	end
 	table.insert(buttons, { text = BG.T("btn_invite_only"), fn = function() BG.Invite(author) end })
 	table.insert(buttons, { text = BG.T("btn_ignore"), fn = function() end })
-	BG.Popup.Push({
+	PushWithInfo({
 		type = "scanner", defer = true, force = force,
 		key = "scan-" .. author .. (nonce and ("-" .. nonce) or ""),
 		title = BG.T("pop_scan_title", author),
 		body = "|cff999999[" .. tostring(chan) .. "]|r |cffffffff" .. shown .. "|r",
 		buttons = buttons,
-	})
+	}, author)
 end
 
 BG.On("CHAT_MSG_CHANNEL", function(msg, author, language, chanFull, target, flags, zoneId, chanNum, chanName)

@@ -3,6 +3,9 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 1.9.0
+- Interessenten-Popups (Flüster und Scanner) zeigen jetzt Infos zum Spieler: Stufe, Klasse (in Klassenfarbe), Rasse, Gilde und Zone. Das Addon fragt sie per /who ab (still: nichts im Chat, das Freundefenster bleibt zu), höchstens eine Abfrage alle 5 Sekunden. Bis die Antwort da ist, steht „Infos werden abgefragt ...", danach die Daten, bei Offline oder ohne Antwort „Keine Infos gefunden". Antworten werden 15 Minuten gemerkt, „Andere Variante" fragt nicht neu.
+
 ## 1.8.1
 - Neuzugang-Fenster und Begrüßungs-Popup erscheinen jetzt zuverlässig: Bisher kamen sie nur, wenn gerade die automatische Gildensuche lief. Jetzt bekommt sie, wer das neue Mitglied eingeladen hat (auch von Hand oder per Rechtsklick), oder wer gerade rekrutiert, wenn niemand als Einlader bekannt ist. Hat jemand anderes eingeladen, kommt das Fenster nur bei dem.
 - Wird die Beitrittsmeldung im Chat verpasst, erkennt das Addon den Neuzugang an der Gildenliste.

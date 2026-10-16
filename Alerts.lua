@@ -385,6 +385,11 @@ function Popup.Push(item)
 	end
 end
 
+-- the text of the shown popup changed (e.g. the /who answer arrived)
+function Popup.Refresh(item)
+	if pf and Popup.current == item then pf.body:SetText(item.body or "") end
+end
+
 function Popup.Next()
 	Popup.current = nil
 	if table.getn(Popup.queue) > 0 then
