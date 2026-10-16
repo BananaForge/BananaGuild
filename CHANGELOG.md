@@ -3,6 +3,11 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 1.8.1
+- Neuzugang-Fenster und Begrüßungs-Popup erscheinen jetzt zuverlässig: Bisher kamen sie nur, wenn gerade die automatische Gildensuche lief. Jetzt bekommt sie, wer das neue Mitglied eingeladen hat (auch von Hand oder per Rechtsklick), oder wer gerade rekrutiert, wenn niemand als Einlader bekannt ist. Hat jemand anderes eingeladen, kommt das Fenster nur bei dem.
+- Wird die Beitrittsmeldung im Chat verpasst, erkennt das Addon den Neuzugang an der Gildenliste.
+- Mit `/bgd join Name` lässt sich das Fenster (Notiz + Begrüßung) jederzeit von Hand öffnen.
+
 ## 1.8.0
 - Addons & Analytics: Die Infotexte unten und die graue Zeile „Gildenmitglieder ... mit Daten erfasst ... außerhalb gesehen" sind entfernt. Stattdessen steht unten „Accounts: X und Chars: Y". Chars = alle Gildenmitglieder, Accounts = Zahl der verschiedenen Mains laut Gildennotiz (Chars ohne gültige Notiz zählen einzeln, Tooltip erklärt das). Die Liste hat dafür drei Zeilen mehr.
 - Der Selbsttest-Button ist aus der Fußzeile in die Einstellungen (Seite „Allgemein", unten) gewandert. `/bgd selftest` funktioniert weiter.

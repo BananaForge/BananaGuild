@@ -73,6 +73,8 @@ local function Scan()
 				db.chars[name].approx = true
 				local inv = BG.pendingInvites and BG.pendingInvites[name]
 				if inv then db.chars[name].invitedBy = inv.by end
+				-- the join message was missed (other wording on the server, loading screen ...): the roster tells us
+				if not first and BG.Recruit then BG.Recruit.OnJoin(name) end
 			end
 		end
 	end
@@ -195,7 +197,8 @@ BG.OnInit(function()
 			if name and name ~= "" and not BG.inInviteWrapper then
 				BG.pendingInvites = BG.pendingInvites or {}
 				local n = BG.NormName(name)
-				if not BG.pendingInvites[n] then
+				local old = BG.pendingInvites[n]
+				if not old or time() - (old.at or 0) > 60 then
 					BG.pendingInvites[n] = { by = UnitName("player"), at = time() }
 					BG.Send("I", n, UnitName("player"))
 					BG.AddLog("invite", UnitName("player"), n)

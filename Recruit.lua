@@ -386,10 +386,21 @@ end
 
 -- Only the guild member who is recruiting right now reacts to a new member (otherwise everybody with
 -- the addon would pop up / whisper the same welcome).
+-- A join is "mine" when I invited the player (recent invite), or - when nobody is known to have invited him - while I
+-- am recruiting. Somebody else's invite is that person's business (otherwise everybody would get the window).
+function Recruit.IsMyJoin(name)
+	local inv = BG.pendingInvites and BG.pendingInvites[name]
+	if inv and inv.at and time() - inv.at < 86400 then return inv.by == BG.me end
+	return Recruit.active and true or false
+end
+
 function Recruit.OnJoin(name)
 	local db = BG.db
 	if name == BG.me then return end
-	if not Recruit.active then return end
+	Recruit.joinSeen = Recruit.joinSeen or {}
+	if Recruit.joinSeen[name] and time() - Recruit.joinSeen[name] < 300 then return end
+	if not Recruit.IsMyJoin(name) then return end
+	Recruit.joinSeen[name] = time()
 	local greeted = false
 	if db.features.autoWelcome then
 		greeted = true

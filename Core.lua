@@ -679,6 +679,10 @@ local function Slash(msg)
 		BG.Alerts.LevelToast(rest ~= "" and BG.NormName(rest) or BG.me, 42, true)
 	elseif cmd == "welcome" then
 		if rest ~= "" then BG.Recruit.Welcome(BG.NormName(rest)) else BG.Print(BG.T("usage_welcome")) end
+	elseif cmd == "join" then
+		-- open the new member window by hand (note + greeting)
+		local n = BG.NormName(rest)
+		if n ~= "" and BG.roster[n] then BG.NoteWin.Open(n, "join", { greet = true }) else BG.Print(BG.T("usage_join")) end
 	elseif cmd == "who" or cmd == "scan" then
 		BG.Presence.Query()
 	elseif cmd == "lang" then
