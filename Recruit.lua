@@ -390,9 +390,22 @@ function Recruit.OnJoin(name)
 	local db = BG.db
 	if name == BG.me then return end
 	if not Recruit.active then return end
+	local greeted = false
 	if db.features.autoWelcome then
+		greeted = true
 		BG.After(3, function() Recruit.Welcome(name) end)
-	elseif db.features.welcomePopup then
+	end
+	if db.features.joinWindow then
+		-- window to enter the guild note (main/twink, professions, spec); the roster needs a moment to know the new member
+		if GuildRoster then GuildRoster() end
+		BG.After(4, function()
+			BG.Popup.Push({
+				type = "welcome", defer = true,
+				key = "join-" .. name,
+				open = function() BG.NoteWin.Open(name, "join", { greet = not greeted }) end,
+			})
+		end)
+	elseif not greeted and db.features.welcomePopup then
 		local text = BG.PickVariant("welcome")
 		BG.Popup.Push({
 			type = "welcome", defer = true,

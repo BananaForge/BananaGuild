@@ -353,6 +353,12 @@ function Popup.Push(item)
 		end
 		return
 	end
+	-- items with open() are windows of their own (e.g. the new member window): no popup frame
+	if item.open then
+		local ok, err = pcall(item.open)
+		if not ok then BG.Fail("popup", err) end
+		return
+	end
 	if item.key then
 		if Popup.current and Popup.current.key == item.key then return end
 		for i = 1, table.getn(Popup.queue) do

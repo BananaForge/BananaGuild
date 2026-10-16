@@ -17,7 +17,9 @@ Ingame: `/bgd` (oder `/bananaguild`, oder Minimap-Button). **Als Erstes im Reite
 | **Addons & Analytics** | Zeigt, wer in der Gilde BananaCraft / BananaBank / Banana Lootline / Bananaloot / BananaGuild installiert hat und ob es läuft (Version, zuletzt gesehen, Logins, Anteil, 7/30-Tage-Aktivität). |
 | **Levelup-Hinweis** | Chat-Meldung + kleines Fenster mit **GZ-Button** (zufälliger GZ-Spruch in den Gildenchat). In den Einstellungen wählbar: bei **jeder Stufe** oder **nur bei den vollen 10er-Stufen** (10, 20 … 60, jede einzeln an-/abschaltbar). |
 | **Stufe 60** | Große Bildschirmanzeige mit BananaGuild-Logo + Spielername. |
-| **Mitglieder & Twinks** | Wer ist Main, wer Twink von wem, Beitrittsdatum, wer hat eingeladen, Notiz – alles selbst pflegbar und unsichtbar an andere BananaGuild-Nutzer synchronisierbar. |
+| **Mitglieder & Twinks** | Mains, Twinks, Berufe und Spec kommen aus der **öffentlichen Gildennotiz** (siehe unten), nichts wird doppelt gepflegt und nichts muss dafür synchronisiert werden. Liste mit Name, Level, Beruf, Spec, Rolle. Beitrittsdatum, wer hat eingeladen und eine eigene Notiz bleiben zusätzlich pflegbar und synchronisierbar. |
+| **Neuzugang-Fenster** | Beim Rekrutierer öffnet sich nach einem Beitritt ein Fenster: Main/Twink (mit Mainname), bis zu 2 Hauptberufe (oder bewusst keiner), Spec. Das Addon setzt die Gildennotiz im richtigen Format, mit Zeichenzähler (max. 31). Dazu optional die Begrüßung im Gildenchat. Dasselbe Fenster gibt es im Mitglieder-Reiter über „Notiz bearbeiten ...". |
+| **Beförderung** | Nach einstellbarer Zeit (Standard 4 Wochen) auf dem Startrang (Standard Initiant) meldet sich ein Fenster bei allen mit Beförderungsrecht. Ein Klick befördert Schritt für Schritt bis zum Zielrang (Standard Member). Angefasst werden nur Mitglieder, die gerade auf dem Startrang stehen. Alles einstellbar unter Einstellungen > Beförderung. |
 | **Verlauf** | Beitritte, Einladungen, Beförderungen/Degradierungen, Kicks, Austritte, Levelups. |
 | **Gildensuche (Auto-Recruiting)** | Postet deine Nachricht im frei wählbaren Minutenabstand in `/4` (in Instanzen in `/5`). Nur **eine** Person der Gilde kann gleichzeitig werben; sonst Warnung + Option, der Person etwas Witziges zu flüstern. |
 | **Flüster-Popup** | Meldet sich jemand per Flüstern, erscheint ein Popup: Antwort + Einladen, Nur Antwort, Andere Variante, Nur einladen, Sprache wechseln, Ignorieren. |
@@ -29,6 +31,15 @@ Ingame: `/bgd` (oder `/bananaguild`, oder Minimap-Button). **Als Erstes im Reite
 | **Selbsttest** | Prüft API, Gilde, Channels, Texte, Hooks, Übersetzungen, Laufzeitfehler. |
 
 Alle Texte sind editierbar (je 5 Varianten, zufällig und nie zweimal dieselbe hintereinander), alle Funktionen einzeln ein-/ausschaltbar (Reiter *Einstellungen*), die Sprache DE/EN oben rechts umschaltbar. Herz-Symbol oben rechts (Danke-Fenster mit Charakter Lumihunt, wie in den anderen Banana-Addons), Version + Selbsttest unten rechts.
+
+### Format der Gildennotiz
+
+```
+[MAIN] [AL+VZ] [Retri]            Main, Berufe, Spec
+[TWINK Bananenbank] [KO] [Frost]  Twink von Bananenbank (Kurzform: [T Bananenbank])
+```
+
+1. Klammer = Rolle (Pflicht), 2. = Berufe (optional, `-` = keine), 3. = Spec (optional). Gross/Klein und Leerzeichen sind egal, getrennt wird mit `+`, `,`, `/` oder Leerzeichen. Mehr als 31 Zeichen lässt WoW nicht zu, deshalb gibt es Kürzel (Berufe: AL SM VZ IN KR LE BB KS SN KO EH AN; Specs je Klasse, z.B. Retri, Prot, Holy, Resto, Eule, Katze, Baer). Die längeren deutschen und englischen Namen werden ebenfalls erkannt. Die Notiz gewinnt immer; Charaktere ohne Notiz behalten ihre alte Zuordnung als Ersatz.
 
 ### Slash-Befehle
 

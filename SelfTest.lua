@@ -54,7 +54,7 @@ function ST.Run()
 	if string.lower(folder) == "bananaguild" then Add("OK", BG.T("st_folder"), "Interface\\AddOns\\" .. folder)
 	else Add("WARN", BG.T("st_folder"), BG.T("st_folder_bad", folder)) end
 	local missing = {}
-	for _, f in ipairs({ "BananaPresence", "Locale", "Core", "Presence", "Roster", "Alerts", "Recruit", "UI", "SelfTest" }) do
+	for _, f in ipairs({ "BananaPresence", "Locale", "Core", "Notes", "Presence", "Roster", "Alerts", "NoteWin", "Promote", "Recruit", "UI", "SelfTest" }) do
 		if not (BG.files and BG.files[f]) then table.insert(missing, f) end
 	end
 	if table.getn(missing) > 0 then Add("FAIL", BG.T("st_files"), table.concat(missing, ", "))
@@ -159,6 +159,26 @@ function ST.Run()
 	local iv = tonumber(db.recruit.interval) or 0
 	if iv < 3 then Add("WARN", BG.T("st_interval"), BG.T("st_interval_low", iv))
 	else Add("OK", BG.T("st_interval"), iv .. " min") end
+
+	-- 9b. guild notes + promotion
+	do
+		local total, valid = 0, 0
+		for _, info in pairs(BG.roster) do
+			total = total + 1
+			if info.parsed and info.parsed.kind then valid = valid + 1 end
+		end
+		if total > 0 then Add("INFO", BG.T("st_notes"), BG.T("st_notes_ok", valid, total)) end
+		if CanEditPublicNote then
+			Add(BG.Notes.CanEdit() and "OK" or "INFO", BG.T("st_noteright"), BG.T(BG.Notes.CanEdit() and "st_yes" or "st_no"))
+		end
+		if CanGuildPromote then
+			Add(BG.Promo.CanPromote() and "OK" or "INFO", BG.T("st_promoright"), BG.T(BG.Promo.CanPromote() and "st_yes" or "st_no"))
+		end
+		if db.promo.enabled then
+			if BG.Promo.Steps() then Add("OK", BG.T("st_promoranks"), BG.Promo.Path())
+			else Add("WARN", BG.T("st_promoranks"), BG.T("promo_bad_ranks")) end
+		end
+	end
 
 	-- 10. scanner
 	local hit = BG.Recruit.Classify("Suche eine nette deutsche Gilde, kann mich jemand aufnehmen?") or BG.Recruit.Classify("Looking for a guild, anyone know a casual one?")

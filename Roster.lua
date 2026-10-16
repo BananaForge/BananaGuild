@@ -36,6 +36,22 @@ local function Scan()
 			}
 		end
 	end
+	-- guild notes: [MAIN] / [TWINK Name] + professions + spec (see Notes.lua)
+	local byFold = {}
+	for name in pairs(new) do byFold[BG.Notes.Fold(name)] = name end
+	for name, info in pairs(new) do
+		info.ckey = BG.Notes.ClassKey(info.class)
+		info.parsed = BG.Notes.Parse(info.note, info.ckey)
+		local p = info.parsed
+		if p.kind == "twink" then
+			local real = byFold[BG.Notes.Fold(p.main)]
+			if real then p.main = real p.mainOk = true end
+			if p.main == name then
+				p.kind, p.main = nil, nil
+				table.insert(p.warn, { "nw_self" })
+			end
+		end
+	end
 	local first = (Roster.scans == 0)
 	BG.roster = new
 	Roster.scans = Roster.scans + 1
@@ -61,6 +77,7 @@ local function Scan()
 		end
 	end
 	if initial then db.rosterInit = true end
+	if BG.NoteWin then BG.NoteWin.OnRoster() end
 	if BG.UI and BG.UI.Refresh then BG.UI.Refresh("members") BG.UI.Refresh("addons") end
 end
 
@@ -159,7 +176,9 @@ BG.On("CHAT_MSG_SYSTEM", function(msg)
 	elseif kind == "kick" then
 		BG.AddLog("kick", BG.NormName(a), BG.NormName(b))
 	elseif kind == "promote" or kind == "demote" then
-		BG.AddLog(kind, BG.NormName(a), BG.NormName(b), c)
+		-- our own step by step promotion (Promote.lua) is logged once at the end instead of once per rank
+		local own = kind == "promote" and BG.Promo and BG.Promo.IsBusy(BG.NormName(b)) and BG.NormName(a) == BG.me
+		if not own then BG.AddLog(kind, BG.NormName(a), BG.NormName(b), c) end
 	elseif kind == "decline" then
 		BG.AddLog("decline", BG.NormName(a))
 	end
@@ -195,34 +214,71 @@ local function Char(name)
 end
 Roster.Char = Char
 
-function Roster.RootOf(name)
+-- the parent of a character: the guild note wins, the old manual assignment is the fallback
+function Roster.ParentOf(name)
+	local info = BG.roster[name]
+	local p = info and info.parsed
+	if p and p.kind == "main" then return nil end
+	if p and p.kind == "twink" and p.main then return p.main end
 	local c = BG.db.chars[name]
+	return c and c.main
+end
+
+function Roster.RootOf(name)
 	local guard = 0
-	while c and c.main and guard < 5 do
-		name = c.main
-		c = BG.db.chars[name]
+	while guard < 5 do
+		local up = Roster.ParentOf(name)
+		if not up or up == name then break end
+		name = up
 		guard = guard + 1
 	end
 	return name
 end
 
 function Roster.Twinks(main)
-	local out = {}
-	for name, c in pairs(BG.db.chars) do
-		if c.main == main then table.insert(out, name) end
+	local names, out = {}, {}
+	for n in pairs(BG.roster) do names[n] = true end
+	for n in pairs(BG.db.chars) do names[n] = true end
+	for n in pairs(names) do
+		if n ~= main and Roster.ParentOf(n) == main then table.insert(out, n) end
 	end
 	table.sort(out)
 	return out
 end
 
+-- true when the character is known as a main or twink (by note or by the old manual data)
 function Roster.IsAssigned(name)
+	local info = BG.roster[name]
+	if info and info.parsed and info.parsed.kind then return true end
 	local c = BG.db.chars[name]
-	if not c then return false end
-	if c.main or c.isMain then return true end
-	for _, o in pairs(BG.db.chars) do
+	if c and (c.main or c.isMain) then return true end
+	for n in pairs(BG.roster) do
+		if n ~= name and Roster.ParentOf(n) == name then return true end
+	end
+	for n, o in pairs(BG.db.chars) do
 		if o.main == name then return true end
 	end
 	return false
+end
+
+-- note problems of a character as readable lines
+function Roster.NoteProblems(name)
+	local out = {}
+	local info = BG.roster[name]
+	local p = info and info.parsed
+	if not p then return out end
+	for i = 1, table.getn(p.warn) do
+		table.insert(out, BG.T(p.warn[i][1], p.warn[i][2]))
+	end
+	if p.kind == "twink" then
+		if not p.mainOk then
+			table.insert(out, BG.T("nw_mainmissing", p.main or "?"))
+		else
+			local mi = BG.roster[p.main]
+			if mi and mi.parsed and mi.parsed.kind == "twink" then table.insert(out, BG.T("nw_mainistwink", p.main)) end
+		end
+	end
+	return out
 end
 
 -- Every change stamps the character with ts = time(); the newest stamp wins when data is merged (sync).

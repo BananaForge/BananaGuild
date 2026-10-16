@@ -157,6 +157,7 @@ local DEFAULTS = {
 		scanner          = true,   -- /4 /5 scanner for "looking for a guild"
 		rightClickInvite = true,   -- "Invite to guild" in the chat-name context menu
 		welcomePopup     = true,   -- popup when somebody joins the guild
+		joinWindow       = true,   -- window to enter the guild note (main/twink, professions, spec) for a new member
 		autoWelcome      = false,  -- send the welcome whisper automatically
 		guildBroadcast   = true,   -- invisible addon channel (presence, recruiter lock, sync)
 		worldPing        = false,  -- hidden world-chat presence ping (see README)
@@ -181,7 +182,9 @@ local DEFAULTS = {
 	-- instance / raid mode: while in an instance, battleground or raid group every popup, notice and sound is muted,
 	-- except the kinds ticked in 'allow'. Missed prospects are shown again after leaving (catchup).
 	quiet = { enabled = true, catchup = true, summary = true,
-		allow = { levelup = false, level60 = false, whisper = false, scanner = false, welcome = false, conflict = false } },
+		allow = { levelup = false, level60 = false, whisper = false, scanner = false, welcome = false, conflict = false, promo = false } },
+	-- promotion of new members: reminder after 'weeks' on rank 'from', promoted step by step up to rank 'to' (rank names)
+	promo = { enabled = true, weeks = 4, from = "Initiant", to = "Member", snooze = {}, day = "" },
 	sync = { accept = true, trustRank = 2 },
 	minimap = { angle = 200 },
 	texts = {},
@@ -589,7 +592,7 @@ end
 
 --------------------------------------------------------------------- instance / raid mode
 
-BG.quiet = { was = false, missed = { levelup = 0, level60 = 0, whisper = 0, scanner = 0, welcome = 0, conflict = 0 }, deferred = {} }
+BG.quiet = { was = false, missed = { levelup = 0, level60 = 0, whisper = 0, scanner = 0, welcome = 0, conflict = 0, promo = 0 }, deferred = {} }
 
 function BG.InRaid()
 	return (GetNumRaidMembers and (GetNumRaidMembers() or 0) > 0) and true or false
@@ -648,7 +651,7 @@ local function Slash(msg)
 		if not BG.booted then pcall(Boot, nil) end
 		if not BG.loaded then
 			local missing = {}
-			for _, f in ipairs({ "BananaPresence", "Locale", "Core", "Presence", "Roster", "Alerts", "Recruit", "UI", "SelfTest" }) do
+			for _, f in ipairs({ "BananaPresence", "Locale", "Core", "Notes", "Presence", "Roster", "Alerts", "NoteWin", "Promote", "Recruit", "UI", "SelfTest" }) do
 				if not (BG.files and BG.files[f]) then table.insert(missing, f) end
 			end
 			DEFAULT_CHAT_FRAME:AddMessage("|cffff5555[BananaGuild] not initialised.|r folder=" .. tostring(BG.folder)

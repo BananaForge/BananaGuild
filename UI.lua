@@ -728,36 +728,42 @@ local function BuildMembers(p)
 	sync:SetPoint("TOPLEFT", p, "TOPLEFT", 466, -25)
 	Tooltip(sync, "tip_sync")
 
-	local hdr = { { 6, 120, "col_name" }, { 128, 28, "col_lvl" }, { 160, 76, "col_rank" }, { 240, 80, "col_role" } }
+	local hdr = { { 6, 108, "col_name" }, { 116, 26, "col_lvl" }, { 144, 74, "col_prof" }, { 220, 52, "col_spec" }, { 274, 44, "col_role" } }
 	for i = 1, table.getn(hdr) do
 		Label(p, hdr[i][3], hdr[i][1], -54, "GameFontNormalSmall", hdr[i][2])
 	end
 	p.list = MakeList(p, 0, -68, 344, 19, 18,
 		function(r)
-			r.name = Cell(r, 4, 120)
-			r.lvl = Cell(r, 126, 28)
-			r.rank = Cell(r, 158, 76)
-			r.role = Cell(r, 238, 80)
+			r.name = Cell(r, 4, 108)
+			r.lvl = Cell(r, 114, 26)
+			r.prof = Cell(r, 142, 74)
+			r.spec = Cell(r, 218, 52)
+			r.role = Cell(r, 272, 44)
 		end,
 		function(r, item)
 			local info = BG.roster[item.name]
+			local pn = info and info.parsed
 			local col = (info and info.online) and GREEN or WHITE
 			if not info then col = GRAY end
-			if item.kind == "twink" then
-				r.name:SetText("   " .. col .. item.name .. "|r")
-			else
-				r.name:SetText(col .. item.name .. "|r")
-			end
+			local nm = col .. item.name .. "|r"
+			if item.kind == "twink" then nm = "  " .. nm end
+			if item.kind == "main" and item.twinks > 0 then nm = nm .. GRAY .. " (+" .. item.twinks .. ")|r" end
+			if pn and pn.kind == "twink" and not pn.mainOk then nm = nm .. RED .. " ?|r" end
+			r.name:SetText(nm)
 			r.lvl:SetText(info and tostring(info.level) or "-")
-			r.rank:SetText(info and (info.rank or "") or "")
-			if item.kind == "twink" then
-				r.role:SetText(GRAY .. BG.T("role_twink") .. "|r")
-			elseif item.twinks > 0 then
-				r.role:SetText(GOLD .. BG.T("role_main_n", item.twinks) .. "|r")
-			elseif item.assigned then
-				r.role:SetText(GOLD .. BG.T("role_main") .. "|r")
+			if pn and table.getn(pn.profs) > 0 then
+				r.prof:SetText(table.concat(pn.profs, "+"))
 			else
+				r.prof:SetText(GRAY .. "-|r")
+			end
+			r.spec:SetText((pn and pn.spec) and pn.spec[1] or (GRAY .. "-|r"))
+			if pn and pn.role then
+				local c = (pn.role == "T") and "|cff6aa6ff" or ((pn.role == "H") and "|cff7be09b" or "|cffff8f84")
+				r.role:SetText(c .. BG.Notes.RoleName(pn.role) .. "|r")
+			elseif info and not item.assigned then
 				r.role:SetText(RED .. "?|r")
+			else
+				r.role:SetText(GRAY .. "-|r")
 			end
 			r.selected = (UI.selectedMember == item.name)
 			r.bg:SetTexture(1, 0.82, 0, r.selected and 0.18 or 0)
@@ -768,7 +774,7 @@ local function BuildMembers(p)
 			p.list.Draw()
 		end)
 
-	-- detail panel
+	-- detail panel: everything comes from the guild note, the note window edits it
 	local d = CreateFrame("Frame", NextName("Detail"), p)
 	d:SetWidth(246)
 	d:SetHeight(378)
@@ -784,51 +790,63 @@ local function BuildMembers(p)
 	d.info:SetWidth(222)
 	d.info:SetJustifyH("LEFT")
 	d.twinks = d:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-	d.twinks:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -56)
+	d.twinks:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -52)
 	d.twinks:SetWidth(222)
-	d.twinks:SetHeight(44)
+	d.twinks:SetHeight(34)
 	d.twinks:SetJustifyH("LEFT")
 	d.twinks:SetJustifyV("TOP")
 
-	Label(d, "lbl_main_of", 12, -108, "GameFontNormalSmall")
-	d.mainEdit = MakeEdit(nil, d, 14, -122, 130, function() return "" end, function() end, 20)
-	local assign = MakeButton(d, NextName("Btn"), "btn_assign", 84, 22, function()
-		if UI.selectedMember then
-			if not BG.Roster.SetMain(UI.selectedMember, d.mainEdit:GetText()) then BG.Print(BG.T("assign_fail")) end
-			UI.LoadDetail()
-		end
+	Label(d, "lbl_gnote", 12, -90, "GameFontNormalSmall")
+	d.gnote = d:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+	d.gnote:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -104)
+	d.gnote:SetWidth(222)
+	d.gnote:SetJustifyH("LEFT")
+	d.parse = d:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	d.parse:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -122)
+	d.parse:SetWidth(222)
+	d.parse:SetHeight(50)
+	d.parse:SetJustifyH("LEFT")
+	d.parse:SetJustifyV("TOP")
+	local editNote = MakeButton(d, NextName("Btn"), "btn_edit_note", 222, 22, function()
+		if UI.selectedMember and BG.roster[UI.selectedMember] then BG.NoteWin.Open(UI.selectedMember, "edit") end
 	end)
-	assign:SetPoint("TOPLEFT", d, "TOPLEFT", 152, -121)
-	local ismain = MakeButton(d, NextName("Btn"), "btn_is_main", 108, 22, function()
-		if UI.selectedMember then BG.Roster.MarkMain(UI.selectedMember) UI.LoadDetail() end
-	end)
-	ismain:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -148)
-	local clear = MakeButton(d, NextName("Btn"), "btn_unassign", 116, 22, function()
-		if UI.selectedMember then BG.Roster.Unassign(UI.selectedMember) UI.LoadDetail() end
-	end)
-	clear:SetPoint("TOPLEFT", d, "TOPLEFT", 122, -148)
+	editNote:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -176)
 
-	Label(d, "lbl_joined", 12, -184, "GameFontNormalSmall")
-	d.joined = MakeEdit(nil, d, 14, -198, 110, function() return "" end, function() end, 12)
-	Label(d, "lbl_invited_by", 130, -184, "GameFontNormalSmall")
-	d.by = MakeEdit(nil, d, 132, -198, 100, function() return "" end, function() end, 20)
-	Label(d, "lbl_note", 12, -226, "GameFontNormalSmall")
-	d.note = MakeEdit(nil, d, 14, -240, 218, function() return "" end, function() end, 80)
+	Label(d, "lbl_joined", 12, -208, "GameFontNormalSmall")
+	d.approx = d:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+	d.approx:SetPoint("TOPLEFT", d, "TOPLEFT", 74, -209)
+	d.joined = MakeEdit(nil, d, 14, -222, 110, function() return "" end, function() end, 12)
+	Label(d, "lbl_invited_by", 130, -208, "GameFontNormalSmall")
+	d.by = MakeEdit(nil, d, 132, -222, 100, function() return "" end, function() end, 20)
+	Label(d, "lbl_note", 12, -250, "GameFontNormalSmall")
+	d.note = MakeEdit(nil, d, 14, -264, 218, function() return "" end, function() end, 80)
 	local save = MakeButton(d, NextName("Btn"), "btn_save_details", 110, 22, function()
 		if UI.selectedMember then
 			BG.Roster.SetDetails(UI.selectedMember, d.joined:GetText(), d.by:GetText(), d.note:GetText())
 			BG.Print(BG.T("saved"))
 		end
 	end)
-	save:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -270)
-	local hint = Label(d, "members_hint", 12, -304, "GameFontDisableSmall", 222)
-	hint:SetHeight(66)
+	save:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -292)
+	p.promoBtn = BG.MakeButton(d, NextName("Btn"), 222, 22, "")
+	p.promoBtn:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -320)
+	p.promoBtn:SetScript("OnClick", function() BG.Promo.Open() end)
+	local hint = Label(d, "members_hint", 12, -346, "GameFontDisableSmall", 222)
+	hint:SetHeight(28)
 	hint:SetJustifyV("TOP")
 
 	p.refresh = function()
 		p.list.SetData(BG.Roster.Rows(UI.memberFilter, UI.onlyUnassigned))
 		UI.LoadDetail()
+		UI.UpdatePromoButton()
 	end
+end
+
+function UI.UpdatePromoButton()
+	local p = panels.members
+	if not p or not p.promoBtn or not BG.Promo then return end
+	local n = 0
+	if (BG.Roster.scans or 0) > 0 and BG.db.promo.enabled and BG.Promo.Steps() then n = table.getn(BG.Promo.Due(false)) end
+	p.promoBtn:SetText(BG.T("btn_promote_open", n))
 end
 
 function UI.LoadDetail()
@@ -840,6 +858,9 @@ function UI.LoadDetail()
 		d.title:SetText(GRAY .. BG.T("select_member") .. "|r")
 		d.info:SetText("")
 		d.twinks:SetText("")
+		d.gnote:SetText("")
+		d.parse:SetText("")
+		d.approx:SetText("")
 		return
 	end
 	local info = BG.roster[name]
@@ -861,10 +882,27 @@ function UI.LoadDetail()
 			d.twinks:SetText(GRAY .. BG.T("detail_no_twinks") .. "|r")
 		end
 	end
-	d.mainEdit.loading = true
-	d.mainEdit:SetText(c.main or "")
-	d.mainEdit.loading = false
+	local note = info and info.note or ""
+	d.gnote:SetText(note ~= "" and note or (GRAY .. BG.T("note_none") .. "|r"))
+	local pn = info and info.parsed
+	local lines = {}
+	if pn and pn.kind then
+		local head = (pn.kind == "main") and BG.T("detail_main_n") or BG.T("detail_twink_n", pn.main or "?")
+		table.insert(lines, GREEN .. head .. "|r")
+		if table.getn(pn.profs) > 0 then
+			local names = {}
+			for i = 1, table.getn(pn.profs) do table.insert(names, BG.Notes.ProfName(pn.profs[i])) end
+			table.insert(lines, BG.T("detail_profs", table.concat(names, ", ")))
+		end
+		if pn.spec then table.insert(lines, BG.T("detail_spec", BG.Notes.SpecName(pn.spec), BG.Notes.RoleName(pn.role))) end
+	elseif info then
+		table.insert(lines, YELLOW .. BG.T("detail_nonote") .. "|r")
+	end
+	local probs = BG.Roster.NoteProblems(name)
+	for i = 1, table.getn(probs) do table.insert(lines, RED .. probs[i] .. "|r") end
+	d.parse:SetText(table.concat(lines, "\n"))
 	d.joined:SetText(c.joined or "")
+	d.approx:SetText(c.approx and (GRAY .. BG.T("detail_approx") .. "|r") or "")
 	d.by:SetText(c.invitedBy or "")
 	d.note:SetText(c.note or "")
 end
@@ -911,6 +949,7 @@ local FEATURES = {
 	{ "scanner", "feat_scanner", "tip_scanner" },
 	{ "rightClickInvite", "feat_rightclick", "tip_rightclick" },
 	{ "welcomePopup", "feat_welcomepopup", "tip_welcomepopup" },
+	{ "joinWindow", "feat_joinwindow", "tip_joinwindow" },
 	{ "autoWelcome", "feat_autowelcome", "tip_autowelcome" },
 	{ "guildBroadcast", "feat_broadcast", "tip_broadcast" },
 	{ "worldPing", "feat_worldping", "tip_worldping" },
@@ -918,7 +957,7 @@ local FEATURES = {
 	{ "sound", "feat_sound", "tip_sound" },
 }
 
-local QUIET_KINDS = { "levelup", "level60", "whisper", "scanner", "welcome", "conflict" }
+local QUIET_KINDS = { "levelup", "level60", "whisper", "scanner", "welcome", "conflict", "promo" }
 
 -- page 2 of the settings: instance / raid mode
 local function BuildQuietPage(root, q)
@@ -940,9 +979,9 @@ local function BuildQuietPage(root, q)
 			function() return db.quiet.allow[kind] end,
 			function(v) db.quiet.allow[kind] = v end, "tip_quiet_allow")
 	end
-	MakeCheck("settings", q, 0, -262, "quiet_catchup",
+	MakeCheck("settings", q, 0, -278, "quiet_catchup",
 		function() return db.quiet.catchup end, function(v) db.quiet.catchup = v end, "tip_quiet_catchup")
-	MakeCheck("settings", q, 0, -288, "quiet_summary_chk",
+	MakeCheck("settings", q, 0, -304, "quiet_summary_chk",
 		function() return db.quiet.summary end, function(v) db.quiet.summary = v end)
 	q.elapsed = 0
 	q:SetScript("OnUpdate", function()
@@ -967,6 +1006,80 @@ function UI.UpdateQuiet()
 	end
 end
 
+-- page 3 of the settings: promotion of new members
+local function CycleRank(field)
+	local ranks, n = BG.Promo.Ranks()
+	if n == 0 then return end
+	local cur = BG.Promo.RankIndex(BG.db.promo[field]) or -1
+	local nxt = cur + 1
+	if nxt >= n then nxt = 0 end
+	BG.db.promo[field] = ranks[nxt] or BG.db.promo[field]
+	UI.UpdatePromoPage()
+end
+
+local function BuildPromoPage(root, pp)
+	local db = BG.db
+	Label(pp, "promo_set_header", 0, -2, "GameFontNormal")
+	local desc = Label(pp, "promo_set_desc", 0, -26, "GameFontHighlightSmall", 590)
+	desc:SetHeight(58)
+	desc:SetJustifyV("TOP")
+	MakeCheck("settings", pp, 0, -88, "promo_enabled",
+		function() return db.promo.enabled end,
+		function(v) db.promo.enabled = v UI.UpdatePromoButton() end)
+	Label(pp, "promo_weeks", 0, -124)
+	MakeEdit("settings", pp, 110, -120, 36, function() return db.promo.weeks end, function(t)
+		NumberSetter(db.promo, "weeks", 1)(t)
+		UI.UpdatePromoButton()
+	end, 3)
+	Label(pp, "promo_weeks_unit", 154, -124)
+	Label(pp, "promo_from", 0, -154)
+	pp.fromBtn = BG.MakeButton(pp, NextName("Btn"), 170, 22, "")
+	pp.fromBtn:SetPoint("TOPLEFT", pp, "TOPLEFT", 90, -150)
+	pp.fromBtn:SetScript("OnClick", function() CycleRank("from") end)
+	Tooltip(pp.fromBtn, "promo_cycle_tip")
+	Label(pp, "promo_to", 290, -154)
+	pp.toBtn = BG.MakeButton(pp, NextName("Btn"), 170, 22, "")
+	pp.toBtn:SetPoint("TOPLEFT", pp, "TOPLEFT", 370, -150)
+	pp.toBtn:SetScript("OnClick", function() CycleRank("to") end)
+	Tooltip(pp.toBtn, "promo_cycle_tip")
+	pp.steps = Label(pp, nil, 0, -180, "GameFontNormalSmall", 590)
+	Label(pp, "promo_ranks", 0, -204, "GameFontNormalSmall", 590)
+	pp.ranks = pp:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	pp.ranks:SetPoint("TOPLEFT", pp, "TOPLEFT", 0, -220)
+	pp.ranks:SetWidth(590)
+	pp.ranks:SetJustifyH("LEFT")
+	pp.ranks:SetJustifyV("TOP")
+	pp.ranks:SetHeight(180)
+	root.promoPage = pp
+end
+
+function UI.UpdatePromoPage()
+	local root = panels.settings
+	local pp = root and root.promoPage
+	if not pp or not BG.Promo then return end
+	local pr = BG.db.promo
+	pp.fromBtn:SetText(pr.from)
+	pp.toBtn:SetText(pr.to)
+	local steps, a, b = BG.Promo.Steps()
+	if steps then
+		pp.steps:SetText(GREEN .. BG.T("promo_steps_hint", steps, BG.Promo.Path()) .. "|r")
+	else
+		pp.steps:SetText(RED .. BG.T("promo_bad_ranks") .. "|r")
+	end
+	local ranks, n = BG.Promo.Ranks()
+	local lines = {}
+	for i = 0, n - 1 do
+		local nm = ranks[i] or "?"
+		local tag
+		if steps and i == a then tag = GOLD .. "[" .. BG.T("promo_tag_start") .. "]|r"
+		elseif steps and i == b then tag = GREEN .. "[" .. BG.T("promo_tag_target") .. "]|r"
+		elseif steps and i < a and i > b then tag = GRAY .. "[" .. BG.T("promo_tag_pass") .. "]|r"
+		else tag = RED .. "[" .. BG.T("promo_tag_prot") .. "]|r" end
+		table.insert(lines, GRAY .. i .. "|r  " .. nm .. "  " .. tag)
+	end
+	pp.ranks:SetText(table.concat(lines, "\n"))
+end
+
 function UI.SettingsPage(which)
 	local root = panels.settings
 	if not root or not root.pages then return end
@@ -976,7 +1089,9 @@ function UI.SettingsPage(which)
 	end
 	UI.MarkSelected(root.btnGeneral, which == "general")
 	UI.MarkSelected(root.btnQuiet, which == "quiet")
+	UI.MarkSelected(root.btnPromo, which == "promo")
 	UI.UpdateQuiet()
+	UI.UpdatePromoPage()
 end
 
 local function BuildSettings(root)
@@ -985,12 +1100,17 @@ local function BuildSettings(root)
 	p:SetAllPoints(root)
 	local qp = CreateFrame("Frame", NextName("SetQuiet"), root)
 	qp:SetAllPoints(root)
-	root.pages = { general = p, quiet = qp }
+	local pp = CreateFrame("Frame", NextName("SetPromo"), root)
+	pp:SetAllPoints(root)
+	root.pages = { general = p, quiet = qp, promo = pp }
+	root.btnPromo = MakeButton(root, NextName("Btn"), "btn_set_promo", 110, 20, function() UI.SettingsPage("promo") end)
+	root.btnPromo:SetPoint("TOPRIGHT", root, "TOPRIGHT", 0, 2)
 	root.btnQuiet = MakeButton(root, NextName("Btn"), "btn_set_quiet", 130, 20, function() UI.SettingsPage("quiet") end)
-	root.btnQuiet:SetPoint("TOPRIGHT", root, "TOPRIGHT", 0, 2)
+	root.btnQuiet:SetPoint("RIGHT", root.btnPromo, "LEFT", -4, 0)
 	root.btnGeneral = MakeButton(root, NextName("Btn"), "btn_set_general", 100, 20, function() UI.SettingsPage("general") end)
 	root.btnGeneral:SetPoint("RIGHT", root.btnQuiet, "LEFT", -4, 0)
 	BuildQuietPage(root, qp)
+	BuildPromoPage(root, pp)
 	Label(p, "settings_header", 0, -2, "GameFontNormal", 330)
 	for i = 1, table.getn(FEATURES) do
 		local f = FEATURES[i]
