@@ -3,6 +3,10 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 1.8.0
+- Addons & Analytics: Die Infotexte unten und die graue Zeile „Gildenmitglieder ... mit Daten erfasst ... außerhalb gesehen" sind entfernt. Stattdessen steht unten „Accounts: X und Chars: Y". Chars = alle Gildenmitglieder, Accounts = Zahl der verschiedenen Mains laut Gildennotiz (Chars ohne gültige Notiz zählen einzeln, Tooltip erklärt das). Die Liste hat dafür drei Zeilen mehr.
+- Der Selbsttest-Button ist aus der Fußzeile in die Einstellungen (Seite „Allgemein", unten) gewandert. `/bgd selftest` funktioniert weiter.
+
 ## 1.7.3
 - Notiz-Fenster: Neuer Beruf Juwelenschleifen (Kürzel `JC`, auch `Juwelenschleifer`, `Juwe` u.a. werden erkannt). Die Berufe stehen als ausgeschriebener Name in kleiner Schrift auf den Buttons (Sprache wie im Addon), in die Notiz kommt weiterhin das kurze Kürzel. Mouse-over zeigt beide Namen, das Kürzel und ob Haupt- oder Nebenberuf.
 - Mouse-over bei den Specs: Name in Deutsch und Englisch sowie die Rolle (Tank, Heiler, Schaden) mit kurzer Erklärung, immer in beiden Sprachen.

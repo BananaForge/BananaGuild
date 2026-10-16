@@ -261,6 +261,19 @@ function Roster.IsAssigned(name)
 	return false
 end
 
+-- accounts = number of distinct mains (the root of every character, by guild note); characters without any note count
+-- as one account each. chars = everybody in the guild. noNote = characters without a valid note and without manual data.
+function Roster.CountAccounts()
+	local roots, accounts, chars, noNote = {}, 0, 0, 0
+	for name, info in pairs(BG.roster) do
+		chars = chars + 1
+		local root = Roster.RootOf(name)
+		if not roots[root] then roots[root] = true accounts = accounts + 1 end
+		if not Roster.IsAssigned(name) then noNote = noNote + 1 end
+	end
+	return accounts, chars, noNote
+end
+
 -- note problems of a character as readable lines
 function Roster.NoteProblems(name)
 	local out = {}

@@ -291,12 +291,11 @@ local function BuildAddons(p)
 			p.stat[r][i] = fs
 		end
 	end
-	p.summary = Label(p, nil, 0, -24 - 6 * 15 - 6, "GameFontDisableSmall", 590)
 
 	local q = MakeButton(p, NextName("Btn"), "btn_query", 170, 22, function() BG.Presence.Query() end)
-	q:SetPoint("TOPLEFT", p, "TOPLEFT", 0, -148)
+	q:SetPoint("TOPLEFT", p, "TOPLEFT", 0, -122)
 	Tooltip(q, "tip_query")
-	MakeCheck("addons", p, 190, -148, "chk_show_all",
+	MakeCheck("addons", p, 190, -122, "chk_show_all",
 		function() return UI.showAllMembers end,
 		function(v) UI.showAllMembers = v UI.Refresh("addons") end)
 
@@ -304,10 +303,10 @@ local function BuildAddons(p)
 	local hdr = { { 6, 100, "col_name" }, { 112, 66, "key_craft" }, { 182, 66, "key_bank" }, { 252, 66, "key_lootline" },
 		{ 322, 66, "key_loot" }, { 392, 66, "key_guild" }, { 460, 100, "col_last" } }
 	for i = 1, table.getn(hdr) do
-		Label(p, hdr[i][3], hdr[i][1], -178, "GameFontNormalSmall", hdr[i][2])
+		Label(p, hdr[i][3], hdr[i][1], -152, "GameFontNormalSmall", hdr[i][2])
 	end
 	local keys = { "craft", "bank", "lootline", "loot", "guild" }
-	p.list = MakeList(p, 0, -192, 596, 12, 17,
+	p.list = MakeList(p, 0, -166, 596, 15, 17,
 		function(r)
 			r.name = Cell(r, 6, 100)
 			r.k = {}
@@ -333,9 +332,21 @@ local function BuildAddons(p)
 				r.last:SetText(GRAY .. BG.T("never") .. "|r")
 			end
 		end)
-	local hint = Label(p, "addons_hint", 0, -192 - 12 * 17 - 14, "GameFontDisableSmall", 590)
-	hint:SetHeight(32)
-	hint:SetJustifyV("TOP")
+	-- accounts (distinct mains) and chars (everybody in the guild)
+	local cb = CreateFrame("Button", NextName("Counts"), p)
+	cb:SetWidth(400)
+	cb:SetHeight(16)
+	cb:SetPoint("TOPLEFT", p, "TOPLEFT", 0, -436)
+	p.counts = cb:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	p.counts:SetPoint("LEFT", cb, "LEFT", 0, 0)
+	p.counts:SetJustifyH("LEFT")
+	cb:SetScript("OnEnter", function()
+		local _, _, noNote = BG.Roster.CountAccounts()
+		GameTooltip:SetOwner(this, "ANCHOR_TOP")
+		GameTooltip:SetText(BG.T("addons_counts_tip", noNote), 1, 1, 1, 1, 1)
+		GameTooltip:Show()
+	end)
+	cb:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
 	p.refresh = function()
 		local st = BG.Presence.Stats()
@@ -351,7 +362,8 @@ local function BuildAddons(p)
 			local pct = (st.guildTotal > 0) and math.floor(row.running * 100 / st.guildTotal + 0.5) or 0
 			cells[6]:SetText(pct .. "%")
 		end
-		p.summary:SetText(BG.T("addons_summary", st.guildTotal, st.seen, st.outside))
+		local accounts, chars = BG.Roster.CountAccounts()
+		p.counts:SetText(BG.T("addons_counts", accounts, chars))
 		p.list.SetData(BG.Presence.Rows(UI.showAllMembers))
 	end
 end
@@ -1462,6 +1474,12 @@ local function BuildSettings(root)
 		BG.Print(BG.T("done"))
 	end)
 	rt:SetPoint("TOPLEFT", p, "TOPLEFT", 200, -430)
+	local st = MakeButton(p, "BananaGuildSelfTestBtn", "btn_selftest", 160, 22, function()
+		UI.Show("selftest")
+		BG.SelfTest.Run()
+	end)
+	st:SetPoint("TOPLEFT", p, "TOPLEFT", 430, -430)
+	Tooltip(st, "tip_selftest")
 	root.gzBtn = p.gzBtn
 	root.gzChecks = p.gzChecks
 	root.refresh = function()
@@ -1672,12 +1690,6 @@ function UI.Build()
 	-- footer
 	main.version = main:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 	main.version:SetPoint("BOTTOMRIGHT", main, "BOTTOMRIGHT", -24, 20)
-	local st = MakeButton(main, "BananaGuildSelfTestBtn", "btn_selftest", 110, 22, function()
-		UI.Show("selftest")
-		BG.SelfTest.Run()
-	end)
-	st:SetPoint("RIGHT", main.version, "LEFT", -10, 0)
-	Tooltip(st, "tip_selftest")
 	local credit = main:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 	credit:SetPoint("BOTTOMLEFT", main, "BOTTOMLEFT", 24, 22)
 	credit:SetText("BananaForge")
