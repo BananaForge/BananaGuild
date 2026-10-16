@@ -151,7 +151,8 @@ local function Build()
 	win:RegisterForDrag("LeftButton")
 	win:SetScript("OnDragStart", function() this:StartMoving() end)
 	win:SetScript("OnDragStop", function() this:StopMovingOrSizing() end)
-	BG.Backdrop(win, false)
+	BG.Backdrop(win, false, true)
+	win:SetToplevel(true)
 	win:Hide()
 
 	local close = CreateFrame("Button", Name("Close"), win, "UIPanelCloseButton")
@@ -375,6 +376,7 @@ function NW.Open(name, mode, opts)
 	win.specLbl:SetText(GOLD .. BG.T("nwin_spec") .. "|r")
 	win.noteLbl:SetText(GOLD .. BG.T("nwin_note") .. "|r")
 	win:Show()
+	win:Raise()
 	if BG.Sound and mode == "join" then BG.Sound("alert") end
 	NW.Redraw()
 end

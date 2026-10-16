@@ -124,10 +124,20 @@ local function Note(msg)
 	BG.Print(msg)
 end
 
+-- The promote call differs between clients: 1.12 FrameXML uses GuildPromoteByName, some use GuildPromote(name).
+-- Last resort: the slash command handler of the chat frame (/gpromote).
+function Promo.PromoteFn()
+	if type(GuildPromoteByName) == "function" then return GuildPromoteByName, "GuildPromoteByName" end
+	if type(GuildPromote) == "function" then return GuildPromote, "GuildPromote" end
+	if SlashCmdList and type(SlashCmdList["GUILD_PROMOTE"]) == "function" then return SlashCmdList["GUILD_PROMOTE"], "/gpromote" end
+	return nil
+end
+
 -- queue entries: { name, to = target rank name, toIdx, auto = true for the reminder promotion (start rank -> target rank) }
 function Promo.Enqueue(names)
 	local pr = BG.db.promo
 	if not Promo.CanPromote() then BG.Print(BG.T("promo_no_right")) return 0 end
+	if not Promo.PromoteFn() then BG.Print(BG.T("promo_noapi")) return 0 end
 	local steps, a, b = Promo.Steps()
 	if not steps then BG.Print(BG.T("promo_bad_ranks")) return 0 end
 	local added = 0
@@ -159,6 +169,7 @@ end
 
 function Promo.EnqueueManual(name, toName)
 	if not Promo.CanPromote() then BG.Print(BG.T("promo_no_right")) return false end
+	if not Promo.PromoteFn() then BG.Print(BG.T("promo_noapi")) return false end
 	local info = BG.roster[name]
 	local me = BG.roster[BG.me]
 	local toIdx = Promo.RankIndex(toName)
@@ -218,7 +229,18 @@ local function Tick()
 		cur.lastIdx = idx
 		cur.t0 = GetTime()
 		cur.poll = GetTime()
-		GuildPromote(cur.name)
+		local fn = Promo.PromoteFn()
+		if not fn then
+			Note(BG.T("promo_noapi"))
+			Done(cur, false, info.rank)
+			return
+		end
+		local ok, err = pcall(fn, cur.name)
+		if not ok then
+			BG.Fail("promote", err)
+			Done(cur, false, info.rank)
+			return
+		end
 		if GuildRoster then GuildRoster() end
 	else
 		if idx ~= cur.lastIdx then
@@ -274,7 +296,8 @@ local function Build()
 	win:RegisterForDrag("LeftButton")
 	win:SetScript("OnDragStart", function() this:StartMoving() end)
 	win:SetScript("OnDragStop", function() this:StopMovingOrSizing() end)
-	BG.Backdrop(win, false)
+	BG.Backdrop(win, false, true)
+	win:SetToplevel(true)
 	win:Hide()
 	local close = CreateFrame("Button", Name("Close"), win, "UIPanelCloseButton")
 	close:SetPoint("TOPRIGHT", win, "TOPRIGHT", -2, -2)
@@ -397,6 +420,7 @@ end
 function Promo.Open()
 	if not win then Build() end
 	win:Show()
+	win:Raise()
 	Promo.Refresh()
 end
 
@@ -415,7 +439,8 @@ local function BuildManual()
 	mw:RegisterForDrag("LeftButton")
 	mw:SetScript("OnDragStart", function() this:StartMoving() end)
 	mw:SetScript("OnDragStop", function() this:StopMovingOrSizing() end)
-	BG.Backdrop(mw, false)
+	BG.Backdrop(mw, false, true)
+	mw:SetToplevel(true)
 	mw:Hide()
 	local close = CreateFrame("Button", Name("MClose"), mw, "UIPanelCloseButton")
 	close:SetPoint("TOPRIGHT", mw, "TOPRIGHT", -2, -2)
@@ -491,6 +516,7 @@ function Promo.OpenManual(name)
 		if mw.targets[i].name == BG.db.promo.to then mw.sel = i end
 	end
 	mw:Show()
+	mw:Raise()
 	Promo.RefreshManual()
 end
 

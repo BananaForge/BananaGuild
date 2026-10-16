@@ -3,6 +3,11 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 1.5.2
+- Beförderung repariert: Manche Clients haben `GuildPromote` nicht (Fehler „attempt to call global GuildPromote"). Das Addon sucht jetzt selbst die passende Funktion (`GuildPromoteByName`, `GuildPromote`, zuletzt der Slash-Befehl `/gpromote`), meldet verständlich, wenn keine da ist, und der Selbsttest zeigt, welche genutzt wird.
+- Alle Popup-Fenster (Notiz, Beförderung, Rang ändern, Meldungen) haben einen undurchsichtigen Hintergrund und kommen beim Öffnen nach vorn.
+- Die „Eigene Notiz" im Notiz-Fenster bleibt in deinem Addon und wird nicht abgeglichen (Beschriftung korrigiert).
+
 ## 1.5.1
 - Manuelle Beförderung: Im Mitglieder-Reiter öffnet „Rang ändern ..." ein Fenster, in dem du für jedes Mitglied einen höheren Zielrang wählst (nur Ränge über dem aktuellen und unter deinem eigenen). Das Addon befördert Schritt für Schritt, genau wie bei der automatischen Erinnerung.
 - Mitglieder-Detail aufgeräumt: Beigetreten und Eingeladen von stehen als kleine, nicht mehr editierbare Schrift oben rechts neben dem Namen. Das freie Notizfeld liegt jetzt im Fenster „Notiz bearbeiten ..." (wird beim Schließen gespeichert). Speichern-Button und grauer Hinweistext unten entfallen.

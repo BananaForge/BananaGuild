@@ -174,6 +174,8 @@ function ST.Run()
 		if CanGuildPromote then
 			Add(BG.Promo.CanPromote() and "OK" or "INFO", BG.T("st_promoright"), BG.T(BG.Promo.CanPromote() and "st_yes" or "st_no"))
 		end
+		local _, fname = BG.Promo.PromoteFn()
+		if fname then Add("OK", BG.T("st_promoapi"), fname) else Add("WARN", BG.T("st_promoapi"), BG.T("promo_noapi")) end
 		if db.promo.enabled then
 			if BG.Promo.Steps() then Add("OK", BG.T("st_promoranks"), BG.Promo.Path())
 			else Add("WARN", BG.T("st_promoranks"), BG.T("promo_bad_ranks")) end

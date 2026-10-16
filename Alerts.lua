@@ -21,8 +21,18 @@ function BG.Sound(kind)
 	if PlaySoundFile then pcall(PlaySoundFile, file) end
 end
 
-local function Backdrop(f, dialog)
-	if dialog then
+-- solid = readable popup windows: opaque dark background (the tooltip texture is see-through)
+local function Backdrop(f, dialog, solid)
+	if solid then
+		f:SetBackdrop({
+			bgFile = "Interface\\Buttons\\WHITE8X8",
+			edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+			tile = false, tileSize = 16, edgeSize = 16,
+			insets = { left = 4, right = 4, top = 4, bottom = 4 },
+		})
+		f:SetBackdropColor(0.03, 0.05, 0.13, 1)
+		f:SetBackdropBorderColor(0.9, 0.75, 0.2, 1)
+	elseif dialog then
 		f:SetBackdrop({
 			bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
 			edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
@@ -85,7 +95,7 @@ local function BuildToast()
 	toast:RegisterForDrag("LeftButton")
 	toast:SetScript("OnDragStart", function() this:StartMoving() end)
 	toast:SetScript("OnDragStop", function() this:StopMovingOrSizing() end)
-	Backdrop(toast, false)
+	Backdrop(toast, false, true)
 	local icon = toast:CreateTexture(nil, "ARTWORK")
 	icon:SetTexture(BG.LOGO)
 	icon:SetWidth(52)
@@ -257,7 +267,8 @@ local function BuildPopup()
 	pf:RegisterForDrag("LeftButton")
 	pf:SetScript("OnDragStart", function() this:StartMoving() end)
 	pf:SetScript("OnDragStop", function() this:StopMovingOrSizing() end)
-	Backdrop(pf, false)
+	Backdrop(pf, false, true)
+	pf:SetToplevel(true)
 	local icon = pf:CreateTexture(nil, "ARTWORK")
 	icon:SetTexture(BG.LOGO)
 	icon:SetWidth(44)
