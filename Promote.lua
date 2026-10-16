@@ -465,34 +465,57 @@ end
 
 local dropCounter = 0
 
--- b.SetItems({ { label, value }, ... }); b.SetValue(value) (no callback); onPick(value) when the user picks one
-function BG.Dropdown(parent, x, y, w, onPick)
+-- b.SetItems({ { label, value }, ... }); b.SetValue(value, fallbackLabel) (no callback); onPick(value) when the user picks one.
+-- More than maxRows entries: the list scrolls (mouse wheel or slider).
+function BG.Dropdown(parent, x, y, w, onPick, maxRows)
+	maxRows = maxRows or 12
 	dropCounter = dropCounter + 1
-	local b = BG.MakeButton(parent, "BananaGuildDrop" .. dropCounter, w, 22, "")
+	local id = dropCounter
+	local b = BG.MakeButton(parent, "BananaGuildDrop" .. id, w, 22, "")
 	b:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y)
-	local lf = CreateFrame("Frame", "BananaGuildDropList" .. dropCounter, parent)
+	local lf = CreateFrame("Frame", "BananaGuildDropList" .. id, parent)
 	lf:SetFrameStrata("FULLSCREEN_DIALOG")
 	lf:SetWidth(w + 8)
 	BG.Backdrop(lf, false, true)
 	lf:SetPoint("TOPLEFT", b, "BOTTOMLEFT", -4, 2)
+	lf:EnableMouseWheel(true)
 	lf:Hide()
 	b.list = lf
 	b.items = {}
+	b.offset = 0
 	lf.rows = {}
 
-	function b.SetItems(items)
-		b.items = items or {}
-		for i = 1, table.getn(b.items) do
+	local slider = CreateFrame("Slider", "BananaGuildDropSlider" .. id, lf)
+	slider:SetWidth(14)
+	slider:SetPoint("TOPRIGHT", lf, "TOPRIGHT", -4, -4)
+	slider:EnableMouse(true)
+	slider:SetOrientation("VERTICAL")
+	slider:SetMinMaxValues(0, 0)
+	slider:SetValueStep(1)
+	slider:SetValue(0)
+	slider:SetThumbTexture("Interface\\Buttons\\UI-ScrollBar-Knob")
+	local thumb = slider:GetThumbTexture()
+	if thumb then thumb:SetWidth(14) thumb:SetHeight(22) end
+	slider:Hide()
+	b.slider = slider
+
+	local function Fill()
+		local n = table.getn(b.items)
+		local vis = n
+		if vis > maxRows then vis = maxRows end
+		local scroll = n > maxRows
+		for i = 1, vis do
 			local r = lf.rows[i]
 			if not r then
-				r = CreateFrame("Button", "BananaGuildDropRow" .. dropCounter .. "_" .. i, lf)
-				r:SetWidth(w)
+				r = CreateFrame("Button", "BananaGuildDropRow" .. id .. "_" .. i, lf)
 				r:SetHeight(20)
 				r.bg = r:CreateTexture(nil, "BACKGROUND")
 				r.bg:SetAllPoints(r)
 				r.bg:SetTexture(1, 1, 1, 0)
 				r.fs = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 				r.fs:SetPoint("LEFT", r, "LEFT", 8, 0)
+				r:EnableMouseWheel(true)
+				r:SetScript("OnMouseWheel", function() slider:SetValue(slider:GetValue() - arg1 * 3) end)
 				r:SetScript("OnEnter", function() this.bg:SetTexture(1, 1, 1, 0.18) end)
 				r:SetScript("OnLeave", function() this.bg:SetTexture(1, 1, 1, 0) end)
 				r:SetScript("OnClick", function()
@@ -506,26 +529,59 @@ function BG.Dropdown(parent, x, y, w, onPick)
 				end)
 				lf.rows[i] = r
 			end
-			r.item = b.items[i]
-			r.fs:SetText(b.items[i].label)
+			r.item = b.items[b.offset + i]
+			r.fs:SetText(r.item and r.item.label or "")
+			r:SetWidth(scroll and (w - 14) or w)
 			r:ClearAllPoints()
 			r:SetPoint("TOPLEFT", lf, "TOPLEFT", 4, -4 - (i - 1) * 20)
 			r:Show()
 		end
-		for i = table.getn(b.items) + 1, table.getn(lf.rows) do lf.rows[i]:Hide() end
-		lf:SetHeight(8 + table.getn(b.items) * 20)
+		for i = vis + 1, table.getn(lf.rows) do lf.rows[i]:Hide() end
+		lf:SetHeight(8 + vis * 20)
+		slider:SetHeight(vis * 20)
 	end
 
-	function b.SetValue(v)
+	slider:SetScript("OnValueChanged", function()
+		b.offset = math.floor((this:GetValue() or 0) + 0.5)
+		Fill()
+	end)
+	lf:SetScript("OnMouseWheel", function() slider:SetValue(slider:GetValue() - arg1 * 3) end)
+
+	function b.SetItems(items)
+		b.items = items or {}
+		local n = table.getn(b.items)
+		b.offset = 0
+		slider:SetMinMaxValues(0, math.max(0, n - maxRows))
+		slider:SetValue(0)
+		if n > maxRows then slider:Show() else slider:Hide() end
+		Fill()
+	end
+
+	function b.SetValue(v, fallback)
 		b.value = v
-		b:SetText("-")
+		b:SetText(fallback or "-")
 		for i = 1, table.getn(b.items) do
 			if b.items[i].value == v then b:SetText(b.items[i].label) end
 		end
 	end
 
 	b:SetScript("OnClick", function()
-		if lf:IsShown() then lf:Hide() elseif table.getn(b.items) > 0 then lf:Show() lf:Raise() end
+		if lf:IsShown() then lf:Hide() return end
+		local n = table.getn(b.items)
+		if n == 0 then return end
+		-- open with the chosen entry in view
+		if n > maxRows and b.value ~= nil then
+			for i = 1, n do
+				if b.items[i].value == b.value then
+					local off = i - 1 - math.floor(maxRows / 2)
+					if off < 0 then off = 0 end
+					if off > n - maxRows then off = n - maxRows end
+					slider:SetValue(off)
+				end
+			end
+		end
+		lf:Show()
+		lf:Raise()
 	end)
 	return b
 end

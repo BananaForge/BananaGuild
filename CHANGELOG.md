@@ -3,6 +3,9 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 1.7.2
+- Notiz-Fenster: Der Main eines Twinks wird nicht mehr getippt, sondern aus einer aufklappbaren Liste aller Gildenmitglieder gewählt (A-Z, mit Level, scrollbar per Mausrad oder Schieber, 10 Zeilen sichtbar). Nicht angeboten werden das Mitglied selbst und Mitglieder, deren Notiz sie als Twink ausweist. Beim erneuten Öffnen springt die Liste zum gewählten Namen.
+
 ## 1.7.1
 - Neue Textart „Alles abfragen" (5 Varianten): fragt Berufe, Spec und Twinks/Main in einer Flüsternachricht. Vierter Eintrag im Rechtsklick-Menü der Mitglieder-Liste, Text im Reiter Texte editierbar.
 

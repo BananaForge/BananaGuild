@@ -46,8 +46,7 @@ local function CurrentNote()
 	if not win.noprof then
 		for i = 1, table.getn(win.profs) do table.insert(profs, win.profs[i]) end
 	end
-	local main = win.mainEdit:GetText()
-	return BG.Notes.Build(win.kind, BG.Trim(main), profs, win.spec)
+	return BG.Notes.Build(win.kind, win.main or "", profs, win.spec)
 end
 
 function NW.Redraw()
@@ -66,7 +65,8 @@ function NW.Redraw()
 	-- role
 	Mark(win.btnMain, win.kind == "main")
 	Mark(win.btnTwink, win.kind == "twink")
-	if win.kind == "twink" then win.mainEdit:Show() win.twinkLbl:Show() else win.mainEdit:Hide() win.twinkLbl:Hide() end
+	if win.kind == "twink" then win.mainDrop:Show() win.twinkLbl:Show() else win.mainDrop:Hide() win.mainDrop.list:Hide() win.twinkLbl:Hide() end
+	win.mainDrop.SetValue(win.main, win.main)
 
 	-- professions
 	for i = 1, table.getn(win.profBtns) do
@@ -108,7 +108,7 @@ function NW.Redraw()
 	if win.preview:GetText() ~= note then win.preview:SetText(note) end
 	win.preview.locked = false
 	local problem
-	if win.kind == "twink" and BG.Trim(win.mainEdit:GetText()) == "" then
+	if win.kind == "twink" and (not win.main or win.main == "") then
 		problem = BG.T("nwin_needmain")
 	elseif len > BG.Notes.MAXLEN then
 		problem = BG.T("nwin_toolong", len)
@@ -171,15 +171,11 @@ local function Build()
 	win.btnTwink:SetPoint("LEFT", win.btnMain, "RIGHT", 4, 0)
 	win.btnTwink:SetScript("OnClick", function() win.kind = "twink" NW.Redraw() end)
 	win.twinkLbl = Text(win, 176, -83, "GameFontHighlightSmall", 70)
-	win.mainEdit = CreateFrame("EditBox", Name("Edit"), win, "InputBoxTemplate")
-	win.mainEdit:SetWidth(140)
-	win.mainEdit:SetHeight(20)
-	win.mainEdit:SetPoint("TOPLEFT", win, "TOPLEFT", 252, -79)
-	win.mainEdit:SetAutoFocus(false)
-	win.mainEdit:SetMaxLetters(12)
-	win.mainEdit:SetScript("OnTextChanged", function() NW.Redraw() end)
-	win.mainEdit:SetScript("OnEscapePressed", function() this:ClearFocus() end)
-	win.mainEdit:SetScript("OnEnterPressed", function() this:ClearFocus() end)
+	-- the main is picked from the members of the guild (scrolling list)
+	win.mainDrop = BG.Dropdown(win, 252, -79, 190, function(v)
+		win.main = v
+		NW.Redraw()
+	end, 10)
 
 	-- professions: 12 buttons in two rows of six
 	win.profLbl = Text(win, 16, -110, "GameFontNormalSmall", W - 32)
@@ -311,6 +307,24 @@ end
 
 --------------------------------------------------------------------- actions
 
+local SyncMainItems
+
+-- members that can be a main: everybody in the guild except the member himself and members whose note says twink
+function NW.MainItems()
+	local names = {}
+	for name, info in pairs(BG.roster) do
+		local pn = info.parsed
+		if name ~= win.target and not (pn and pn.kind == "twink") then table.insert(names, name) end
+	end
+	table.sort(names, function(a, b) return string.lower(a) < string.lower(b) end)
+	local items = {}
+	for i = 1, table.getn(names) do
+		local info = BG.roster[names[i]]
+		table.insert(items, { label = names[i] .. "  |cff999999" .. (info.level or "?") .. "|r", value = names[i] })
+	end
+	return items
+end
+
 function NW.SaveInternal()
 	if not win or not win.target or not win.intLoaded then return end
 	local txt = win.intEdit:GetText() or ""
@@ -328,7 +342,7 @@ function NW.Apply(greet)
 	if not BG.Notes.CanEdit() then return end
 	local note = win.note or ""
 	if note == "" or string.len(note) > BG.Notes.MAXLEN then return end
-	if win.kind == "twink" and BG.Trim(win.mainEdit:GetText()) == "" then return end
+	if win.kind == "twink" and (not win.main or win.main == "") then return end
 	BG.Notes.Set(name, note)
 	if greet and BG.Recruit then BG.Recruit.Welcome(name) end
 	win:Hide()
@@ -349,12 +363,10 @@ function NW.Open(name, mode, opts)
 	local info = BG.roster[name]
 	win.ckey = info and info.ckey or nil
 	local p = info and info.parsed
-	win.mainEdit.locked = true
-	win.mainEdit:SetText("")
-	win.mainEdit.locked = false
+	win.main = nil
 	if p and p.kind then
 		win.kind = p.kind
-		if p.main then win.mainEdit:SetText(p.main) end
+		if p.main then win.main = p.main end
 		for i = 1, table.getn(p.profs) do table.insert(win.profs, p.profs[i]) end
 		if p.spec then win.spec = p.spec[1] end
 		if table.getn(p.profs) == 0 then
@@ -375,6 +387,7 @@ function NW.Open(name, mode, opts)
 	win.noprofText:SetText(BG.T("nwin_noprof"))
 	win.specLbl:SetText(GOLD .. BG.T("nwin_spec") .. "|r")
 	win.noteLbl:SetText(GOLD .. BG.T("nwin_note") .. "|r")
+	SyncMainItems(true)
 	win:Show()
 	win:Raise()
 	if BG.Sound and mode == "join" then BG.Sound("alert") end
@@ -382,8 +395,22 @@ function NW.Open(name, mode, opts)
 end
 
 -- the roster was refreshed: class / note of the target may have become known
+-- fill the main list; only when the guild changed (a refresh would otherwise throw the scroll position away)
+SyncMainItems = function(force)
+	local items = NW.MainItems()
+	local n = table.getn(items)
+	local sig = n .. (items[1] and items[1].value or "") .. (items[n] and items[n].value or "")
+	if force or sig ~= win.mainSig then
+		win.mainSig = sig
+		win.mainDrop.SetItems(items)
+	end
+end
+
 function NW.OnRoster()
-	if win and win:IsShown() and win.target and not win.ckey then NW.Redraw() end
+	if win and win:IsShown() and win.target then
+		SyncMainItems(false)
+		if not win.ckey then NW.Redraw() end
+	end
 end
 
 function NW.IsOpen() return win and win:IsShown() end
