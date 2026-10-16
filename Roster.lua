@@ -177,7 +177,7 @@ BG.On("CHAT_MSG_SYSTEM", function(msg)
 		BG.AddLog("kick", BG.NormName(a), BG.NormName(b))
 	elseif kind == "promote" or kind == "demote" then
 		-- our own step by step promotion (Promote.lua) is logged once at the end instead of once per rank
-		local own = kind == "promote" and BG.Promo and BG.Promo.IsBusy(BG.NormName(b)) and BG.NormName(a) == BG.me
+		local own = BG.Promo and BG.Promo.IsBusy(BG.NormName(b)) and BG.NormName(a) == BG.me
 		if not own then BG.AddLog(kind, BG.NormName(a), BG.NormName(b), c) end
 	elseif kind == "decline" then
 		BG.AddLog("decline", BG.NormName(a))

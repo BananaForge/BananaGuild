@@ -717,28 +717,43 @@ local function BuildMembers(p)
 	local db = BG.db
 	Label(p, "members_header", 0, -2, "GameFontNormal")
 	Label(p, "lbl_search", 0, -28)
-	p.search = MakeEdit(nil, p, 60, -24, 150, function() return UI.memberFilter or "" end, function(t)
+	p.search = MakeEdit(nil, p, 60, -24, 112, function() return UI.memberFilter or "" end, function(t)
 		UI.memberFilter = t
 		UI.Refresh("members")
 	end, 30)
-	MakeCheck("members", p, 225, -24, "chk_unassigned",
+	p.rankDrop = BG.Dropdown(p, 180, -24, 118, function(v)
+		UI.rankFilter = (v ~= "") and v or nil
+		UI.Refresh("members")
+	end)
+	MakeCheck("members", p, 304, -24, "chk_unassigned",
 		function() return UI.onlyUnassigned end,
 		function(v) UI.onlyUnassigned = v UI.Refresh("members") end)
 	local sync = MakeButton(p, NextName("Btn"), "btn_sync", 130, 22, function() BG.Roster.SyncAll() end)
 	sync:SetPoint("TOPLEFT", p, "TOPLEFT", 466, -25)
 	Tooltip(sync, "tip_sync")
 
-	local hdr = { { 6, 108, "col_name" }, { 116, 26, "col_lvl" }, { 144, 74, "col_prof" }, { 220, 52, "col_spec" }, { 274, 44, "col_role" } }
+	local hdr = { { 24, 94, "col_name" }, { 120, 24, "col_lvl" }, { 146, 66, "col_prof" }, { 214, 48, "col_spec" }, { 264, 44, "col_role" } }
 	for i = 1, table.getn(hdr) do
 		Label(p, hdr[i][3], hdr[i][1], -54, "GameFontNormalSmall", hdr[i][2])
 	end
 	p.list = MakeList(p, 0, -68, 344, 19, 18,
 		function(r)
-			r.name = Cell(r, 4, 108)
-			r.lvl = Cell(r, 114, 26)
-			r.prof = Cell(r, 142, 74)
-			r.spec = Cell(r, 218, 52)
-			r.role = Cell(r, 272, 44)
+			r.mark = CreateFrame("CheckButton", NextName("RowMark"), r, "UICheckButtonTemplate")
+			r.mark:SetWidth(18)
+			r.mark:SetHeight(18)
+			r.mark:SetPoint("LEFT", r, "LEFT", 0, 0)
+			r.mark:SetScript("OnClick", function()
+				local item = this:GetParent().item
+				if item then
+					UI.marked[item.name] = this:GetChecked() and true or nil
+					UI.UpdateMarkInfo()
+				end
+			end)
+			r.name = Cell(r, 22, 96)
+			r.lvl = Cell(r, 118, 24)
+			r.prof = Cell(r, 144, 66)
+			r.spec = Cell(r, 212, 48)
+			r.role = Cell(r, 262, 44)
 		end,
 		function(r, item)
 			local info = BG.roster[item.name]
@@ -750,6 +765,12 @@ local function BuildMembers(p)
 			if item.kind == "main" and item.twinks > 0 then nm = nm .. GRAY .. " (+" .. item.twinks .. ")|r" end
 			if pn and pn.kind == "twink" and not pn.mainOk then nm = nm .. RED .. " ?|r" end
 			r.name:SetText(nm)
+			if info then
+				r.mark:Show()
+				r.mark:SetChecked(UI.marked[item.name] and 1 or nil)
+			else
+				r.mark:Hide()
+			end
 			r.lvl:SetText(info and tostring(info.level) or "-")
 			if pn and table.getn(pn.profs) > 0 then
 				r.prof:SetText(table.concat(pn.profs, "+"))
@@ -777,7 +798,7 @@ local function BuildMembers(p)
 	-- detail panel: everything comes from the guild note, the note window edits it
 	local d = CreateFrame("Frame", NextName("Detail"), p)
 	d:SetWidth(246)
-	d:SetHeight(266)
+	d:SetHeight(346)
 	d:SetPoint("TOPLEFT", p, "TOPLEFT", 350, -54)
 	BG.Backdrop(d, false)
 	p.detail = d
@@ -832,11 +853,80 @@ local function BuildMembers(p)
 	p.promoBtn:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -232)
 	p.promoBtn:SetScript("OnClick", function() BG.Promo.Open() end)
 
+	-- marked members (checkboxes in the list): change the rank of several at once
+	p.markInfo = d:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+	p.markInfo:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -266)
+	p.markInfo:SetWidth(222)
+	p.markInfo:SetJustifyH("LEFT")
+	local markAll = MakeButton(d, NextName("Btn"), "btn_mark_all", 140, 22, function()
+		for i = 1, table.getn(p.list.data) do
+			local it = p.list.data[i]
+			if BG.roster[it.name] then UI.marked[it.name] = true end
+		end
+		p.list.Draw()
+		UI.UpdateMarkInfo()
+	end)
+	markAll:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -284)
+	local markNone = MakeButton(d, NextName("Btn"), "btn_mark_none", 76, 22, function()
+		UI.marked = {}
+		p.list.Draw()
+		UI.UpdateMarkInfo()
+	end)
+	markNone:SetPoint("LEFT", markAll, "RIGHT", 6, 0)
+	p.changeMarked = MakeButton(d, NextName("Btn"), "btn_change_marked", 222, 22, function()
+		BG.Promo.OpenChange(UI.MarkedNames())
+	end)
+	p.changeMarked:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -312)
+
 	p.refresh = function()
-		p.list.SetData(BG.Roster.Rows(UI.memberFilter, UI.onlyUnassigned))
+		local rows = BG.Roster.Rows(UI.memberFilter, UI.onlyUnassigned)
+		if UI.rankFilter then
+			local f = {}
+			for i = 1, table.getn(rows) do
+				local info = BG.roster[rows[i].name]
+				if info and info.rank == UI.rankFilter then table.insert(f, rows[i]) end
+			end
+			rows = f
+		end
+		p.list.SetData(rows)
+		UI.LoadRankFilter()
 		UI.LoadDetail()
 		UI.UpdatePromoButton()
+		UI.UpdateMarkInfo()
 	end
+end
+
+UI.marked = {}
+
+-- names that are marked and still in the guild
+function UI.MarkedNames()
+	local out = {}
+	for name in pairs(UI.marked) do
+		if BG.roster[name] then table.insert(out, name) end
+	end
+	table.sort(out)
+	return out
+end
+
+function UI.UpdateMarkInfo()
+	local p = panels.members
+	if not p or not p.markInfo then return end
+	local n = table.getn(UI.MarkedNames())
+	p.markInfo:SetText(BG.T("mark_info", n))
+	if n > 0 then p.changeMarked:Enable() else p.changeMarked:Disable() end
+end
+
+-- rank filter choices: all ranks of the guild
+function UI.LoadRankFilter()
+	local p = panels.members
+	if not p or not p.rankDrop or not BG.Promo then return end
+	local ranks, n = BG.Promo.Ranks()
+	local items = { { label = BG.T("filter_rank_all"), value = "" } }
+	for i = 0, n - 1 do
+		if ranks[i] then table.insert(items, { label = ranks[i], value = ranks[i] }) end
+	end
+	p.rankDrop.SetItems(items)
+	p.rankDrop.SetValue(UI.rankFilter or "")
 end
 
 function UI.UpdatePromoButton()

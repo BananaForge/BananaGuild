@@ -3,6 +3,11 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 1.6.0
+- Rang ändern für einen oder viele Mitglieder, hoch und runter: Zielrang über ein aufklappbares Auswahlmenü (alle Ränge unterhalb deines eigenen). Vorschau mit Haken pro Mitglied („Name: Initiant -> Member (3 Schritte hoch)"), Seitenwechsel bei vielen. Wer auf deinem Rang oder darüber steht, wird übersprungen. Degradieren braucht eine zusätzliche Bestätigung (Haken). Im Verlauf steht ein Eintrag pro Änderung, am Ende eine Zusammenfassung im Chat.
+- Mitglieder-Reiter: Checkbox vor jedem Mitglied, „Alle sichtbaren markieren", „Keine" und „Rang für Markierte ändern ...". Neuer Rangfilter (aufklappbar) neben der Suche, damit sich zum Beispiel alle Initianten schnell markieren lassen.
+- Degradieren nutzt wie das Befördern die passende Client-Funktion (`GuildDemoteByName`, `GuildDemote` oder `/gdemote`); der Selbsttest zeigt sie an.
+
 ## 1.5.2
 - Beförderung repariert: Manche Clients haben `GuildPromote` nicht (Fehler „attempt to call global GuildPromote"). Das Addon sucht jetzt selbst die passende Funktion (`GuildPromoteByName`, `GuildPromote`, zuletzt der Slash-Befehl `/gpromote`), meldet verständlich, wenn keine da ist, und der Selbsttest zeigt, welche genutzt wird.
 - Alle Popup-Fenster (Notiz, Beförderung, Rang ändern, Meldungen) haben einen undurchsichtigen Hintergrund und kommen beim Öffnen nach vorn.
