@@ -3,6 +3,9 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 1.7.1
+- Neue Textart „Alles abfragen" (5 Varianten): fragt Berufe, Spec und Twinks/Main in einer Flüsternachricht. Vierter Eintrag im Rechtsklick-Menü der Mitglieder-Liste, Text im Reiter Texte editierbar.
+
 ## 1.7.0
 - Mitglieder-Reiter: Filter „Nur online". Die Spaltenköpfe Name, Lvl, Beruf, Spec und Rolle sind klickbar und sortieren (nochmal klicken kehrt um, Pfeil zeigt die Spalte). Name sortiert A-Z / Z-A mit Mains und Twinks zusammen, die anderen Spalten zeigen eine flache Liste. Leere Werte stehen immer unten.
 - Rechtsklick auf ein Mitglied in der Liste öffnet ein kleines Menü: „Berufe abfragen", „Spec abfragen", „Twink-Infos abfragen". Das Addon flüstert dem Mitglied einen freundlichen Text (nur wenn es online ist).

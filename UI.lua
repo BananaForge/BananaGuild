@@ -589,7 +589,7 @@ end
 
 --------------------------------------------------------------------- panel: texts
 
-local TEXT_KEYS = { "welcome", "funny", "gz", "repliesDE", "repliesEN", "contactDE", "contactEN", "askProf", "askSpec", "askTwink" }
+local TEXT_KEYS = { "welcome", "funny", "gz", "repliesDE", "repliesEN", "contactDE", "contactEN", "askProf", "askSpec", "askTwink", "askAll" }
 
 -- the texts of the language that is NOT active are greyed out (they are still used automatically for
 -- whispers in that language)
@@ -1019,7 +1019,7 @@ function UI.OpenMemberMenu(name)
 	if not menu then
 		menu = CreateFrame("Frame", "BananaGuildMemberMenu", UIParent)
 		menu:SetWidth(210)
-		menu:SetHeight(112)
+		menu:SetHeight(138)
 		menu:SetFrameStrata("FULLSCREEN_DIALOG")
 		menu:EnableMouse(true)
 		BG.Backdrop(menu, false, true)
@@ -1027,9 +1027,9 @@ function UI.OpenMemberMenu(name)
 		menu.title:SetPoint("TOPLEFT", menu, "TOPLEFT", 12, -10)
 		menu.title:SetWidth(186)
 		menu.title:SetJustifyH("LEFT")
-		local kinds = { "askProf", "askSpec", "askTwink" }
+		local kinds = { "askProf", "askSpec", "askTwink", "askAll" }
 		menu.btns = {}
-		for i = 1, 3 do
+		for i = 1, 4 do
 			local kind = kinds[i] -- local per iteration (Lua 5.0 closures share the loop variable)
 			local b = BG.MakeButton(menu, "BananaGuildMemberMenuBtn" .. i, 186, 22, "")
 			b:SetPoint("TOPLEFT", menu, "TOPLEFT", 12, -28 - (i - 1) * 26)
@@ -1051,8 +1051,9 @@ function UI.OpenMemberMenu(name)
 	menu.btns[1]:SetText(BG.T("menu_ask_prof"))
 	menu.btns[2]:SetText(BG.T("menu_ask_spec"))
 	menu.btns[3]:SetText(BG.T("menu_ask_twink"))
+	menu.btns[4]:SetText(BG.T("menu_ask_all"))
 	local info = BG.roster[name]
-	for i = 1, 3 do
+	for i = 1, 4 do
 		if info and info.online then menu.btns[i]:Enable() else menu.btns[i]:Disable() end
 	end
 	local x, y = GetCursorPosition()

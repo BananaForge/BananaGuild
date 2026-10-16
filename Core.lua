@@ -212,7 +212,7 @@ end
 
 BG.TEXT_NAMES = {}
 -- every kind has exactly 5 variants; one chat message per variant
-BG.VARIANT_KINDS = { "recruit", "welcome", "funny", "gz", "repliesDE", "repliesEN", "contactDE", "contactEN", "askProf", "askSpec", "askTwink" }
+BG.VARIANT_KINDS = { "recruit", "welcome", "funny", "gz", "repliesDE", "repliesEN", "contactDE", "contactEN", "askProf", "askSpec", "askTwink", "askAll" }
 BG.VARIANTS = 5
 
 -- "contactDE" / "repliesEN" ... are tied to one language, independent of the UI language
