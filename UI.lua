@@ -239,7 +239,8 @@ local function MakeList(parent, x, y, w, rows, rh, build, fill, onClick)
 		r:EnableMouseWheel(true)
 		r:SetScript("OnMouseWheel", Wheel)
 		if onClick then
-			r:SetScript("OnClick", function() onClick(this, this.item, this.index) end)
+			r:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+			r:SetScript("OnClick", function() onClick(this, this.item, this.index, arg1) end)
 			r:SetScript("OnEnter", function() this.bg:SetTexture(1, 1, 1, 0.12) end)
 			r:SetScript("OnLeave", function()
 				if this.selected then this.bg:SetTexture(1, 0.82, 0, 0.18) else this.bg:SetTexture(1, 1, 1, 0) end
@@ -588,7 +589,7 @@ end
 
 --------------------------------------------------------------------- panel: texts
 
-local TEXT_KEYS = { "welcome", "funny", "gz", "repliesDE", "repliesEN", "contactDE", "contactEN" }
+local TEXT_KEYS = { "welcome", "funny", "gz", "repliesDE", "repliesEN", "contactDE", "contactEN", "askProf", "askSpec", "askTwink" }
 
 -- the texts of the language that is NOT active are greyed out (they are still used automatically for
 -- whispers in that language)
@@ -607,30 +608,30 @@ local function BuildTexts(p)
 	Label(p, "lbl_guildtag", 0, -56)
 	MakeEdit("texts", p, 130, -52, 200, function() return db.guildTag end, function(t) db.guildTag = t end, 60)
 
-	-- row 1: greeting, funny, GZ; row 2: replies and contact messages (DE / EN)
+	-- row 1: greeting, funny, GZ; row 2: replies and contact messages (DE / EN); row 3: questions to members
 	p.btns = {}
 	for i = 1, table.getn(TEXT_KEYS) do
 		local k = TEXT_KEYS[i] -- Lua 5.0: closures share the loop variable, so copy it into a local
 		local b = MakeButton(p, NextName("Btn"), "txt_" .. k, 146, 22, function() UI.SelectText(k) end)
 		local row, col = 0, i - 1
-		if i > 3 then row, col = 1, i - 4 end
+		if i > 7 then row, col = 2, i - 8 elseif i > 3 then row, col = 1, i - 4 end
 		b:SetPoint("TOPLEFT", p, "TOPLEFT", col * 150, -84 - row * 26)
 		p.btns[k] = b
 	end
 	-- the 5 variants of the chosen kind
-	Label(p, "lbl_variant", 0, -146, "GameFontNormalSmall", 70)
+	Label(p, "lbl_variant", 0, -172, "GameFontNormalSmall", 70)
 	p.slotBtns = {}
 	for s = 1, BG.VARIANTS do
 		local slot = s
 		local b = BG.MakeButton(p, NextName("Btn"), 40, 22, tostring(s))
-		b:SetPoint("TOPLEFT", p, "TOPLEFT", 74 + (s - 1) * 44, -141)
+		b:SetPoint("TOPLEFT", p, "TOPLEFT", 74 + (s - 1) * 44, -167)
 		b:SetScript("OnClick", function() UI.SelectSlot(slot) end)
 		p.slotBtns[s] = b
 	end
-	p.desc = Label(p, nil, 0, -172, "GameFontDisableSmall", 590)
+	p.desc = Label(p, nil, 0, -198, "GameFontDisableSmall", 590)
 	p.desc:SetHeight(30)
 	p.desc:SetJustifyV("TOP")
-	p.area = MakeTextArea("texts", p, 0, -204, 596, 162,
+	p.area = MakeTextArea("texts", p, 0, -230, 596, 136,
 		function()
 			local v = db.variants[UI.textSel or TEXT_KEYS[1]]
 			return v and v[UI.slotSel or 1] or ""
@@ -717,21 +718,48 @@ local function BuildMembers(p)
 	local db = BG.db
 	Label(p, "members_header", 0, -2, "GameFontNormal")
 	Label(p, "lbl_search", 0, -28)
-	p.search = MakeEdit(nil, p, 60, -24, 150, function() return UI.memberFilter or "" end, function(t)
+	p.search = MakeEdit(nil, p, 60, -24, 124, function() return UI.memberFilter or "" end, function(t)
 		UI.memberFilter = t
 		UI.Refresh("members")
 	end, 30)
-	p.rankDrop = BG.Dropdown(p, 218, -24, 130, function(v)
+	p.rankDrop = BG.Dropdown(p, 192, -24, 118, function(v)
 		UI.rankFilter = (v ~= "") and v or nil
 		UI.Refresh("members")
 	end)
-	MakeCheck("members", p, 360, -24, "chk_unassigned",
+	local cOnline = MakeCheck("members", p, 318, -24, "chk_online",
+		function() return UI.onlyOnline end,
+		function(v) UI.onlyOnline = v UI.Refresh("members") end)
+	getglobal(cOnline:GetName() .. "Text"):SetWidth(72)
+	local cNote = MakeCheck("members", p, 418, -24, "chk_unassigned",
 		function() return UI.onlyUnassigned end,
 		function(v) UI.onlyUnassigned = v UI.Refresh("members") end)
+	getglobal(cNote:GetName() .. "Text"):SetWidth(130)
 
 	local hdr = { { 24, 94, "col_name" }, { 120, 24, "col_lvl" }, { 146, 66, "col_prof" }, { 214, 48, "col_spec" }, { 264, 44, "col_role" } }
+	local sortKeys = { "name", "lvl", "prof", "spec", "role" }
+	p.sortArrows = {}
 	for i = 1, table.getn(hdr) do
-		Label(p, hdr[i][3], hdr[i][1], -54, "GameFontNormalSmall", hdr[i][2])
+		local key = sortKeys[i] -- local per iteration (Lua 5.0 closures share the loop variable)
+		local hb = CreateFrame("Button", NextName("Sort"), p)
+		hb:SetWidth(hdr[i][2])
+		hb:SetHeight(14)
+		hb:SetPoint("TOPLEFT", p, "TOPLEFT", hdr[i][1], -52)
+		local fs = hb:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+		fs:SetPoint("LEFT", hb, "LEFT", 0, 0)
+		fs:SetJustifyH("LEFT")
+		Reg(fs, hdr[i][3])
+		hb:SetFontString(fs)
+		hb:SetScript("OnClick", function() UI.SortBy(key) end)
+		hb:SetScript("OnEnter", function()
+			fs:SetTextColor(1, 1, 1)
+			GameTooltip:SetOwner(this, "ANCHOR_TOP")
+			GameTooltip:SetText(BG.T("tip_sort"), 1, 1, 1, 1, 1)
+			GameTooltip:Show()
+		end)
+		hb:SetScript("OnLeave", function() fs:SetTextColor(1, 0.82, 0) GameTooltip:Hide() end)
+		local arrow = hb:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+		arrow:SetPoint("RIGHT", hb, "RIGHT", 0, 0)
+		p.sortArrows[key] = arrow
 	end
 	p.list = MakeList(p, 0, -68, 344, 18, 18,
 		function(r)
@@ -786,10 +814,11 @@ local function BuildMembers(p)
 			r.selected = (UI.selectedMember == item.name)
 			r.bg:SetTexture(1, 0.82, 0, r.selected and 0.18 or 0)
 		end,
-		function(row, item)
+		function(row, item, index, button)
 			UI.selectedMember = item.name
 			UI.LoadDetail()
 			p.list.Draw()
+			if button == "RightButton" then UI.OpenMemberMenu(item.name) end
 		end)
 
 	-- detail panel: everything comes from the guild note, the note window edits it
@@ -877,14 +906,19 @@ local function BuildMembers(p)
 
 	p.refresh = function()
 		local rows = BG.Roster.Rows(UI.memberFilter, UI.onlyUnassigned)
-		if UI.rankFilter then
+		if UI.rankFilter or UI.onlyOnline then
 			local f = {}
 			for i = 1, table.getn(rows) do
 				local info = BG.roster[rows[i].name]
-				if info and info.rank == UI.rankFilter then table.insert(f, rows[i]) end
+				local ok = info ~= nil
+				if ok and UI.rankFilter and info.rank ~= UI.rankFilter then ok = false end
+				if ok and UI.onlyOnline and not info.online then ok = false end
+				if ok then table.insert(f, rows[i]) end
 			end
 			rows = f
 		end
+		rows = UI.SortRows(rows)
+		UI.UpdateSortArrows()
 		p.list.SetData(rows)
 		UI.LoadRankFilter()
 		UI.LoadDetail()
@@ -894,6 +928,140 @@ local function BuildMembers(p)
 end
 
 UI.marked = {}
+UI.sortKey = "name"
+UI.sortDesc = false
+
+function UI.SortBy(key)
+	if UI.sortKey == key then
+		UI.sortDesc = not UI.sortDesc
+	else
+		UI.sortKey = key
+		UI.sortDesc = false
+	end
+	UI.Refresh("members")
+end
+
+function UI.UpdateSortArrows()
+	local p = panels.members
+	if not p or not p.sortArrows then return end
+	for key, a in pairs(p.sortArrows) do
+		if key == UI.sortKey then a:SetText(YELLOW .. (UI.sortDesc and "v" or "^") .. "|r") else a:SetText("") end
+	end
+end
+
+-- value of a member for a column; nil = empty (always sorted to the end)
+local ROLE_ORDER = { T = 1, H = 2, D = 3 }
+local function SortValue(name, key)
+	local info = BG.roster[name]
+	if not info then return nil end
+	local pn = info.parsed
+	if key == "lvl" then return info.level or 0 end
+	if key == "prof" then
+		if pn and table.getn(pn.profs) > 0 then return table.concat(pn.profs, "+") end
+		return nil
+	end
+	if key == "spec" then return (pn and pn.spec) and string.lower(pn.spec[1]) or nil end
+	if key == "role" then return (pn and pn.role) and ROLE_ORDER[pn.role] or nil end
+	return string.lower(name)
+end
+
+-- name column: whole groups (main + twinks) A-Z or Z-A; other columns: one flat list of all members
+function UI.SortRows(rows)
+	local key, desc = UI.sortKey or "name", UI.sortDesc
+	if key == "name" then
+		if not desc then return rows end
+		local groups, cur = {}, nil
+		for i = 1, table.getn(rows) do
+			if rows[i].kind == "main" or not cur then
+				cur = {}
+				table.insert(groups, cur)
+			end
+			table.insert(cur, rows[i])
+		end
+		local out = {}
+		for g = table.getn(groups), 1, -1 do
+			for j = 1, table.getn(groups[g]) do table.insert(out, groups[g][j]) end
+		end
+		return out
+	end
+	local flat = {}
+	for i = 1, table.getn(rows) do
+		local r = rows[i]
+		table.insert(flat, { kind = "flat", name = r.name, root = r.root, twinks = 0, assigned = r.assigned, v = SortValue(r.name, key) })
+	end
+	table.sort(flat, function(a, b)
+		if a.v == nil and b.v == nil then return a.name < b.name end
+		if a.v == nil then return false end
+		if b.v == nil then return true end
+		if a.v ~= b.v then
+			if desc then return a.v > b.v end
+			return a.v < b.v
+		end
+		return a.name < b.name
+	end)
+	return flat
+end
+
+-- right click on a member: small menu with the three questions
+local menu
+local function AskMember(name, kind)
+	local info = BG.roster[name]
+	if not info or name == BG.me then return end
+	if not info.online then BG.Print(BG.T("menu_offline", name)) return end
+	local line = BG.PickVariant(kind)
+	if not line then return end
+	BG.SendChat(BG.Fill(line, { name = name }), "WHISPER", name)
+	BG.Print(BG.T("menu_sent", name))
+end
+
+function UI.OpenMemberMenu(name)
+	if name == BG.me then return end
+	if not menu then
+		menu = CreateFrame("Frame", "BananaGuildMemberMenu", UIParent)
+		menu:SetWidth(210)
+		menu:SetHeight(112)
+		menu:SetFrameStrata("FULLSCREEN_DIALOG")
+		menu:EnableMouse(true)
+		BG.Backdrop(menu, false, true)
+		menu.title = menu:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+		menu.title:SetPoint("TOPLEFT", menu, "TOPLEFT", 12, -10)
+		menu.title:SetWidth(186)
+		menu.title:SetJustifyH("LEFT")
+		local kinds = { "askProf", "askSpec", "askTwink" }
+		menu.btns = {}
+		for i = 1, 3 do
+			local kind = kinds[i] -- local per iteration (Lua 5.0 closures share the loop variable)
+			local b = BG.MakeButton(menu, "BananaGuildMemberMenuBtn" .. i, 186, 22, "")
+			b:SetPoint("TOPLEFT", menu, "TOPLEFT", 12, -28 - (i - 1) * 26)
+			b:SetScript("OnClick", function() AskMember(menu.target, kind) menu:Hide() end)
+			menu.btns[i] = b
+		end
+		menu.t = 0
+		menu:SetScript("OnUpdate", function()
+			-- closes when the mouse has been away for a moment
+			if MouseIsOver and MouseIsOver(this) then this.t = 0 return end
+			this.t = this.t + arg1
+			if this.t > 1.2 then this:Hide() end
+		end)
+		menu:Hide()
+	end
+	menu.target = name
+	menu.t = 0
+	menu.title:SetText(BG.T("menu_member", name))
+	menu.btns[1]:SetText(BG.T("menu_ask_prof"))
+	menu.btns[2]:SetText(BG.T("menu_ask_spec"))
+	menu.btns[3]:SetText(BG.T("menu_ask_twink"))
+	local info = BG.roster[name]
+	for i = 1, 3 do
+		if info and info.online then menu.btns[i]:Enable() else menu.btns[i]:Disable() end
+	end
+	local x, y = GetCursorPosition()
+	local scale = UIParent:GetEffectiveScale()
+	menu:ClearAllPoints()
+	menu:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x / scale - 10, y / scale + 10)
+	menu:Show()
+	menu:Raise()
+end
 
 -- names that are marked and still in the guild
 function UI.MarkedNames()
@@ -1198,30 +1366,40 @@ local function BuildSettings(root)
 	root.btnGeneral:SetPoint("RIGHT", root.btnQuiet, "LEFT", -4, 0)
 	BuildQuietPage(root, qp)
 	BuildPromoPage(root, pp)
-	Label(p, "settings_header", 0, -2, "GameFontNormal", 330)
-	for i = 1, table.getn(FEATURES) do
-		local f = FEATURES[i]
-		local col = (i - 1) - math.floor((i - 1) / 2) * 2
-		local row = math.floor((i - 1) / 2)
-		MakeCheck("settings", p, col * 300, -24 - row * 24, f[2],
-			function() return db.features[f[1]] end,
+	Label(p, "settings_header", 0, -2, "GameFontNormal", 240)
+
+	-- one feature checkbox by key (label / tooltip keys come from FEATURES)
+	local function Feat(x, y, key)
+		local f
+		for i = 1, table.getn(FEATURES) do if FEATURES[i][1] == key then f = FEATURES[i] end end
+		return MakeCheck("settings", p, x, y, f[2],
+			function() return db.features[key] end,
 			function(v)
-				db.features[f[1]] = v
-				if f[1] == "worldPing" then BG.Presence.Apply() end
-				if f[1] == "minimap" then UI.UpdateMinimap() end
-				if f[1] == "recruit" and not v then BG.Recruit.Stop() end
-				if f[1] == "scanner" and UI.panelsBuilt and panels.scanner then UI.Refresh("scanner") end
+				db.features[key] = v
+				if key == "worldPing" then BG.Presence.Apply() end
+				if key == "minimap" then UI.UpdateMinimap() end
+				if key == "recruit" and not v then BG.Recruit.Stop() end
+				if key == "scanner" and UI.panelsBuilt and panels.scanner then UI.Refresh("scanner") end
 			end, f[3])
 	end
-	local y = -24 - 7 * 24 - 4
-	local warn = Label(p, "worldping_warn", 0, y, "GameFontDisableSmall", 590)
-	warn:SetHeight(28)
-	warn:SetJustifyV("TOP")
+	-- section title with a thin gold line
+	local function Section(key, y)
+		Label(p, key, 0, y, "GameFontNormal", 400)
+		local line = p:CreateTexture(nil, "ARTWORK")
+		line:SetTexture(1, 0.82, 0, 0.35)
+		line:SetPoint("TOPLEFT", p, "TOPLEFT", 0, y - 17)
+		line:SetWidth(590)
+		line:SetHeight(1)
+	end
+	local C1, C2 = 0, 300
 
-	-- GZ popup: every level, or only the chosen full tens (10, 20 ... 60)
-	y = y - 34
+	-- notices
+	Section("sec_alerts", -24)
+	Feat(C1, -44, "levelup")
+	Feat(C2, -44, "selfToast")
+	Feat(C1, -66, "level60")
 	p.gzBtn = BG.MakeButton(p, NextName("Btn"), 270, 22, "")
-	p.gzBtn:SetPoint("TOPLEFT", p, "TOPLEFT", 0, y)
+	p.gzBtn:SetPoint("TOPLEFT", p, "TOPLEFT", 0, -94)
 	p.gzBtn:SetScript("OnClick", function()
 		db.gz.mode = (db.gz.mode == "tens") and "all" or "tens"
 		UI.UpdateGZ()
@@ -1230,40 +1408,59 @@ local function BuildSettings(root)
 	p.gzChecks = {}
 	for step = 1, 6 do
 		local lvl = step * 10 -- own local per iteration: Lua 5.0 closures would otherwise share the loop variable
-		local c = MakeCheck("settings", p, 280 + (step - 1) * 52, y + 1, "gz_lvl_" .. lvl,
+		local c = MakeCheck("settings", p, 280 + (step - 1) * 52, -93, "gz_lvl_" .. lvl,
 			function() return db.gz.levels[lvl] end,
 			function(v) db.gz.levels[lvl] = v end, "tip_gz_level")
 		getglobal(c:GetName() .. "Text"):SetWidth(24)
 		p.gzChecks[lvl] = c
 	end
-	y = y - 56
-	Label(p, "lbl_whisper_window", 0, y - 4)
-	MakeEdit("settings", p, 250, y, 40, function() return db.recruit.window end, NumberSetter(db.recruit, "window", 1), 4)
-	y = y - 30
-	MakeCheck("settings", p, 0, y, "chk_sync_accept",
+
+	-- recruiting
+	Section("sec_recruit", -126)
+	Feat(C1, -146, "recruit")
+	Feat(C2, -146, "whisperPopup")
+	Feat(C1, -168, "scanner")
+	Feat(C2, -168, "rightClickInvite")
+	Feat(C1, -190, "welcomePopup")
+	Feat(C2, -190, "joinWindow")
+	Feat(C1, -212, "autoWelcome")
+	Label(p, "lbl_whisper_window", C2 + 4, -218, "GameFontHighlightSmall", 232)
+	MakeEdit("settings", p, 540, -214, 40, function() return db.recruit.window end, NumberSetter(db.recruit, "window", 1), 4)
+
+	-- general
+	Section("sec_general", -246)
+	Feat(C1, -266, "minimap")
+	Feat(C2, -266, "sound")
+	Feat(C1, -288, "guildBroadcast")
+	Feat(C2, -288, "worldPing")
+	local warn = Label(p, "worldping_warn", 0, -314, "GameFontDisableSmall", 590)
+	warn:SetHeight(26)
+	warn:SetJustifyV("TOP")
+
+	-- sync
+	Section("sec_sync", -346)
+	MakeCheck("settings", p, C1, -366, "chk_sync_accept",
 		function() return db.sync.accept end, function(v) db.sync.accept = v end, "tip_sync_accept")
-	Label(p, "lbl_trust_rank", 300, y - 4)
-	MakeEdit("settings", p, 540, y, 40, function() return db.sync.trustRank end, NumberSetter(db.sync, "trustRank", 0), 2)
-	y = y - 36
+	Label(p, "lbl_trust_rank", C2 + 4, -372, "GameFontHighlightSmall", 232)
+	MakeEdit("settings", p, 540, -368, 40, function() return db.sync.trustRank end, NumberSetter(db.sync, "trustRank", 0), 2)
 	local syncNow = MakeButton(p, NextName("Btn"), "btn_sync_now", 190, 24, function() BG.Roster.RequestSync(true) end)
-	syncNow:SetPoint("TOPLEFT", p, "TOPLEFT", 0, y)
+	syncNow:SetPoint("TOPLEFT", p, "TOPLEFT", 0, -396)
 	Tooltip(syncNow, "tip_sync_now")
-	p.syncStatus = Label(p, nil, 200, y - 6, "GameFontDisableSmall", 390)
-	y = y - 40
+	p.syncStatus = Label(p, nil, 200, -402, "GameFontDisableSmall", 390)
 	local rp = MakeButton(p, NextName("Btn"), "btn_reset_presence", 190, 22, function()
 		db.presence = {}
 		BG.Presence.Record(BG.me, BG.Presence.LocalAddons(), "self")
 		UI.Refresh("addons")
 		BG.Print(BG.T("done"))
 	end)
-	rp:SetPoint("TOPLEFT", p, "TOPLEFT", 0, y)
+	rp:SetPoint("TOPLEFT", p, "TOPLEFT", 0, -430)
 	local rt = MakeButton(p, NextName("Btn"), "btn_reset_texts", 220, 22, function()
 		BG.ResetTexts()
 		BG.ResetKeywords()
 		UI.Refresh("all")
 		BG.Print(BG.T("done"))
 	end)
-	rt:SetPoint("TOPLEFT", p, "TOPLEFT", 200, y)
+	rt:SetPoint("TOPLEFT", p, "TOPLEFT", 200, -430)
 	root.gzBtn = p.gzBtn
 	root.gzChecks = p.gzChecks
 	root.refresh = function()
