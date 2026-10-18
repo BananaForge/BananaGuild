@@ -11,6 +11,7 @@ BG.version = (GetAddOnMetadata and GetAddOnMetadata("BananaGuild", "Version")) o
 BG.PREFIX  = "BGLD"
 BG.SEP     = ";"
 BG.LOGO    = "Interface\\AddOns\\BananaGuild\\Media\\logo" -- replaced in Boot() with the real folder name
+BG.MEDIA   = "Interface\\AddOns\\BananaGuild\\Media\\"
 BG.errors  = {}
 
 -- Character that receives thank-you mail (same as in all other Banana addons)
@@ -420,6 +421,7 @@ local function Boot(name)
 	BG.booted = true
 	BG.folder = name or FindFolder()
 	BG.LOGO = "Interface\\AddOns\\" .. BG.folder .. "\\Media\\logo"
+	BG.MEDIA = "Interface\\AddOns\\" .. BG.folder .. "\\Media\\"
 	local ok, err = pcall(InitDB)
 	if not ok then Fail("InitDB", err) return end
 	BG.loaded = true

@@ -3,6 +3,11 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 1.11.0
+- Gildenstatistik überarbeitet. „Klassen": Donut-Diagramm mit der Gesamtzahl der Chars in der Mitte, rechts eine Rangliste mit Balken (Anzahl und Prozent) und darunter die Rollenverteilung (Tank, Heal, DD, unbekannt) aus den Specs der Notizen. Mouse-over auf einem Segment oder einer Zeile zeigt die Klasse mit Mitgliederzahl, wie viele einen Spec eingetragen haben und jeden Spec mit seiner Anzahl. Ein Klick öffnet die Specs dieser Klasse.
+- „Specs pro Klasse": Klasse über neun Buttons wählen, dann zeigt ein einziges Diagramm nur die Specs dieser Klasse (Mouse-over mit Anzahl, Anteil und Rolle), rechts die Specs mit Balken.
+- Glattere Optik: Die runden Kanten, das Loch und der goldene Rand kommen aus einer kleinen Bilddatei (Media\donut.tga), die Segmente haben feine Trennlinien. Das Zeichnen verteilt sich auf ein paar Bilder, es gibt keinen Ruckler.
+
 ## 1.10.0
 - Neue Gildenstatistik: Im Mitglieder-Reiter öffnet der Button „Klassen- & Spec-Statistik" (unten rechts) ein Fenster mit zwei Diagrammen. „Klassen": klassisches Tortendiagramm der Klassen in Klassenfarben mit Anzahl und Prozent. „Specs pro Klasse": innen die Klassen, außen als Ring die Specs jeder Klasse (hellere/dunklere Töne der Klassenfarbe, dazu „Spec unbekannt" für Mitglieder ohne Spec in der Notiz). Die Legende zeigt die Zahlen. Das Fenster aktualisiert sich, wenn sich die Gildenliste ändert.
 - Die Diagramme werden ohne Bilddateien aus farbigen Streifen gezeichnet (ca. 700 bzw. 1500 kleine Flächen, einmalig beim Öffnen und bei Änderungen).
