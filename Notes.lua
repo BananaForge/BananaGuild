@@ -102,6 +102,32 @@ function Notes.ProfName(code, lang)
 	return p[4]
 end
 
+-- class key -> readable name and the usual class colour (r, g, b)
+Notes.CLASS_INFO = {
+	WARRIOR = { "Krieger", "Warrior", 0.78, 0.61, 0.43 },
+	PALADIN = { "Paladin", "Paladin", 0.96, 0.55, 0.73 },
+	HUNTER  = { "J\195\164ger", "Hunter", 0.67, 0.83, 0.45 },
+	ROGUE   = { "Schurke", "Rogue", 1.00, 0.96, 0.41 },
+	PRIEST  = { "Priester", "Priest", 1.00, 1.00, 1.00 },
+	SHAMAN  = { "Schamane", "Shaman", 0.00, 0.44, 0.87 },
+	MAGE    = { "Magier", "Mage", 0.41, 0.80, 0.94 },
+	WARLOCK = { "Hexenmeister", "Warlock", 0.58, 0.51, 0.79 },
+	DRUID   = { "Druide", "Druid", 1.00, 0.49, 0.04 },
+}
+
+function Notes.ClassName(key, lang)
+	local c = Notes.CLASS_INFO[key]
+	if not c then return "?" end
+	if (lang or BG.Lang()) == "de" then return c[1] end
+	return c[2]
+end
+
+function Notes.ClassColor(key)
+	local c = Notes.CLASS_INFO[key]
+	if not c then return 0.6, 0.6, 0.6 end
+	return c[3], c[4], c[5]
+end
+
 -- localized class name ("Krieger", "Jägerin", "Warrior") -> key ("WARRIOR") or nil
 function Notes.ClassKey(name)
 	if not name or name == "" then return nil end

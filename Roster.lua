@@ -80,6 +80,7 @@ local function Scan()
 	end
 	if initial then db.rosterInit = true end
 	if BG.NoteWin then BG.NoteWin.OnRoster() end
+	if BG.Stats then BG.Stats.OnRoster() end
 	if BG.UI and BG.UI.Refresh then BG.UI.Refresh("members") BG.UI.Refresh("addons") end
 end
 

@@ -3,6 +3,10 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 1.10.0
+- Neue Gildenstatistik: Im Mitglieder-Reiter öffnet der Button „Klassen- & Spec-Statistik" (unten rechts) ein Fenster mit zwei Diagrammen. „Klassen": klassisches Tortendiagramm der Klassen in Klassenfarben mit Anzahl und Prozent. „Specs pro Klasse": innen die Klassen, außen als Ring die Specs jeder Klasse (hellere/dunklere Töne der Klassenfarbe, dazu „Spec unbekannt" für Mitglieder ohne Spec in der Notiz). Die Legende zeigt die Zahlen. Das Fenster aktualisiert sich, wenn sich die Gildenliste ändert.
+- Die Diagramme werden ohne Bilddateien aus farbigen Streifen gezeichnet (ca. 700 bzw. 1500 kleine Flächen, einmalig beim Öffnen und bei Änderungen).
+
 ## 1.9.0
 - Interessenten-Popups (Flüster und Scanner) zeigen jetzt Infos zum Spieler: Stufe, Klasse (in Klassenfarbe), Rasse, Gilde und Zone. Das Addon fragt sie per /who ab (still: nichts im Chat, das Freundefenster bleibt zu), höchstens eine Abfrage alle 5 Sekunden. Bis die Antwort da ist, steht „Infos werden abgefragt ...", danach die Daten, bei Offline oder ohne Antwort „Keine Infos gefunden". Antworten werden 15 Minuten gemerkt, „Andere Variante" fragt nicht neu.
 

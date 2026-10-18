@@ -54,7 +54,7 @@ function ST.Run()
 	if string.lower(folder) == "bananaguild" then Add("OK", BG.T("st_folder"), "Interface\\AddOns\\" .. folder)
 	else Add("WARN", BG.T("st_folder"), BG.T("st_folder_bad", folder)) end
 	local missing = {}
-	for _, f in ipairs({ "BananaPresence", "Locale", "Core", "Notes", "Presence", "Roster", "Alerts", "NoteWin", "Promote", "Recruit", "UI", "SelfTest" }) do
+	for _, f in ipairs({ "BananaPresence", "Locale", "Core", "Notes", "Presence", "Roster", "Alerts", "NoteWin", "Promote", "Stats", "Recruit", "UI", "SelfTest" }) do
 		if not (BG.files and BG.files[f]) then table.insert(missing, f) end
 	end
 	if table.getn(missing) > 0 then Add("FAIL", BG.T("st_files"), table.concat(missing, ", "))
