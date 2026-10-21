@@ -729,6 +729,16 @@ end
 local function BuildMembers(p)
 	local db = BG.db
 	Label(p, "members_header", 0, -2, "GameFontNormal")
+	p.viewBtns = {}
+	local views = { { "overview", "view_overview", 100 }, { "date", "view_date", 160 } }
+	local vx = 262
+	for i = 1, table.getn(views) do
+		local vkey = views[i][1] -- local per iteration (Lua 5.0 closures share the loop variable)
+		local vb = MakeButton(p, NextName("Btn"), views[i][2], views[i][3], 20, function() UI.SetMemberView(vkey) end)
+		vb:SetPoint("TOPLEFT", p, "TOPLEFT", vx, 2)
+		vx = vx + views[i][3] + 4
+		p.viewBtns[vkey] = vb
+	end
 	Label(p, "lbl_search", 0, -28)
 	p.search = MakeEdit(nil, p, 60, -24, 124, function() return UI.memberFilter or "" end, function(t)
 		UI.memberFilter = t
@@ -746,20 +756,30 @@ local function BuildMembers(p)
 		function() return UI.onlyUnassigned end,
 		function(v) UI.onlyUnassigned = v UI.Refresh("members") end)
 	getglobal(cNote:GetName() .. "Text"):SetWidth(130)
+	p.cOnline, p.cNote = cOnline, cNote
+	-- "by join date" view: only members offline for at least N days
+	p.cOff = MakeCheck("members", p, 318, -24, "chk_offline_from",
+		function() return UI.offlineOnly end,
+		function(v) UI.offlineOnly = v UI.Refresh("members") end)
+	getglobal(p.cOff:GetName() .. "Text"):SetWidth(72)
+	p.offDays = MakeEdit(nil, p, 410, -24, 36, function() return UI.minOffline end, function(t)
+		local n = tonumber(t)
+		if n and n >= 0 then UI.minOffline = n UI.Refresh("members") end
+	end, 4)
+	p.offUnit = Label(p, "lbl_days_unit", 454, -28, "GameFontHighlightSmall", 60)
 
-	local hdr = { { 24, 94, "col_name" }, { 120, 24, "col_lvl" }, { 146, 66, "col_prof" }, { 214, 48, "col_spec" }, { 264, 44, "col_role" } }
-	local sortKeys = { "name", "lvl", "prof", "spec", "role" }
+	local hdr = { { "name", "col_name" }, { "lvl", "col_lvl" }, { "prof", "col_prof" }, { "spec", "col_spec" }, { "role", "col_role" },
+		{ "joined", "col_joined" }, { "off", "col_offline" }, { "rank", "col_rank" } }
 	p.sortArrows = {}
+	p.hdrBtns = {}
 	for i = 1, table.getn(hdr) do
-		local key = sortKeys[i] -- local per iteration (Lua 5.0 closures share the loop variable)
+		local key = hdr[i][1] -- local per iteration (Lua 5.0 closures share the loop variable)
 		local hb = CreateFrame("Button", NextName("Sort"), p)
-		hb:SetWidth(hdr[i][2])
 		hb:SetHeight(14)
-		hb:SetPoint("TOPLEFT", p, "TOPLEFT", hdr[i][1], -52)
 		local fs = hb:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 		fs:SetPoint("LEFT", hb, "LEFT", 0, 0)
 		fs:SetJustifyH("LEFT")
-		Reg(fs, hdr[i][3])
+		Reg(fs, hdr[i][2])
 		hb:SetFontString(fs)
 		hb:SetScript("OnClick", function() UI.SortBy(key) end)
 		hb:SetScript("OnEnter", function()
@@ -772,6 +792,7 @@ local function BuildMembers(p)
 		local arrow = hb:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 		arrow:SetPoint("RIGHT", hb, "RIGHT", 0, 0)
 		p.sortArrows[key] = arrow
+		p.hdrBtns[key] = hb
 	end
 	p.list = MakeList(p, 0, -68, 344, 18, 18,
 		function(r)
@@ -791,6 +812,9 @@ local function BuildMembers(p)
 			r.prof = Cell(r, 144, 66)
 			r.spec = Cell(r, 212, 48)
 			r.role = Cell(r, 262, 44)
+			r.joined = Cell(r, 144, 56)
+			r.off = Cell(r, 202, 60)
+			r.rank = Cell(r, 264, 54)
 		end,
 		function(r, item)
 			local info = BG.roster[item.name]
@@ -809,6 +833,25 @@ local function BuildMembers(p)
 				r.mark:Hide()
 			end
 			r.lvl:SetText(info and tostring(info.level) or "-")
+			if UI.memberView == "date" then
+				-- join date, how long offline, rank
+				r.prof:SetText("") r.spec:SetText("") r.role:SetText("")
+				local ch = BG.db.chars[item.name]
+				local js = BG.Inactive.JoinedShort(item.name)
+				r.joined:SetText((js == "?") and (GRAY .. "-|r") or ((ch and ch.approx and "~" or "") .. js))
+				if not info then
+					r.off:SetText(GRAY .. "-|r")
+				elseif info.online then
+					r.off:SetText(GREEN .. BG.T("online_now") .. "|r")
+				else
+					r.off:SetText(BG.Inactive.Color(info.offlineDays) .. BG.Inactive.Short(info.offlineDays) .. "|r")
+				end
+				r.rank:SetText(info and string.sub(info.rank or "", 1, 9) or "")
+				r.selected = (UI.selectedMember == item.name)
+				r.bg:SetTexture(1, 0.82, 0, r.selected and 0.18 or 0)
+				return
+			end
+			r.joined:SetText("") r.off:SetText("") r.rank:SetText("")
 			if pn and table.getn(pn.profs) > 0 then
 				r.prof:SetText(table.concat(pn.profs, "+"))
 			else
@@ -849,9 +892,9 @@ local function BuildMembers(p)
 	d.info:SetWidth(222)
 	d.info:SetJustifyH("LEFT")
 	d.twinks = d:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-	d.twinks:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -52)
+	d.twinks:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -66)
 	d.twinks:SetWidth(222)
-	d.twinks:SetHeight(34)
+	d.twinks:SetHeight(22)
 	d.twinks:SetJustifyH("LEFT")
 	d.twinks:SetJustifyV("TOP")
 
@@ -915,24 +958,31 @@ local function BuildMembers(p)
 		BG.Promo.OpenChange(UI.MarkedNames())
 	end)
 	p.changeMarked:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -288)
-	local statsBtn = MakeButton(p, NextName("Btn"), "btn_stats", 246, 22, function() BG.Stats.Open() end)
+	local statsBtn = MakeButton(p, NextName("Btn"), "btn_stats", 120, 22, function() BG.Stats.Open() end)
 	statsBtn:SetPoint("TOPLEFT", p, "TOPLEFT", 350, -406)
 	Tooltip(statsBtn, "tip_stats")
+	local inaBtn = MakeButton(p, NextName("Btn"), "btn_inactive", 122, 22, function() BG.Inactive.Open() end)
+	inaBtn:SetPoint("TOPLEFT", p, "TOPLEFT", 474, -406)
+	Tooltip(inaBtn, "tip_inactive")
 
 	p.refresh = function()
-		local rows = BG.Roster.Rows(UI.memberFilter, UI.onlyUnassigned)
-		if UI.rankFilter or UI.onlyOnline then
+		local date = (UI.memberView == "date")
+		local rows = BG.Roster.Rows(UI.memberFilter, (not date) and UI.onlyUnassigned)
+		if UI.rankFilter or UI.onlyOnline or date then
 			local f = {}
+			local minOff = tonumber(UI.minOffline) or 0
 			for i = 1, table.getn(rows) do
 				local info = BG.roster[rows[i].name]
 				local ok = info ~= nil
 				if ok and UI.rankFilter and info.rank ~= UI.rankFilter then ok = false end
-				if ok and UI.onlyOnline and not info.online then ok = false end
+				if ok and not date and UI.onlyOnline and not info.online then ok = false end
+				if ok and date and UI.offlineOnly and not (info.offlineDays and info.offlineDays >= minOff) then ok = false end
 				if ok then table.insert(f, rows[i]) end
 			end
 			rows = f
 		end
 		rows = UI.SortRows(rows)
+		UI.LayoutMembersView()
 		UI.UpdateSortArrows()
 		p.list.SetData(rows)
 		UI.LoadRankFilter()
@@ -943,8 +993,54 @@ local function BuildMembers(p)
 end
 
 UI.marked = {}
+UI.memberView = "overview"
+UI.minOffline = 14
 UI.sortKey = "name"
 UI.sortDesc = false
+UI.sortStore = { overview = { "name", false }, date = { "joined", true } }
+
+-- column positions of the two views: key -> { x, width }
+local VIEW_COLS = {
+	overview = { name = { 24, 94 }, lvl = { 120, 24 }, prof = { 146, 66 }, spec = { 214, 48 }, role = { 264, 44 } },
+	date = { name = { 24, 94 }, lvl = { 120, 24 }, joined = { 146, 56 }, off = { 204, 60 }, rank = { 266, 52 } },
+}
+
+function UI.LayoutMembersView()
+	local p = panels.members
+	if not p or not p.hdrBtns then return end
+	local cols = VIEW_COLS[UI.memberView] or VIEW_COLS.overview
+	for key, hb in pairs(p.hdrBtns) do
+		local c = cols[key]
+		if c then
+			hb:ClearAllPoints()
+			hb:SetPoint("TOPLEFT", p, "TOPLEFT", c[1], -52)
+			hb:SetWidth(c[2])
+			hb:Show()
+		else
+			hb:Hide()
+			p.sortArrows[key]:SetText("")
+		end
+	end
+	local date = (UI.memberView == "date")
+	if date then
+		p.cOnline:Hide() p.cNote:Hide()
+		p.cOff:Show() p.offDays:Show() p.offUnit:Show()
+	else
+		p.cOnline:Show() p.cNote:Show()
+		p.cOff:Hide() p.offDays:Hide() p.offUnit:Hide()
+	end
+	if p.viewBtns then
+		for k, b in pairs(p.viewBtns) do UI.MarkSelected(b, k == UI.memberView) end
+	end
+end
+
+function UI.SetMemberView(view)
+	if view == UI.memberView then return end
+	UI.sortStore[UI.memberView] = { UI.sortKey, UI.sortDesc }
+	UI.memberView = view
+	UI.sortKey, UI.sortDesc = UI.sortStore[view][1], UI.sortStore[view][2]
+	UI.Refresh("members")
+end
 
 function UI.SortBy(key)
 	if UI.sortKey == key then
@@ -977,13 +1073,24 @@ local function SortValue(name, key)
 	end
 	if key == "spec" then return (pn and pn.spec) and string.lower(pn.spec[1]) or nil end
 	if key == "role" then return (pn and pn.role) and ROLE_ORDER[pn.role] or nil end
+	if key == "joined" then
+		local c = BG.db.chars[name]
+		local _, _, y, m, d = string.find((c and c.joined) or "", "^(%d%d%d%d)%-(%d%d?)%-(%d%d?)$")
+		if not y then return nil end
+		return tonumber(y) * 10000 + tonumber(m) * 100 + tonumber(d)
+	end
+	if key == "off" then
+		if info.online then return 0 end
+		return info.offlineDays
+	end
+	if key == "rank" then return info.rankIndex end
 	return string.lower(name)
 end
 
 -- name column: whole groups (main + twinks) A-Z or Z-A; other columns: one flat list of all members
 function UI.SortRows(rows)
 	local key, desc = UI.sortKey or "name", UI.sortDesc
-	if key == "name" then
+	if key == "name" and UI.memberView ~= "date" then
 		if not desc then return rows end
 		local groups, cur = {}, nil
 		for i = 1, table.getn(rows) do
@@ -1137,7 +1244,9 @@ function UI.LoadDetail()
 	local c = BG.db.chars[name] or {}
 	d.title:SetText(GOLD .. name .. "|r")
 	if info then
-		d.info:SetText(BG.T("detail_info", info.level, info.class or "?", info.rank or "?"))
+		local seen
+		if info.online then seen = BG.T("detail_lastseen_online") else seen = BG.T("detail_lastseen", BG.Inactive.Ago(info.offlineDays)) end
+		d.info:SetText(BG.T("detail_info", info.level, info.class or "?", info.rank or "?") .. "\n|cff999999" .. seen .. "|r")
 	else
 		d.info:SetText(GRAY .. BG.T("not_in_roster") .. "|r")
 	end

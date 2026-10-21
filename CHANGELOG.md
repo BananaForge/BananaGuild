@@ -3,6 +3,12 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 1.12.0
+- Mitglieder-Reiter: Oben stehen jetzt zwei Ansichten, „Übersicht" (wie bisher) und „Nach Eintrittsdatum". Die neue Ansicht zeigt Name, Level, Beigetreten, Offline-Dauer und Rang, standardmäßig die neuesten Mitglieder zuerst. Alle Spaltenköpfe sind klickbar (Eintrittsdatum, Offline-Zeit, Rang, Name, Level). Der Filter „Offline ab N Tagen" zeigt nur lange Abwesende. Die Offline-Zeit ist grau, ab der Hälfte des Grenzwerts orange und ab dem Grenzwert rot, wer online ist, steht als „online" da. Im Detailbereich steht „Zuletzt online: vor 3 Monaten".
+- Neuer Button „Inaktive ...": Fenster mit allen Mitgliedern, die mindestens N Tage offline waren (Standard 30 bzw. 90, einstellbar). Zwei Aktionen: „Auf Inaktiv setzen" (Zielrang wählbar, Schritt für Schritt wie bei der Beförderung) und „Aus der Gilde entfernen" (einzeln nacheinander, nur mit zusätzlicher Bestätigung, vor jedem Entfernen wird noch einmal geprüft). Vorschau mit Haken pro Mitglied, längste Abwesenheit zuerst. Es werden nur Mitglieder unterhalb des eigenen Ranges angeboten.
+- Woher die Offline-Zeit kommt: aus der Gildenliste („Zuletzt online"), wenn der Client sie liefert. Sonst zählt das Addon ab dem Tag, an dem es ein Mitglied zuletzt online gesehen hat (der Selbsttest zeigt, welche Quelle genutzt wird).
+- Der Button „Klassen- & Spec-Statistik" heißt jetzt „Statistik".
+
 ## 1.11.0
 - Gildenstatistik überarbeitet. „Klassen": Donut-Diagramm mit der Gesamtzahl der Chars in der Mitte, rechts eine Rangliste mit Balken (Anzahl und Prozent) und darunter die Rollenverteilung (Tank, Heal, DD, unbekannt) aus den Specs der Notizen. Mouse-over auf einem Segment oder einer Zeile zeigt die Klasse mit Mitgliederzahl, wie viele einen Spec eingetragen haben und jeden Spec mit seiner Anzahl. Ein Klick öffnet die Specs dieser Klasse.
 - „Specs pro Klasse": Klasse über neun Buttons wählen, dann zeigt ein einziges Diagramm nur die Specs dieser Klasse (Mouse-over mit Anzahl, Anteil und Rolle), rechts die Specs mit Balken.

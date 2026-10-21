@@ -185,6 +185,8 @@ local DEFAULTS = {
 	quiet = { enabled = true, catchup = true, summary = true,
 		allow = { levelup = false, level60 = false, whisper = false, scanner = false, welcome = false, conflict = false, promo = false } },
 	-- promotion of new members: reminder after 'weeks' on rank 'from', promoted step by step up to rank 'to' (rank names)
+	-- inactive members: offline for at least "days" -> set to rank "rank"; offline for "kickDays" -> may be removed
+	inactive = { days = 30, kickDays = 90, rank = "Inaktiv" },
 	promo = { enabled = true, weeks = 4, from = "Initiant", to = "Member", snooze = {}, day = "" },
 	sync = { accept = true, trustRank = 2 },
 	minimap = { angle = 200 },
@@ -653,7 +655,7 @@ local function Slash(msg)
 		if not BG.booted then pcall(Boot, nil) end
 		if not BG.loaded then
 			local missing = {}
-			for _, f in ipairs({ "BananaPresence", "Locale", "Core", "Notes", "Presence", "Roster", "Alerts", "NoteWin", "Promote", "Stats", "Recruit", "UI", "SelfTest" }) do
+			for _, f in ipairs({ "BananaPresence", "Locale", "Core", "Notes", "Presence", "Roster", "Alerts", "NoteWin", "Promote", "Stats", "Inactive", "Recruit", "UI", "SelfTest" }) do
 				if not (BG.files and BG.files[f]) then table.insert(missing, f) end
 			end
 			DEFAULT_CHAT_FRAME:AddMessage("|cffff5555[BananaGuild] not initialised.|r folder=" .. tostring(BG.folder)

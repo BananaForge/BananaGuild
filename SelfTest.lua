@@ -54,7 +54,7 @@ function ST.Run()
 	if string.lower(folder) == "bananaguild" then Add("OK", BG.T("st_folder"), "Interface\\AddOns\\" .. folder)
 	else Add("WARN", BG.T("st_folder"), BG.T("st_folder_bad", folder)) end
 	local missing = {}
-	for _, f in ipairs({ "BananaPresence", "Locale", "Core", "Notes", "Presence", "Roster", "Alerts", "NoteWin", "Promote", "Stats", "Recruit", "UI", "SelfTest" }) do
+	for _, f in ipairs({ "BananaPresence", "Locale", "Core", "Notes", "Presence", "Roster", "Alerts", "NoteWin", "Promote", "Stats", "Inactive", "Recruit", "UI", "SelfTest" }) do
 		if not (BG.files and BG.files[f]) then table.insert(missing, f) end
 	end
 	if table.getn(missing) > 0 then Add("FAIL", BG.T("st_files"), table.concat(missing, ", "))
@@ -177,6 +177,12 @@ function ST.Run()
 		if CanGuildDemote then
 			Add(BG.Promo.CanDemote() and "OK" or "INFO", BG.T("st_demoteright"), BG.T(BG.Promo.CanDemote() and "st_yes" or "st_no"))
 		end
+		if CanGuildRemove then
+			Add(BG.Inactive.CanKick() and "OK" or "INFO", BG.T("st_kickright"), BG.T(BG.Inactive.CanKick() and "st_yes" or "st_no"))
+		end
+		local _, kname = BG.Inactive.KickFn()
+		if kname then Add("OK", BG.T("st_kickapi"), kname) else Add("WARN", BG.T("st_kickapi"), BG.T("kick_noapi")) end
+		Add("INFO", BG.T("st_offline"), GetGuildRosterLastOnline and BG.T("st_offline_api") or BG.T("st_offline_seen"))
 		local _, dname = BG.Promo.DemoteFn()
 		if dname then Add("OK", BG.T("st_demoteapi"), dname) else Add("WARN", BG.T("st_demoteapi"), BG.T("demote_noapi")) end
 		local _, fname = BG.Promo.PromoteFn()

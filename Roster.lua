@@ -30,9 +30,16 @@ local function Scan()
 	for i = 1, n do
 		local name, rank, rankIndex, level, class, zone, note, officernote, online, status = GetGuildRosterInfo(i)
 		if name then
+			-- how long has he been offline? (years, months, days, hours since the last login - where the client has it)
+			local offDays, offSrc
+			if not online and GetGuildRosterLastOnline then
+				local ok, y, m, d, h = pcall(GetGuildRosterLastOnline, i)
+				if ok and y then offDays = y * 365 + (m or 0) * 30 + (d or 0) + (h or 0) / 24 offSrc = "api" end
+			end
 			new[name] = {
 				rank = rank, rankIndex = rankIndex or 99, level = level or 0, class = class,
 				zone = zone, note = note, online = online and true or false, status = status,
+				offlineDays = offDays, offlineSrc = offSrc,
 			}
 		end
 	end
@@ -76,6 +83,14 @@ local function Scan()
 				-- the join message was missed (other wording on the server, loading screen ...): the roster tells us
 				if not first and BG.Recruit then BG.Recruit.OnJoin(name) end
 			end
+		end
+		-- last time the addon saw him online: the fallback when the client does not tell how long somebody was offline
+		local ch = db.chars[name]
+		if info.online then
+			ch.seen = time()
+		elseif not info.offlineDays and ch.seen then
+			info.offlineDays = math.max(0, (time() - ch.seen) / 86400)
+			info.offlineSrc = "seen"
 		end
 	end
 	if initial then db.rosterInit = true end
