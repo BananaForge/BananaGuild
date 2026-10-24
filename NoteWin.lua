@@ -1,14 +1,15 @@
 --[[
   BananaGuild - NoteWin
   Window to enter / edit the guild note of a member: main or twink (+ main name), professions, spec.
-  Opens automatically for the player who is recruiting when somebody joins ("join" mode), or from the members tab ("edit" mode).
+  Opens automatically for the inviter / recruiter and the officers when somebody joins ("join" mode), or from the members tab ("edit" mode).
+  Has buttons to ask the player for professions / spec / twinks by whisper; the whisper replies are read and turned into a proposal.
 ]]
 
 local BG = BananaGuild
 local NW = {}
 BG.NoteWin = NW
 
-local W, H = 460, 448
+local W, H = 460, 548
 local GOLD, WHITE, GRAY, GREEN, RED = "|cffffd100", "|cffffffff", "|cff999999", "|cff40ff40", "|cffff5555"
 local win
 local counter = 0
@@ -134,11 +135,59 @@ function NW.Redraw()
 	else
 		win.btnGo:Disable() win.btnOnly:Disable()
 	end
-	win.btnGo:SetText(BG.T(win.mode == "join" and "btn_note_greet" or "btn_note_set"))
+	-- nobody gets two greetings: somebody else may have greeted already
+	local by = BG.Recruit and BG.Recruit.GreetedBy(win.target)
+	local canGreet = win.mode == "join" and win.greet and not by
+	win.btnGo:SetText(BG.T(canGreet and "btn_note_greet" or "btn_note_set"))
 	win.btnOnly:SetText(BG.T("btn_note_only"))
 	win.btnLater:SetText(BG.T(win.mode == "join" and "btn_later" or "btn_close"))
-	if win.mode == "join" and not win.greet then win.btnGo:SetText(BG.T("btn_note_set")) end
-	if win.mode == "join" and win.greet then win.btnOnly:Show() else win.btnOnly:Hide() end
+	if canGreet then win.btnOnly:Show() else win.btnOnly:Hide() end
+	if win.mode == "join" and by then
+		win.greetInfo:SetText(GREEN .. BG.T("nwin_greeted", by) .. "|r")
+	else
+		win.greetInfo:SetText("")
+	end
+	NW.RedrawAsk()
+end
+
+-- the "ask" section: buttons, last reply and the proposal read from the replies
+function NW.RedrawAsk()
+	if not win or not win:IsShown() then return end
+	local name = win.target
+	local info = BG.roster[name]
+	local online = info and info.online
+	for i = 1, table.getn(win.askBtns) do
+		if online then win.askBtns[i]:Enable() else win.askBtns[i]:Disable() end
+	end
+	local last = NW.LastReply(name)
+	if last then
+		win.reply:SetText(WHITE .. BG.T("nwin_reply", BG.Stamp(last.at)) .. "|r " .. last.text)
+	elseif not online then
+		win.reply:SetText(GRAY .. BG.T("nwin_ask_offline") .. "|r")
+	else
+		win.reply:SetText(GRAY .. BG.T("nwin_noreply") .. "|r")
+	end
+	local sug = NW.Suggestion(name)
+	win.suggestion = sug
+	if sug and sug.any then
+		local parts = {}
+		if sug.kind == "twink" then
+			table.insert(parts, sug.main and BG.T("nwin_sug_twink", sug.main) or BG.T("nwin_sug_twink0"))
+		elseif sug.kind == "main" then
+			table.insert(parts, BG.T("nwin_sug_main"))
+		end
+		if table.getn(sug.profs) > 0 then
+			local names = {}
+			for i = 1, table.getn(sug.profs) do table.insert(names, BG.Notes.ProfName(sug.profs[i])) end
+			table.insert(parts, BG.T("nwin_sug_profs", table.concat(names, ", ")))
+		end
+		if sug.spec then table.insert(parts, BG.T("nwin_sug_spec", sug.spec[1])) end
+		win.sugText:SetText(GOLD .. BG.T("nwin_suggest") .. "|r " .. table.concat(parts, " - "))
+		win.sugBtn:Show()
+	else
+		win.sugText:SetText("")
+		win.sugBtn:Hide()
+	end
 end
 
 --------------------------------------------------------------------- build
@@ -315,6 +364,38 @@ local function Build()
 	win.intEdit:SetScript("OnEnterPressed", function() this:ClearFocus() end)
 	win:SetScript("OnHide", function() NW.SaveInternal() end)
 
+	-- ask the player by whisper (professions / spec / twinks / everything) and read the reply
+	win.askLbl = Text(win, 16, -408, "GameFontNormalSmall", W - 32)
+	win.askBtns = {}
+	local askKinds = { "askAll", "askProf", "askSpec", "askTwink" }
+	local askKeys = { "nwin_ask_all", "nwin_ask_prof", "nwin_ask_spec", "nwin_ask_twink" }
+	for i = 1, 4 do
+		local kind, key = askKinds[i], askKeys[i] -- local per iteration (Lua 5.0 closures share the loop variable)
+		local b = BG.MakeButton(win, Name("Btn"), 104, 22, "")
+		b:SetPoint("TOPLEFT", win, "TOPLEFT", 16 + (i - 1) * 108, -422)
+		b:SetScript("OnClick", function() NW.Ask(win.target, kind) end)
+		b:SetScript("OnEnter", function()
+			GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
+			GameTooltip:SetText(BG.T(key), 1, 0.82, 0)
+			GameTooltip:AddLine(BG.T("tip_nwin_ask"), 1, 1, 1, 1)
+			GameTooltip:Show()
+		end)
+		b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+		win.askBtns[i] = b
+	end
+	win.reply = Text(win, 16, -450, "GameFontHighlightSmall", W - 32)
+	win.reply:SetHeight(28)
+	win.reply:SetJustifyV("TOP")
+	win.sugText = Text(win, 16, -482, "GameFontHighlightSmall", W - 168)
+	win.sugText:SetHeight(26)
+	win.sugText:SetJustifyV("TOP")
+	win.sugBtn = BG.MakeButton(win, Name("Btn"), 130, 22, "")
+	win.sugBtn:SetPoint("TOPRIGHT", win, "TOPRIGHT", -16, -482)
+	win.sugBtn:SetScript("OnClick", function() NW.ApplySuggestion() end)
+	win.sugBtn:Hide()
+	win.greetInfo = Text(win, 200, -398, "GameFontHighlightSmall", W - 216)
+	win.greetInfo:SetJustifyH("RIGHT")
+
 	-- actions
 	win.btnGo = BG.MakeButton(win, Name("Btn"), 186, 24, "")
 	win.btnGo:SetPoint("BOTTOMLEFT", win, "BOTTOMLEFT", 16, 14)
@@ -369,9 +450,85 @@ function NW.Apply(greet)
 	if note == "" or string.len(note) > BG.Notes.MAXLEN then return end
 	if win.kind == "twink" and (not win.main or win.main == "") then return end
 	BG.Notes.Set(name, note)
-	if greet and BG.Recruit then BG.Recruit.Welcome(name) end
+	if greet and BG.Recruit and not BG.Recruit.GreetedBy(name) then BG.Recruit.Welcome(name) end
 	win:Hide()
 end
+
+--------------------------------------------------------------------- ask + replies
+
+NW.replies = {}   -- name -> { { at, text }, ... } (whispers of guild members, newest last)
+local REPLY_TTL = 30 * 60
+
+function NW.OnWhisper(msg, sender)
+	if not msg or not sender then return end
+	local name = BG.NormName(sender)
+	if name == BG.me or not BG.roster[name] then return end
+	local list = NW.replies[name] or {}
+	NW.replies[name] = list
+	table.insert(list, { at = time(), text = msg })
+	while table.getn(list) > 6 do table.remove(list, 1) end
+	if win and win:IsShown() and win.target == name then NW.RedrawAsk() end
+end
+
+-- the replies of the last 30 minutes
+local function Recent(name)
+	local out = {}
+	local list = NW.replies[name]
+	if not list then return out end
+	local now = time()
+	for i = 1, table.getn(list) do
+		if now - list[i].at <= REPLY_TTL then table.insert(out, list[i]) end
+	end
+	return out
+end
+
+function NW.LastReply(name)
+	local r = Recent(name)
+	return r[table.getn(r)]
+end
+
+function NW.Suggestion(name)
+	local r = Recent(name)
+	if table.getn(r) == 0 then return nil end
+	local texts = {}
+	for i = 1, table.getn(r) do table.insert(texts, r[i].text) end
+	local info = BG.roster[name]
+	return BG.Notes.Suggest(table.concat(texts, " "), info and info.ckey, name)
+end
+
+function NW.Ask(name, kind)
+	local info = name and BG.roster[name]
+	if not info or name == BG.me then return end
+	if not info.online then BG.Print(BG.T("menu_offline", name)) return end
+	local line = BG.PickVariant(kind)
+	if not line then return end
+	BG.SendChat(BG.Fill(line, { name = name }), "WHISPER", name)
+	BG.Print(BG.T("menu_sent", name))
+end
+
+-- takes over only what the reply contained; the person confirms with the normal buttons afterwards
+function NW.ApplySuggestion()
+	local sug = win and win.suggestion
+	if not sug or not sug.any then return end
+	if sug.kind then
+		win.kind = sug.kind
+		if sug.kind == "twink" and sug.main then win.main = sug.main end
+	end
+	if table.getn(sug.profs) > 0 then
+		win.profs = {}
+		for i = 1, table.getn(sug.profs) do table.insert(win.profs, sug.profs[i]) end
+		win.noprof = false
+	end
+	if sug.spec then win.spec = sug.spec[1] end
+	NW.Redraw()
+end
+
+-- somebody greeted this member (kind W): the greet button of an open window is switched off
+function NW.MarkGreeted(name, by)
+	if win and win:IsShown() and win.target == name then NW.Redraw() end
+end
+
+BG.On("CHAT_MSG_WHISPER", function(msg, sender) NW.OnWhisper(msg, sender) end)
 
 -- name: guild member; mode: "join" (new member, recruiter) or "edit"; opts.greet = offer the guild-chat greeting
 function NW.Open(name, mode, opts)
@@ -412,6 +569,12 @@ function NW.Open(name, mode, opts)
 	win.noprofText:SetText(BG.T("nwin_noprof"))
 	win.specLbl:SetText(GOLD .. BG.T("nwin_spec") .. "|r")
 	win.noteLbl:SetText(GOLD .. BG.T("nwin_note") .. "|r")
+	win.askLbl:SetText(GOLD .. BG.T("nwin_ask") .. "|r")
+	win.askBtns[1]:SetText(BG.T("nwin_ask_all"))
+	win.askBtns[2]:SetText(BG.T("nwin_ask_prof"))
+	win.askBtns[3]:SetText(BG.T("nwin_ask_spec"))
+	win.askBtns[4]:SetText(BG.T("nwin_ask_twink"))
+	win.sugBtn:SetText(BG.T("nwin_suggest_btn"))
 	SyncMainItems(true)
 	win:Show()
 	win:Raise()

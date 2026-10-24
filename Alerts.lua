@@ -208,12 +208,13 @@ end
 
 --------------------------------------------------------------------- level up entry point
 
--- Does this level up get a GZ popup / chat notice? (settings: all levels, or only chosen full tens)
+-- Does this level up get a GZ popup / chat notice? (settings: all levels, or only the ticked 5er / 10er levels)
 function Alerts.LevelWanted(level)
 	local g = BG.db.gz
-	if not g or g.mode ~= "tens" then return true end
-	if math.mod(level, 10) ~= 0 then return false end
-	return g.levels[level] and true or false
+	if not g or (g.mode ~= "tens" and g.mode ~= "fives") then return true end
+	local step = (g.mode == "tens") and 10 or 5
+	if math.mod(level, step) ~= 0 then return false end
+	return g.levels[level] ~= false
 end
 
 function Alerts.OnLevel(name, level, source)

@@ -255,6 +255,160 @@ function Notes.Parse(note, classKey)
 	return r
 end
 
+--------------------------------------------------------------------- suggestion from a free-text reply
+
+-- lower case + umlauts -> ae/oe/ue/ss, blanks kept (Fold removes them)
+local function FoldKeep(s)
+	s = string.lower(s or "")
+	s = string.gsub(s, "\195\164", "ae")
+	s = string.gsub(s, "\195\132", "ae")
+	s = string.gsub(s, "\195\182", "oe")
+	s = string.gsub(s, "\195\150", "oe")
+	s = string.gsub(s, "\195\188", "ue")
+	s = string.gsub(s, "\195\156", "ue")
+	s = string.gsub(s, "\195\159", "ss")
+	return s
+end
+
+local function Words(s)
+	local out = {}
+	for w in string.gfind(FoldKeep(s), "%a+") do table.insert(out, w) end
+	return out
+end
+
+-- single words plus every pair glued together ("erste hilfe" -> "erstehilfe")
+local function WordsAndPairs(words)
+	local out = {}
+	for i = 1, table.getn(words) do
+		table.insert(out, words[i])
+		if words[i + 1] then table.insert(out, words[i] .. words[i + 1]) end
+	end
+	return out
+end
+
+local function Starts(s, prefix) return string.sub(s, 1, string.len(prefix)) == prefix end
+
+-- professions: short tokens (up to 3 letters) must match exactly, longer ones also by prefix ("Schmieden" -> Schmiedekunst)
+local function SuggestProfs(tokens)
+	local found, seen, mains = {}, {}, 0
+	for i = 1, table.getn(tokens) do
+		local t = tokens[i]
+		local p = profMap[t]
+		if not p and string.len(t) >= 4 then
+			for key, q in pairs(profMap) do
+				if (string.len(key) >= 4 and Starts(t, key)) or Starts(key, t) then p = q break end
+			end
+		end
+		if p and not seen[p[1]] then
+			if not p[2] or mains < 2 then
+				seen[p[1]] = true
+				table.insert(found, p[1])
+				if p[2] then mains = mains + 1 end
+			end
+		end
+	end
+	return found
+end
+
+local ROLE_WORDS = { tank = "T", heal = "H", healer = "H", heiler = "H", heilung = "H", healing = "H" }
+
+-- spec: code / German / English name, single words of the names; "tank" / "heal" when the class has exactly one such spec
+local function SuggestSpec(tokens, classKey)
+	local list = Notes.Specs(classKey)
+	if table.getn(list) == 0 then return nil end
+	local hits, count = {}, 0
+	local function Hit(i)
+		if not hits[i] then hits[i] = 0 count = count + 1 end
+		hits[i] = hits[i] + 1
+	end
+	for i = 1, table.getn(list) do
+		local sp = list[i]
+		local names = { Fold(sp[1]), Fold(sp[2]), Fold(sp[3]) }
+		local words = {}
+		for n = 2, 3 do
+			local w = Words(sp[n])
+			for k = 1, table.getn(w) do if string.len(w[k]) >= 3 then table.insert(words, w[k]) end end
+		end
+		for t = 1, table.getn(tokens) do
+			local tok = tokens[t]
+			for n = 1, 3 do
+				if tok == names[n] then Hit(i) end
+			end
+			for w = 1, table.getn(words) do
+				local word = words[w]
+				if tok == word or (string.len(tok) >= 4 and (Starts(word, tok) or Starts(tok, word))) then Hit(i) end
+			end
+		end
+	end
+	-- the spec with the most hits wins; words shared by several specs (druid "Wilder Kampf") and ties are not clear
+	if count > 0 then
+		local best, bestN, ties = nil, 0, 0
+		for i = 1, table.getn(list) do
+			local h = hits[i] or 0
+			if h > bestN then best, bestN, ties = list[i], h, 1
+			elseif h == bestN and h > 0 then ties = ties + 1 end
+		end
+		if best and ties == 1 then return best end
+		return nil
+	end
+	if count == 0 then
+		for t = 1, table.getn(tokens) do
+			local role = ROLE_WORDS[tokens[t]]
+			if role then
+				local only, n = nil, 0
+				for i = 1, table.getn(list) do
+					if list[i][4] == role then only = list[i] n = n + 1 end
+				end
+				if n == 1 then return only end
+			end
+		end
+	end
+	return nil
+end
+
+-- Reads a free-text reply of a player and returns what it contains: { kind, main, profs = {codes}, spec = {..}, any = bool }.
+-- Nothing is written anywhere; the window shows it as a proposal.
+function Notes.Suggest(text, classKey, target)
+	local r = { profs = {} }
+	if not text or Trim(text) == "" then return r end
+	local words = Words(text)
+	local tokens = WordsAndPairs(words)
+	r.profs = SuggestProfs(tokens)
+	r.spec = SuggestSpec(tokens, classKey)
+
+	-- main / twink: names of guild members that appear as a word
+	local hasTwink, hasMainWord, mineTwink = false, false, false
+	for i = 1, table.getn(words) do
+		local w = words[i]
+		if Starts(w, "twink") or w == "alt" or w == "zweitchar" or w == "second" or w == "zweitcharakter" then
+			hasTwink = true
+			local prev = words[i - 1]
+			if prev == "mein" or prev == "meine" or prev == "my" or prev == "meinen" or prev == "einen" or prev == "habe" or prev == "have" then mineTwink = true end
+		end
+		if w == "main" or Starts(w, "haupt") then hasMainWord = true end
+	end
+	local named
+	if BG.roster then
+		local lw = {}
+		for i = 1, table.getn(words) do lw[words[i]] = true end
+		for name in pairs(BG.roster) do
+			local f = FoldKeep(name)
+			if name ~= target and string.len(f) >= 3 and lw[f] then named = name break end
+		end
+	end
+	if mineTwink then
+		r.kind = "main" -- "my twink is X": the player himself is the main
+	elseif (hasTwink or hasMainWord) and named then
+		r.kind, r.main = "twink", named
+	elseif hasTwink then
+		r.kind = "twink"
+	elseif hasMainWord then
+		r.kind = "main"
+	end
+	r.any = (r.kind or r.spec or table.getn(r.profs) > 0) and true or false
+	return r
+end
+
 --------------------------------------------------------------------- builder
 
 local function Bytes(s) return string.len(s) end

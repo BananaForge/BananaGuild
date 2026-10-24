@@ -601,7 +601,7 @@ end
 
 --------------------------------------------------------------------- panel: texts
 
-local TEXT_KEYS = { "welcome", "funny", "gz", "repliesDE", "repliesEN", "contactDE", "contactEN", "askProf", "askSpec", "askTwink", "askAll" }
+local TEXT_KEYS = { "welcome", "welcomeRec", "funny", "gz", "repliesDE", "repliesEN", "contactDE", "contactEN", "askProf", "askSpec", "askTwink", "askAll" }
 
 -- the texts of the language that is NOT active are greyed out (they are still used automatically for
 -- whispers in that language)
@@ -620,13 +620,13 @@ local function BuildTexts(p)
 	Label(p, "lbl_guildtag", 0, -56)
 	MakeEdit("texts", p, 130, -52, 200, function() return db.guildTag end, function(t) db.guildTag = t end, 60)
 
-	-- row 1: greeting, funny, GZ; row 2: replies and contact messages (DE / EN); row 3: questions to members
+	-- row 1: greetings (role play / recruiting), funny, GZ; row 2: replies and contact messages (DE / EN); row 3: questions to members
 	p.btns = {}
 	for i = 1, table.getn(TEXT_KEYS) do
 		local k = TEXT_KEYS[i] -- Lua 5.0: closures share the loop variable, so copy it into a local
 		local b = MakeButton(p, NextName("Btn"), "txt_" .. k, 146, 22, function() UI.SelectText(k) end)
-		local row, col = 0, i - 1
-		if i > 7 then row, col = 2, i - 8 elseif i > 3 then row, col = 1, i - 4 end
+		local row = math.floor((i - 1) / 4)
+		local col = (i - 1) - row * 4
 		b:SetPoint("TOPLEFT", p, "TOPLEFT", col * 150, -84 - row * 26)
 		p.btns[k] = b
 	end
@@ -640,6 +640,9 @@ local function BuildTexts(p)
 		b:SetScript("OnClick", function() UI.SelectSlot(slot) end)
 		p.slotBtns[s] = b
 	end
+	-- kinds with 20 variants (GZ, greetings): a scrolling list instead of the five buttons
+	p.varDrop = BG.Dropdown(p, 74, -167, 160, function(v) UI.SelectSlot(v) end, 10)
+	p.varDrop:Hide()
 	p.desc = Label(p, nil, 0, -198, "GameFontDisableSmall", 590)
 	p.desc:SetHeight(30)
 	p.desc:SetJustifyV("TOP")
@@ -666,6 +669,7 @@ local function BuildTexts(p)
 		UI.UpdateTextCounter()
 	end)
 	resetAll:SetPoint("TOPLEFT", p, "TOPLEFT", 178, -376)
+	p.resetAll = resetAll
 	local prev = MakeButton(p, NextName("Btn"), "btn_preview", 140, 22, function()
 		local line, idx = BG.PickVariant(UI.textSel)
 		if line then BG.Print(BG.T("preview_variant", idx) .. " " .. BG.Fill(line, { name = BG.me, level = 60 })) end
@@ -699,9 +703,24 @@ function UI.UpdateTextButtons()
 		UI.MarkSelected(b, key == UI.textSel)
 		if TextOff(key) then b:Disable() end
 	end
-	for s = 1, BG.VARIANTS do
-		UI.MarkSelected(p.slotBtns[s], s == UI.slotSel)
+	local n = BG.VariantCount(UI.textSel)
+	if UI.slotSel > n then UI.slotSel = 1 end
+	if n > BG.VARIANTS then
+		for s = 1, BG.VARIANTS do p.slotBtns[s]:Hide() end
+		local items = {}
+		for s = 1, n do table.insert(items, { label = BG.T("variant_n", s), value = s }) end
+		p.varDrop.SetItems(items)
+		p.varDrop.SetValue(UI.slotSel, BG.T("variant_n", UI.slotSel))
+		p.varDrop:Show()
+	else
+		p.varDrop:Hide()
+		p.varDrop.list:Hide()
+		for s = 1, BG.VARIANTS do
+			p.slotBtns[s]:Show()
+			UI.MarkSelected(p.slotBtns[s], s == UI.slotSel)
+		end
 	end
+	p.resetAll:SetText(BG.T("btn_reset_alln", n))
 end
 
 function UI.SelectText(k)
@@ -1127,13 +1146,7 @@ end
 -- right click on a member: small menu with the three questions
 local menu
 local function AskMember(name, kind)
-	local info = BG.roster[name]
-	if not info or name == BG.me then return end
-	if not info.online then BG.Print(BG.T("menu_offline", name)) return end
-	local line = BG.PickVariant(kind)
-	if not line then return end
-	BG.SendChat(BG.Fill(line, { name = name }), "WHISPER", name)
-	BG.Print(BG.T("menu_sent", name))
+	BG.NoteWin.Ask(name, kind)
 end
 
 function UI.OpenMemberMenu(name)
@@ -1387,13 +1400,14 @@ function UI.UpdateQuiet()
 end
 
 -- page 3 of the settings: promotion of new members
-local function CycleRank(field)
+local function CycleRank(field, tbl)
+	tbl = tbl or BG.db.promo
 	local ranks, n = BG.Promo.Ranks()
 	if n == 0 then return end
-	local cur = BG.Promo.RankIndex(BG.db.promo[field]) or -1
+	local cur = BG.Promo.RankIndex(tbl[field]) or -1
 	local nxt = cur + 1
 	if nxt >= n then nxt = 0 end
-	BG.db.promo[field] = ranks[nxt] or BG.db.promo[field]
+	tbl[field] = ranks[nxt] or tbl[field]
 	UI.UpdatePromoPage()
 end
 
@@ -1430,6 +1444,12 @@ local function BuildPromoPage(root, pp)
 	pp.ranks:SetJustifyH("LEFT")
 	pp.ranks:SetJustifyV("TOP")
 	pp.ranks:SetHeight(180)
+	-- the window for new guild members opens for everybody from this rank up (plus the inviter / recruiter)
+	Label(pp, "greet_rank", 0, -416, "GameFontNormalSmall", 250)
+	pp.greetBtn = BG.MakeButton(pp, NextName("Btn"), 170, 22, "")
+	pp.greetBtn:SetPoint("TOPLEFT", pp, "TOPLEFT", 260, -412)
+	pp.greetBtn:SetScript("OnClick", function() CycleRank("rank", BG.db.greet) end)
+	Tooltip(pp.greetBtn, "tip_greet_rank")
 	root.promoPage = pp
 end
 
@@ -1440,6 +1460,7 @@ function UI.UpdatePromoPage()
 	local pr = BG.db.promo
 	pp.fromBtn:SetText(pr.from)
 	pp.toBtn:SetText(pr.to)
+	pp.greetBtn:SetText(BG.db.greet.rank)
 	local steps, a, b = BG.Promo.Steps()
 	if steps then
 		pp.steps:SetText(GREEN .. BG.T("promo_steps_hint", steps, BG.Promo.Path()) .. "|r")
@@ -1523,76 +1544,83 @@ local function BuildSettings(root)
 	Feat(C1, -44, "levelup")
 	Feat(C2, -44, "selfToast")
 	Feat(C1, -66, "level60")
-	p.gzBtn = BG.MakeButton(p, NextName("Btn"), 270, 22, "")
-	p.gzBtn:SetPoint("TOPLEFT", p, "TOPLEFT", 0, -94)
-	p.gzBtn:SetScript("OnClick", function()
-		db.gz.mode = (db.gz.mode == "tens") and "all" or "tens"
-		UI.UpdateGZ()
-	end)
-	Tooltip(p.gzBtn, "tip_gz_mode")
+	-- GZ popup: three exclusive modes, the ticked levels below are used by the 5er / 10er modes
+	p.gzModeChecks = {}
+	local modes = { { "all", "gz_mode_all" }, { "fives", "gz_mode_fives" }, { "tens", "gz_mode_tens" } }
+	for i = 1, 3 do
+		local mode, key = modes[i][1], modes[i][2] -- own local per iteration: Lua 5.0 closures share the loop variable
+		local c = MakeCheck("settings", p, (i - 1) * 200, -90, key,
+			function() return db.gz.mode == mode end,
+			function(v)
+				db.gz.mode = mode -- a ticked box cannot be unticked: one mode is always active
+				UI.UpdateGZ()
+			end, "tip_gz_mode")
+		getglobal(c:GetName() .. "Text"):SetWidth(170)
+		p.gzModeChecks[mode] = c
+	end
 	p.gzChecks = {}
-	for step = 1, 6 do
-		local lvl = step * 10 -- own local per iteration: Lua 5.0 closures would otherwise share the loop variable
-		local c = MakeCheck("settings", p, 280 + (step - 1) * 52, -93, "gz_lvl_" .. lvl,
+	for step = 1, 12 do
+		local lvl = step * 5
+		local c = MakeCheck("settings", p, (step - 1) * 48, -112, "gz_lvl_" .. lvl,
 			function() return db.gz.levels[lvl] end,
 			function(v) db.gz.levels[lvl] = v end, "tip_gz_level")
-		getglobal(c:GetName() .. "Text"):SetWidth(24)
+		getglobal(c:GetName() .. "Text"):SetWidth(22)
 		p.gzChecks[lvl] = c
 	end
 
 	-- recruiting
-	Section("sec_recruit", -126)
-	Feat(C1, -146, "recruit")
-	Feat(C2, -146, "whisperPopup")
-	Feat(C1, -168, "scanner")
-	Feat(C2, -168, "rightClickInvite")
-	Feat(C1, -190, "welcomePopup")
-	Feat(C2, -190, "joinWindow")
-	Feat(C1, -212, "autoWelcome")
-	Label(p, "lbl_whisper_window", C2 + 4, -218, "GameFontHighlightSmall", 232)
-	MakeEdit("settings", p, 540, -214, 40, function() return db.recruit.window end, NumberSetter(db.recruit, "window", 1), 4)
+	Section("sec_recruit", -148)
+	Feat(C1, -168, "recruit")
+	Feat(C2, -168, "whisperPopup")
+	Feat(C1, -190, "scanner")
+	Feat(C2, -190, "rightClickInvite")
+	Feat(C1, -212, "welcomePopup")
+	Feat(C2, -212, "joinWindow")
+	Feat(C1, -234, "autoWelcome")
+	Label(p, "lbl_whisper_window", C2 + 4, -240, "GameFontHighlightSmall", 232)
+	MakeEdit("settings", p, 540, -236, 40, function() return db.recruit.window end, NumberSetter(db.recruit, "window", 1), 4)
 
 	-- general
-	Section("sec_general", -246)
-	Feat(C1, -266, "minimap")
-	Feat(C2, -266, "sound")
-	Feat(C1, -288, "guildBroadcast")
-	Feat(C2, -288, "worldPing")
-	local warn = Label(p, "worldping_warn", 0, -314, "GameFontDisableSmall", 590)
+	Section("sec_general", -268)
+	Feat(C1, -288, "minimap")
+	Feat(C2, -288, "sound")
+	Feat(C1, -310, "guildBroadcast")
+	Feat(C2, -310, "worldPing")
+	local warn = Label(p, "worldping_warn", 0, -336, "GameFontDisableSmall", 590)
 	warn:SetHeight(26)
 	warn:SetJustifyV("TOP")
 
 	-- sync
-	Section("sec_sync", -346)
-	MakeCheck("settings", p, C1, -366, "chk_sync_accept",
+	Section("sec_sync", -368)
+	MakeCheck("settings", p, C1, -388, "chk_sync_accept",
 		function() return db.sync.accept end, function(v) db.sync.accept = v end, "tip_sync_accept")
-	Label(p, "lbl_trust_rank", C2 + 4, -372, "GameFontHighlightSmall", 232)
-	MakeEdit("settings", p, 540, -368, 40, function() return db.sync.trustRank end, NumberSetter(db.sync, "trustRank", 0), 2)
+	Label(p, "lbl_trust_rank", C2 + 4, -394, "GameFontHighlightSmall", 232)
+	MakeEdit("settings", p, 540, -390, 40, function() return db.sync.trustRank end, NumberSetter(db.sync, "trustRank", 0), 2)
 	local syncNow = MakeButton(p, NextName("Btn"), "btn_sync_now", 190, 24, function() BG.Roster.RequestSync(true) end)
-	syncNow:SetPoint("TOPLEFT", p, "TOPLEFT", 0, -396)
+	syncNow:SetPoint("TOPLEFT", p, "TOPLEFT", 0, -418)
 	Tooltip(syncNow, "tip_sync_now")
-	p.syncStatus = Label(p, nil, 200, -402, "GameFontDisableSmall", 390)
+	p.syncStatus = Label(p, nil, 200, -424, "GameFontDisableSmall", 390)
 	local rp = MakeButton(p, NextName("Btn"), "btn_reset_presence", 190, 22, function()
 		db.presence = {}
 		BG.Presence.Record(BG.me, BG.Presence.LocalAddons(), "self")
 		UI.Refresh("addons")
 		BG.Print(BG.T("done"))
 	end)
-	rp:SetPoint("TOPLEFT", p, "TOPLEFT", 0, -430)
+	rp:SetPoint("TOPLEFT", p, "TOPLEFT", 0, -452)
 	local rt = MakeButton(p, NextName("Btn"), "btn_reset_texts", 220, 22, function()
 		BG.ResetTexts()
 		BG.ResetKeywords()
 		UI.Refresh("all")
 		BG.Print(BG.T("done"))
 	end)
-	rt:SetPoint("TOPLEFT", p, "TOPLEFT", 200, -430)
+	rt:SetPoint("TOPLEFT", p, "TOPLEFT", 200, -452)
 	local st = MakeButton(p, "BananaGuildSelfTestBtn", "btn_selftest", 160, 22, function()
 		UI.Show("selftest")
 		BG.SelfTest.Run()
 	end)
-	st:SetPoint("TOPLEFT", p, "TOPLEFT", 430, -430)
+	st:SetPoint("TOPLEFT", p, "TOPLEFT", 430, -452)
 	Tooltip(st, "tip_selftest")
-	root.gzBtn = p.gzBtn
+	root.gzModeChecks = p.gzModeChecks
 	root.gzChecks = p.gzChecks
 	root.refresh = function()
 		UI.UpdateGZ()
@@ -1632,11 +1660,12 @@ local BUILDERS = {
 
 function UI.UpdateGZ()
 	local p = panels.settings
-	if not p or not p.gzBtn then return end
-	local tens = (BG.db.gz.mode == "tens")
-	p.gzBtn:SetText(BG.T("gz_mode") .. ": " .. BG.T(tens and "gz_mode_tens" or "gz_mode_all"))
+	if not p or not p.gzModeChecks then return end
+	local mode = BG.db.gz.mode
+	for m, c in pairs(p.gzModeChecks) do c:SetChecked((m == mode) and 1 or nil) end
 	for lvl, c in pairs(p.gzChecks) do
-		if tens then c:Enable() else c:Disable() end
+		local on = (mode == "fives") or (mode == "tens" and math.mod(lvl, 10) == 0)
+		if on then c:Enable() else c:Disable() end
 	end
 end
 
@@ -1984,7 +2013,7 @@ end
 BG.OnLogin(function()
 	BuildMinimap()
 	BG.Print(BG.T("loaded", BG.version))
-	if string.find(BG.db.discord or "", "DEIN-LINK", 1, true) then BG.Print(BG.T("discord_hint")) end
+	if not BG.DiscordReady() then BG.Print(BG.T("discord_hint")) end
 end)
 
 BananaGuild = BananaGuild or {}

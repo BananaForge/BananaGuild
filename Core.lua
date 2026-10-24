@@ -148,7 +148,7 @@ BG.KEYWORD_DEFAULTS = {
 
 local DEFAULTS = {
 	lang    = nil,
-	discord = "discord.gg/DEIN-LINK",
+	discord = "https://discord.gg/KNPPqHh8H",
 	guildTag = "<Bananenrepublik>",
 	features = {
 		levelup          = true,   -- chat hint + toast when a guild member levels up
@@ -179,7 +179,10 @@ local DEFAULTS = {
 		channels = "4,5",
 	},
 	-- which level ups trigger the GZ popup + chat notice: mode "all" or "tens" (only the ticked full tens)
-	gz = { mode = "all", levels = { [10] = true, [20] = true, [30] = true, [40] = true, [50] = true, [60] = true } },
+	-- mode: "all" (every level), "fives" (5, 10, 15 ...) or "tens" (10, 20 ...); levels = the ticked ones for fives / tens
+	gz = { mode = "all", levels = { [5] = true, [10] = true, [15] = true, [20] = true, [25] = true, [30] = true, [35] = true, [40] = true, [45] = true, [50] = true, [55] = true, [60] = true } },
+	-- window for new members: opens for everybody from this rank up (rank name), plus the inviter / recruiter
+	greet = { rank = "Offiziere" },
 	-- instance / raid mode: while in an instance, battleground or raid group every popup, notice and sound is muted,
 	-- except the kinds ticked in 'allow'. Missed prospects are shown again after leaving (catchup).
 	quiet = { enabled = true, catchup = true, summary = true,
@@ -187,7 +190,7 @@ local DEFAULTS = {
 	-- promotion of new members: reminder after 'weeks' on rank 'from', promoted step by step up to rank 'to' (rank names)
 	-- inactive members: offline for at least "days" -> set to rank "rank"; offline for "kickDays" -> may be removed
 	inactive = { days = 30, kickDays = 90, rank = "Inaktiv" },
-	promo = { enabled = true, weeks = 4, from = "Initiant", to = "Member", snooze = {}, day = "" },
+	promo = { enabled = true, weeks = 2, from = "Initiant", to = "Member", snooze = {}, day = "" },
 	sync = { accept = true, trustRank = 2 },
 	minimap = { angle = 200 },
 	texts = {},
@@ -215,8 +218,11 @@ end
 
 BG.TEXT_NAMES = {}
 -- every kind has exactly 5 variants; one chat message per variant
-BG.VARIANT_KINDS = { "recruit", "welcome", "funny", "gz", "repliesDE", "repliesEN", "contactDE", "contactEN", "askProf", "askSpec", "askTwink", "askAll" }
+BG.VARIANT_KINDS = { "recruit", "welcome", "welcomeRec", "funny", "gz", "repliesDE", "repliesEN", "contactDE", "contactEN", "askProf", "askSpec", "askTwink", "askAll" }
 BG.VARIANTS = 5
+-- gz, welcome (role play) and welcomeRec (recruiting, with Discord) have 20 variants
+BG.VARIANT_COUNT = { gz = 20, welcome = 20, welcomeRec = 20 }
+function BG.VariantCount(kind) return BG.VARIANT_COUNT[kind] or BG.VARIANTS end
 
 -- "contactDE" / "repliesEN" ... are tied to one language, independent of the UI language
 function BG.FixedLang(name)
@@ -240,7 +246,7 @@ function BG.ResetTexts(lang)
 	BG.ResetAllVariants()
 end
 
----------------------------------------------------------------- variants (5 per kind)
+---------------------------------------------------------------- variants (5 per kind, 20 for gz / welcome / welcomeRec)
 
 -- default text of variant i; kinds ending in DE/EN keep their own language, the others follow the UI language
 function BG.DefaultVariant(kind, i, lang)
@@ -256,7 +262,7 @@ function BG.ResetVariant(kind, i)
 end
 
 function BG.ResetVariants(kind)
-	for i = 1, BG.VARIANTS do BG.ResetVariant(kind, i) end
+	for i = 1, BG.VariantCount(kind) do BG.ResetVariant(kind, i) end
 end
 
 function BG.ResetAllVariants()
@@ -270,7 +276,7 @@ function BG.PickVariant(kind)
 	local v = BG.db and BG.db.variants and BG.db.variants[kind]
 	if not v then return nil end
 	local idx = {}
-	for i = 1, BG.VARIANTS do
+	for i = 1, BG.VariantCount(kind) do
 		if v[i] and BG.Trim(v[i]) ~= "" then table.insert(idx, i) end
 	end
 	local n = table.getn(idx)
@@ -309,19 +315,68 @@ local function IsOldDefault(kind, line)
 	return false
 end
 
+-- 1.13: gz / welcome grow from 5 to 20 variants and the welcome kinds split in role play (welcome) and recruiting (welcomeRec).
+-- Variants the user edited stay at the front, untouched old defaults are replaced by the new ones.
+local function OldDefaultOf(kind, i)
+	local L = BG.L
+	local key = "old_" .. kind .. "_" .. i
+	return (L and L.de and L.de[key]) or "", (L and L.en and L.en[key]) or ""
+end
+
+local function EditedOld(kind, cur)
+	local out = {}
+	for i = 1, 5 do
+		local v = cur and cur[i]
+		if type(v) == "string" and BG.Trim(v) ~= "" then
+			local d, e = OldDefaultOf(kind, i)
+			if v ~= d and v ~= e then table.insert(out, v) end
+		end
+	end
+	return out
+end
+
+local function FillNew(kind, edited)
+	local out = {}
+	local n = BG.VariantCount(kind)
+	for k = 1, n do out[k] = edited[k] or BG.DefaultVariant(kind, k) end
+	return out
+end
+
+local function MigrateTo20()
+	local db = BG.db
+	if db.variantsV and db.variantsV >= 2 then return end
+	local oldGz = db.variants.gz
+	local oldW = db.variants.welcome
+	local gzEdited = EditedOld("gz", oldGz)
+	local rp, rec = {}, {}
+	local w = EditedOld("welcome", oldW)
+	for i = 1, table.getn(w) do
+		if string.find(w[i], "{discord}", 1, true) then table.insert(rec, w[i]) else table.insert(rp, w[i]) end
+	end
+	db.variants.gz = FillNew("gz", gzEdited)
+	db.variants.welcome = FillNew("welcome", rp)
+	db.variants.welcomeRec = FillNew("welcomeRec", rec)
+	db.variantsV = 2
+end
+
 local function MigrateVariants()
 	local db = BG.db
+	if type(db.variants.gz) == "table" or type(db.variants.welcome) == "table" then
+		MigrateTo20()
+	else
+		db.variantsV = 2 -- fresh install: defaults are filled below
+	end
 	for i = 1, table.getn(BG.VARIANT_KINDS) do
 		local kind = BG.VARIANT_KINDS[i]
 		local cur = db.variants[kind]
 		if type(cur) ~= "table" then
 			cur = {}
-			for k = 1, BG.VARIANTS do cur[k] = BG.DefaultVariant(kind, k) end
+			for k = 1, BG.VariantCount(kind) do cur[k] = BG.DefaultVariant(kind, k) end
 			local old = BG.Lines(db.texts[OLD_KEY[kind]] or "")
 			if old[1] and not IsOldDefault(kind, old[1]) then cur[1] = old[1] end
 			db.variants[kind] = cur
 		end
-		for k = 1, BG.VARIANTS do
+		for k = 1, BG.VariantCount(kind) do
 			if cur[k] == nil then cur[k] = BG.DefaultVariant(kind, k) end
 		end
 	end
@@ -352,6 +407,14 @@ local function InitDB()
 		end
 	end
 	MigrateVariants()
+	-- 1.13: the GZ setting has three exclusive modes now; everybody starts at "every level" once
+	if not BG.db.gzV13 then
+		BG.db.gz.mode = "all"
+		BG.db.gzV13 = true
+	end
+	-- the old placeholder link is replaced, an own link stays
+	local dc = BG.Trim(BG.db.discord or "")
+	if dc == "" or string.find(string.lower(dc), "dein-link", 1, true) then BG.db.discord = DEFAULTS.discord end
 	for k, v in pairs(BG.KEYWORD_DEFAULTS) do
 		if BG.db.keywords[k] == nil then BG.db.keywords[k] = v end
 	end

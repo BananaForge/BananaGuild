@@ -82,12 +82,11 @@ local function ParseDate(s)
 	return t, tonumber(d), tonumber(m)
 end
 
--- members on the start rank for at least 'weeks' weeks. includeSnoozed = also those postponed for today
-function Promo.Due(includeSnoozed)
+-- everybody on the start rank with the data the window shows: level, days in the guild, offline time, note state
+local function StartRankList()
 	local pr = BG.db.promo
 	local out = {}
 	local today = BG.Today()
-	local need = (tonumber(pr.weeks) or 4) * 7
 	for name, info in pairs(BG.roster) do
 		if info.rank == pr.from and name ~= BG.me and not Promo.busy[name] then
 			local c = BG.db.chars[name]
@@ -96,15 +95,51 @@ function Promo.Due(includeSnoozed)
 			if not c.joined or c.joined == "" then c.joined = today c.approx = true end
 			local t, d, m = ParseDate(c.joined)
 			if t then
-				local days = math.floor((time() - t) / 86400)
-				if days >= need and (includeSnoozed or pr.snooze[name] ~= today) then
-					table.insert(out, { name = name, days = days, joined = string.format("%02d.%02d.", d, m), approx = c.approx })
-				end
+				table.insert(out, { name = name, days = math.floor((time() - t) / 86400), joined = string.format("%02d.%02d.", d, m),
+					approx = c.approx, level = info.level, off = info.offlineDays, online = info.online,
+					noteOk = BG.Roster.IsAssigned(name) })
 			end
 		end
 	end
+	return out
+end
+
+-- members on the start rank for at least 'weeks' weeks. includeSnoozed = also those postponed for today
+function Promo.Due(includeSnoozed)
+	local pr = BG.db.promo
+	local today = BG.Today()
+	local need = (tonumber(pr.weeks) or 2) * 7
+	local out = {}
+	local all = StartRankList()
+	for i = 1, table.getn(all) do
+		local it = all[i]
+		if it.days >= need and (includeSnoozed or pr.snooze[it.name] ~= today) then table.insert(out, it) end
+	end
 	table.sort(out, function(a, b)
 		if a.days ~= b.days then return a.days > b.days end
+		return a.name < b.name
+	end)
+	return out
+end
+
+Promo.SOON_DAYS = 7
+
+-- members that become due within the next 'soonDays' days (with .left = days to go)
+function Promo.Soon(soonDays)
+	local need = (tonumber(BG.db.promo.weeks) or 2) * 7
+	soonDays = soonDays or Promo.SOON_DAYS
+	local out = {}
+	local all = StartRankList()
+	for i = 1, table.getn(all) do
+		local it = all[i]
+		local left = need - it.days
+		if left > 0 and left <= soonDays then
+			it.left = left
+			table.insert(out, it)
+		end
+	end
+	table.sort(out, function(a, b)
+		if a.left ~= b.left then return a.left < b.left end
 		return a.name < b.name
 	end)
 	return out
@@ -313,7 +348,7 @@ end
 
 --------------------------------------------------------------------- window
 
-local W, ROWS = 500, 6
+local W, ROWS = 560, 6
 local win
 local counter = 0
 
@@ -325,7 +360,7 @@ end
 local function Build()
 	win = CreateFrame("Frame", "BananaGuildPromoWin", UIParent)
 	win:SetWidth(W)
-	win:SetHeight(120 + ROWS * 38)
+	win:SetHeight(204 + ROWS * 38)
 	win:SetPoint("CENTER", UIParent, "CENTER", 0, 80)
 	win:SetFrameStrata("DIALOG")
 	win:EnableMouse(true)
@@ -362,7 +397,7 @@ local function Build()
 		row.name:SetPoint("TOPLEFT", row, "TOPLEFT", 10, -5)
 		row.info = row:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 		row.info:SetPoint("TOPLEFT", row, "TOPLEFT", 10, -19)
-		row.info:SetWidth(250)
+		row.info:SetWidth(W - 240)
 		row.info:SetJustifyH("LEFT")
 		row.later = BG.MakeButton(row, Name("Btn"), 70, 22, "")
 		row.later:SetPoint("RIGHT", row, "RIGHT", -6, 0)
@@ -380,6 +415,12 @@ local function Build()
 		win.rows[i] = row
 	end
 
+	win.soon = win:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	win.soon:SetPoint("TOPLEFT", win, "TOPLEFT", 18, -86 - ROWS * 38)
+	win.soon:SetWidth(W - 36)
+	win.soon:SetHeight(76)
+	win.soon:SetJustifyH("LEFT")
+	win.soon:SetJustifyV("TOP")
 	win.more = win:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 	win.more:SetPoint("BOTTOMLEFT", win, "BOTTOMLEFT", 18, 44)
 	win.more:SetWidth(W - 36)
@@ -427,8 +468,10 @@ function Promo.Refresh()
 		row.item = item
 		if item then
 			row.name:SetText(item.name)
-			local key = item.approx and "promo_row_approx" or "promo_row"
-			row.info:SetText(BG.T(key, pr.from, item.joined, item.days))
+			local c = BG.Inactive and BG.Inactive.Ago
+			local last = item.online and BG.T("promo_online_now") or (c and BG.Inactive.Ago(item.off) or "?")
+			local note = item.noteOk and (GREEN .. BG.T("promo_note_ok") .. "|r") or (RED .. BG.T("promo_note_missing") .. "|r")
+			row.info:SetText(BG.T(item.approx and "promo_row2_approx" or "promo_row2", item.level or "?", item.joined, item.days, last) .. " - " .. note)
 			row.go:SetText(BG.T("btn_promote_to", pr.to))
 			row.later:SetText(BG.T("btn_later"))
 			if steps and Promo.CanPromote() then row.go:Enable() else row.go:Disable() end
@@ -436,6 +479,19 @@ function Promo.Refresh()
 		else
 			row:Hide()
 		end
+	end
+	-- "soon due": who reaches the time in the next days
+	local soon = Promo.Soon()
+	local lines = {}
+	for i = 1, table.getn(soon) do
+		if i > 5 then lines[i] = GRAY .. "+ " .. (table.getn(soon) - 5) .. "|r" break end
+		local it = soon[i]
+		lines[i] = WHITE .. it.name .. "|r " .. GRAY .. BG.T("promo_soon_row", it.left, it.level or "?", it.days) .. "|r"
+	end
+	if table.getn(soon) > 0 then
+		win.soon:SetText(GOLD .. BG.T("promo_soon", Promo.SOON_DAYS) .. "|r\n" .. table.concat(lines, "\n"))
+	else
+		win.soon:SetText(GOLD .. BG.T("promo_soon", Promo.SOON_DAYS) .. "|r\n" .. GRAY .. BG.T("promo_soon_none") .. "|r")
 	end
 	local extra = table.getn(shown) - ROWS
 	win.more:SetText(extra > 0 and (GRAY .. "+ " .. extra .. "|r") or (table.getn(shown) == 0 and (GRAY .. BG.T("promo_none") .. "|r") or ""))

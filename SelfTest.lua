@@ -139,7 +139,7 @@ function ST.Run()
 	local emptyKinds = {}
 	for _, kind in ipairs(BG.VARIANT_KINDS) do
 		local filled = 0
-		for i = 1, BG.VARIANTS do
+		for i = 1, BG.VariantCount(kind) do
 			local t = db.variants[kind] and db.variants[kind][i] or ""
 			if BG.Trim(t) ~= "" then filled = filled + 1 end
 			local n = string.len(BG.Fill(t, { name = "Playername", level = 60 }))
@@ -151,7 +151,7 @@ function ST.Run()
 	else Add("OK", BG.T("st_variants"), "") end
 	if longest > 255 then Add("WARN", BG.T("st_textlen"), BG.T("st_too_long", longest))
 	else Add("OK", BG.T("st_textlen"), BG.T("longest_line", longest)) end
-	if string.find(db.discord or "", "DEIN-LINK", 1, true) or BG.Trim(db.discord or "") == "" then
+	if not BG.DiscordReady() then
 		Add("WARN", BG.T("st_discord"), BG.T("st_discord_default"))
 	else
 		Add("OK", BG.T("st_discord"), db.discord)

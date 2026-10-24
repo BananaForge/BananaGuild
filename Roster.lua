@@ -81,7 +81,7 @@ local function Scan()
 				local inv = BG.pendingInvites and BG.pendingInvites[name]
 				if inv then db.chars[name].invitedBy = inv.by end
 				-- the join message was missed (other wording on the server, loading screen ...): the roster tells us
-				if not first and BG.Recruit then BG.Recruit.OnJoin(name) end
+				if not first and BG.Recruit then BG.Recruit.OnJoin(name, true) end
 			end
 		end
 		-- last time the addon saw him online: the fallback when the client does not tell how long somebody was offline
