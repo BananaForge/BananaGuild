@@ -3,6 +3,9 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 1.13.4
+- Neuzugang-/Notiz-Fenster: Der „Vorschlag aus der Antwort" verschwindet, sobald die Felder schon genau das zeigen (vorher blieb er nach dem Übernehmen stehen). Unter „Antwort" stehen jetzt bis zu die letzten drei Antworten (der Vorschlag wird aus allen der letzten 30 Minuten gelesen, vorher sah man nur die letzte, z. B. nur „oki"). Mehr Platz zwischen Vorschlag und den unteren Knöpfen, Vorschlag-Knopf breiter.
+
 ## 1.13.3
 - Neuling Check: „Niemand ist gerade fällig." steht jetzt oben im leeren Listenbereich und nicht mehr unten über dem Block „Bald fällig".
 

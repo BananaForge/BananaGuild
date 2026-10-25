@@ -9,7 +9,7 @@ local BG = BananaGuild
 local NW = {}
 BG.NoteWin = NW
 
-local W, H = 460, 548
+local W, H = 460, 562
 local GOLD, WHITE, GRAY, GREEN, RED = "|cffffd100", "|cffffffff", "|cff999999", "|cff40ff40", "|cffff5555"
 local win
 local counter = 0
@@ -154,13 +154,33 @@ function NW.RedrawAsk()
 	end
 	local last = NW.LastReply(name)
 	if last then
-		win.reply:SetText(WHITE .. BG.T("nwin_reply", BG.Stamp(last.at)) .. "|r " .. last.text)
+		-- all replies of the last 30 minutes (the proposal is read from all of them), newest last
+		local recent = NW.RecentReplies(name)
+		local texts = {}
+		for i = math.max(1, table.getn(recent) - 2), table.getn(recent) do table.insert(texts, recent[i].text) end
+		win.reply:SetText(WHITE .. BG.T("nwin_reply", BG.Stamp(last.at)) .. "|r " .. table.concat(texts, " | "))
 	elseif not online then
 		win.reply:SetText(GRAY .. BG.T("nwin_ask_offline") .. "|r")
 	else
 		win.reply:SetText(GRAY .. BG.T("nwin_noreply") .. "|r")
 	end
 	local sug = NW.Suggestion(name)
+	-- nothing to propose when the form already shows exactly that
+	if sug and sug.any then
+		local same = true
+		if sug.kind and sug.kind ~= win.kind then same = false end
+		if sug.kind == "twink" and sug.main and sug.main ~= win.main then same = false end
+		if sug.spec and sug.spec[1] ~= win.spec then same = false end
+		if table.getn(sug.profs) > 0 then
+			if win.noprof or table.getn(win.profs) ~= table.getn(sug.profs) then same = false end
+			for i = 1, table.getn(sug.profs) do
+				local found = false
+				for j = 1, table.getn(win.profs) do if win.profs[j] == sug.profs[i] then found = true end end
+				if not found then same = false end
+			end
+		end
+		if same then sug = nil end
+	end
 	win.suggestion = sug
 	if sug and sug.any then
 		local parts = {}
@@ -379,11 +399,11 @@ local function Build()
 	win.reply = Text(win, 16, -450, "GameFontHighlightSmall", W - 32)
 	win.reply:SetHeight(28)
 	win.reply:SetJustifyV("TOP")
-	win.sugText = Text(win, 16, -482, "GameFontHighlightSmall", W - 168)
-	win.sugText:SetHeight(26)
+	win.sugText = Text(win, 16, -484, "GameFontHighlightSmall", W - 190)
+	win.sugText:SetHeight(28)
 	win.sugText:SetJustifyV("TOP")
-	win.sugBtn = BG.MakeButton(win, Name("Btn"), 130, 22, "")
-	win.sugBtn:SetPoint("TOPRIGHT", win, "TOPRIGHT", -16, -482)
+	win.sugBtn = BG.MakeButton(win, Name("Btn"), 150, 22, "")
+	win.sugBtn:SetPoint("TOPRIGHT", win, "TOPRIGHT", -16, -486)
 	win.sugBtn:SetScript("OnClick", function() NW.ApplySuggestion() end)
 	win.sugBtn:Hide()
 
@@ -472,6 +492,8 @@ local function Recent(name)
 	end
 	return out
 end
+
+function NW.RecentReplies(name) return Recent(name) end
 
 function NW.LastReply(name)
 	local r = Recent(name)
