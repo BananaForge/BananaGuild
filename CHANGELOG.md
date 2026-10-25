@@ -3,6 +3,11 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 1.13.1
+- Korrektur der Begrüßungs-Logik: Das Neuzugang-Fenster (Main/Twink, Berufe, Spec) bekommt nur noch, wer das neue Mitglied eingeladen hat (bzw. rekrutiert). Offiziere (Einstellungen > Beförderung, „Begrüßungs-Popup für Offiziere ab Rang", Standard Offiziere) bekommen stattdessen ein kleines Popup mit einem Rollenspiel-Gruß zum schnellen Absenden. Niemand wird doppelt begrüßt (wie in 1.13.0).
+- Der Einlader / Rekrutierer sendet immer den Gruß mit Discord-Link. Die 30 Texte wurden neu geschrieben und erklären den Ablauf im Discord: Regeln im Willkommenschat akzeptieren, kurz vorstellen, Klasse wählen (Rolle vom Bot), Rolle Banane von den Offizieren nach der Vorstellung. Ein Teil erwähnt die Gildenaddons BananaBank / BananaCraft. Alle bleiben deutlich unter der Chat-Grenze. Eigene Änderungen an den alten Rekrutierungs-Texten bleiben vorn erhalten. Ohne echten Discord-Link wird der Rollenspiel-Gruß genutzt.
+- GZ-Einstellung: Die Auswahl einzelner Stufen (5, 10, 15 ... 60) entfällt, die drei Modi reichen.
+
 ## 1.13.0
 - GZ-Einstellung: Statt „jeder Stufe / nur gewählte 10er" gibt es drei Checkboxen, von denen genau eine aktiv ist: „Bei jedem Level" (Standard), „In 5er-Stufen" und „In 10er-Stufen". Darunter lassen sich die Stufen 5, 10, 15 ... 60 einzeln abwählen (gilt für die 5er- bzw. 10er-Stufen). Einmalig werden bestehende Einstellungen auf „Bei jedem Level" zurückgesetzt.
 - 20 Varianten für GZ und Begrüßung (alle anderen Texte bleiben bei 5). Im Reiter Texte wählst du sie in einem scrollbaren Auswahlmenü „Variante 1-20". Alle 20 GZ-Texte enthalten die Stufe `{level}`. Selbst geänderte alte Varianten bleiben vorn stehen, unveränderte Standardtexte werden durch die neuen ersetzt, der Rest wird mit neuen Standardtexten aufgefüllt (deutsch und englisch).

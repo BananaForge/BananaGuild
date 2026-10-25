@@ -1544,7 +1544,7 @@ local function BuildSettings(root)
 	Feat(C1, -44, "levelup")
 	Feat(C2, -44, "selfToast")
 	Feat(C1, -66, "level60")
-	-- GZ popup: three exclusive modes, the ticked levels below are used by the 5er / 10er modes
+	-- GZ popup: three exclusive modes
 	p.gzModeChecks = {}
 	local modes = { { "all", "gz_mode_all" }, { "fives", "gz_mode_fives" }, { "tens", "gz_mode_tens" } }
 	for i = 1, 3 do
@@ -1558,70 +1558,60 @@ local function BuildSettings(root)
 		getglobal(c:GetName() .. "Text"):SetWidth(170)
 		p.gzModeChecks[mode] = c
 	end
-	p.gzChecks = {}
-	for step = 1, 12 do
-		local lvl = step * 5
-		local c = MakeCheck("settings", p, (step - 1) * 48, -112, "gz_lvl_" .. lvl,
-			function() return db.gz.levels[lvl] end,
-			function(v) db.gz.levels[lvl] = v end, "tip_gz_level")
-		getglobal(c:GetName() .. "Text"):SetWidth(22)
-		p.gzChecks[lvl] = c
-	end
 
 	-- recruiting
-	Section("sec_recruit", -148)
-	Feat(C1, -168, "recruit")
-	Feat(C2, -168, "whisperPopup")
-	Feat(C1, -190, "scanner")
-	Feat(C2, -190, "rightClickInvite")
-	Feat(C1, -212, "welcomePopup")
-	Feat(C2, -212, "joinWindow")
-	Feat(C1, -234, "autoWelcome")
-	Label(p, "lbl_whisper_window", C2 + 4, -240, "GameFontHighlightSmall", 232)
-	MakeEdit("settings", p, 540, -236, 40, function() return db.recruit.window end, NumberSetter(db.recruit, "window", 1), 4)
+	Section("sec_recruit", -126)
+	Feat(C1, -146, "recruit")
+	Feat(C2, -146, "whisperPopup")
+	Feat(C1, -168, "scanner")
+	Feat(C2, -168, "rightClickInvite")
+	Feat(C1, -190, "welcomePopup")
+	Feat(C2, -190, "joinWindow")
+	Feat(C1, -212, "autoWelcome")
+	Label(p, "lbl_whisper_window", C2 + 4, -218, "GameFontHighlightSmall", 232)
+	MakeEdit("settings", p, 540, -214, 40, function() return db.recruit.window end, NumberSetter(db.recruit, "window", 1), 4)
 
 	-- general
-	Section("sec_general", -268)
-	Feat(C1, -288, "minimap")
-	Feat(C2, -288, "sound")
-	Feat(C1, -310, "guildBroadcast")
-	Feat(C2, -310, "worldPing")
-	local warn = Label(p, "worldping_warn", 0, -336, "GameFontDisableSmall", 590)
+	Section("sec_general", -246)
+	Feat(C1, -266, "minimap")
+	Feat(C2, -266, "sound")
+	Feat(C1, -288, "guildBroadcast")
+	Feat(C2, -288, "worldPing")
+	local warn = Label(p, "worldping_warn", 0, -314, "GameFontDisableSmall", 590)
 	warn:SetHeight(26)
 	warn:SetJustifyV("TOP")
 
 	-- sync
-	Section("sec_sync", -368)
-	MakeCheck("settings", p, C1, -388, "chk_sync_accept",
+	Section("sec_sync", -346)
+	MakeCheck("settings", p, C1, -366, "chk_sync_accept",
 		function() return db.sync.accept end, function(v) db.sync.accept = v end, "tip_sync_accept")
-	Label(p, "lbl_trust_rank", C2 + 4, -394, "GameFontHighlightSmall", 232)
-	MakeEdit("settings", p, 540, -390, 40, function() return db.sync.trustRank end, NumberSetter(db.sync, "trustRank", 0), 2)
+	Label(p, "lbl_trust_rank", C2 + 4, -372, "GameFontHighlightSmall", 232)
+	MakeEdit("settings", p, 540, -368, 40, function() return db.sync.trustRank end, NumberSetter(db.sync, "trustRank", 0), 2)
 	local syncNow = MakeButton(p, NextName("Btn"), "btn_sync_now", 190, 24, function() BG.Roster.RequestSync(true) end)
-	syncNow:SetPoint("TOPLEFT", p, "TOPLEFT", 0, -418)
+	syncNow:SetPoint("TOPLEFT", p, "TOPLEFT", 0, -396)
 	Tooltip(syncNow, "tip_sync_now")
-	p.syncStatus = Label(p, nil, 200, -424, "GameFontDisableSmall", 390)
+	p.syncStatus = Label(p, nil, 200, -402, "GameFontDisableSmall", 390)
 	local rp = MakeButton(p, NextName("Btn"), "btn_reset_presence", 190, 22, function()
 		db.presence = {}
 		BG.Presence.Record(BG.me, BG.Presence.LocalAddons(), "self")
 		UI.Refresh("addons")
 		BG.Print(BG.T("done"))
 	end)
-	rp:SetPoint("TOPLEFT", p, "TOPLEFT", 0, -452)
+	rp:SetPoint("TOPLEFT", p, "TOPLEFT", 0, -430)
 	local rt = MakeButton(p, NextName("Btn"), "btn_reset_texts", 220, 22, function()
 		BG.ResetTexts()
 		BG.ResetKeywords()
 		UI.Refresh("all")
 		BG.Print(BG.T("done"))
 	end)
-	rt:SetPoint("TOPLEFT", p, "TOPLEFT", 200, -452)
+	rt:SetPoint("TOPLEFT", p, "TOPLEFT", 200, -430)
 	local st = MakeButton(p, "BananaGuildSelfTestBtn", "btn_selftest", 160, 22, function()
 		UI.Show("selftest")
 		BG.SelfTest.Run()
 	end)
-	st:SetPoint("TOPLEFT", p, "TOPLEFT", 430, -452)
+	st:SetPoint("TOPLEFT", p, "TOPLEFT", 430, -430)
 	Tooltip(st, "tip_selftest")
 	root.gzModeChecks = p.gzModeChecks
-	root.gzChecks = p.gzChecks
 	root.refresh = function()
 		UI.UpdateGZ()
 		local last = BG.db.sync.last
@@ -1663,10 +1653,6 @@ function UI.UpdateGZ()
 	if not p or not p.gzModeChecks then return end
 	local mode = BG.db.gz.mode
 	for m, c in pairs(p.gzModeChecks) do c:SetChecked((m == mode) and 1 or nil) end
-	for lvl, c in pairs(p.gzChecks) do
-		local on = (mode == "fives") or (mode == "tens" and math.mod(lvl, 10) == 0)
-		if on then c:Enable() else c:Disable() end
-	end
 end
 
 function UI.Refresh(kind)

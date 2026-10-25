@@ -179,9 +179,9 @@ local DEFAULTS = {
 		channels = "4,5",
 	},
 	-- which level ups trigger the GZ popup + chat notice: mode "all" or "tens" (only the ticked full tens)
-	-- mode: "all" (every level), "fives" (5, 10, 15 ...) or "tens" (10, 20 ...); levels = the ticked ones for fives / tens
-	gz = { mode = "all", levels = { [5] = true, [10] = true, [15] = true, [20] = true, [25] = true, [30] = true, [35] = true, [40] = true, [45] = true, [50] = true, [55] = true, [60] = true } },
-	-- window for new members: opens for everybody from this rank up (rank name), plus the inviter / recruiter
+	-- mode: "all" (every level), "fives" (5, 10, 15 ...) or "tens" (10, 20 ...)
+	gz = { mode = "all" },
+	-- greeting popup for new members: officers from this rank up (rank name); the inviter / recruiter gets the note window
 	greet = { rank = "Offiziere" },
 	-- instance / raid mode: while in an instance, battleground or raid group every popup, notice and sound is muted,
 	-- except the kinds ticked in 'allow'. Missed prospects are shown again after leaving (catchup).
@@ -220,8 +220,8 @@ BG.TEXT_NAMES = {}
 -- every kind has exactly 5 variants; one chat message per variant
 BG.VARIANT_KINDS = { "recruit", "welcome", "welcomeRec", "funny", "gz", "repliesDE", "repliesEN", "contactDE", "contactEN", "askProf", "askSpec", "askTwink", "askAll" }
 BG.VARIANTS = 5
--- gz, welcome (role play) and welcomeRec (recruiting, with Discord) have 20 variants
-BG.VARIANT_COUNT = { gz = 20, welcome = 20, welcomeRec = 20 }
+-- gz and welcome (role play) have 20 variants, welcomeRec (recruiter, with Discord) 30
+BG.VARIANT_COUNT = { gz = 20, welcome = 20, welcomeRec = 30 }
 function BG.VariantCount(kind) return BG.VARIANT_COUNT[kind] or BG.VARIANTS end
 
 -- "contactDE" / "repliesEN" ... are tied to one language, independent of the UI language
@@ -253,7 +253,7 @@ function BG.DefaultVariant(kind, i, lang)
 	lang = lang or BG.FixedLang(kind) or BG.Lang()
 	local key = "def_" .. kind .. "_" .. i
 	local L = BG.L
-	return (L and L[lang] and L[lang][key]) or (L and L.en and L.en[key]) or ""
+	return (L and L[lang] and L[lang][key]) or (L and L.en and L.en[key]) or (L and L.de and L.de[key]) or ""
 end
 
 function BG.ResetVariant(kind, i)
@@ -356,15 +356,34 @@ local function MigrateTo20()
 	db.variants.gz = FillNew("gz", gzEdited)
 	db.variants.welcome = FillNew("welcome", rp)
 	db.variants.welcomeRec = FillNew("welcomeRec", rec)
-	db.variantsV = 2
+	db.variantsV = 3 -- welcomeRec was just filled with the current defaults
+end
+
+-- 1.13.1: the recruiter greetings were rewritten (Discord steps) and grew to 30. Edited ones stay in front.
+local function MigrateTo30()
+	local db = BG.db
+	local cur = db.variants.welcomeRec
+	local L = BG.L
+	local edited = {}
+	for i = 1, table.getn(cur) do
+		local v = cur[i]
+		if type(v) == "string" and BG.Trim(v) ~= "" then
+			local d = L.de["old13_welcomeRec_" .. i]
+			local e = L.en["old13_welcomeRec_" .. i]
+			if v ~= d and v ~= e then table.insert(edited, v) end
+		end
+	end
+	db.variants.welcomeRec = FillNew("welcomeRec", edited)
 end
 
 local function MigrateVariants()
 	local db = BG.db
 	if type(db.variants.gz) == "table" or type(db.variants.welcome) == "table" then
 		MigrateTo20()
-	else
-		db.variantsV = 2 -- fresh install: defaults are filled below
+	end
+	if (db.variantsV or 0) < 3 then
+		if type(db.variants.welcomeRec) == "table" then MigrateTo30() end
+		db.variantsV = 3 -- (fresh install: defaults are filled below)
 	end
 	for i = 1, table.getn(BG.VARIANT_KINDS) do
 		local kind = BG.VARIANT_KINDS[i]

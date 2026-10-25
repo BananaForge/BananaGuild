@@ -214,7 +214,7 @@ function Alerts.LevelWanted(level)
 	if not g or (g.mode ~= "tens" and g.mode ~= "fives") then return true end
 	local step = (g.mode == "tens") and 10 or 5
 	if math.mod(level, step) ~= 0 then return false end
-	return g.levels[level] ~= false
+	return true
 end
 
 function Alerts.OnLevel(name, level, source)

@@ -477,18 +477,17 @@ end)
 
 --------------------------------------------------------------------- welcome
 
--- Which greeting is used: recruiting (with Discord / addon hint) while auto-recruiting runs on this client and a real
--- Discord link is set; otherwise the pure role play greeting without a link.
+-- Which greeting is used: the recruiter / inviter always sends the greeting with the Discord link (welcomeRec); officers
+-- who only react to somebody else's join use the role play greeting (welcome). Without a real Discord link the
+-- recruiter falls back to the role play text.
 function BG.DiscordReady()
 	local d = BG.Trim((BG.db and BG.db.discord) or "")
 	return d ~= "" and not string.find(string.lower(d), "dein-link", 1, true)
 end
 
 function Recruit.WelcomeKind(quiet)
-	if Recruit.active then
-		if BG.DiscordReady() then return "welcomeRec" end
-		if not quiet then BG.Print(BG.T("welcome_nodiscord")) end
-	end
+	if BG.DiscordReady() then return "welcomeRec" end
+	if not quiet then BG.Print(BG.T("welcome_nodiscord")) end
 	return "welcome"
 end
 
@@ -511,7 +510,8 @@ BG.OnComm("W", function(sender, p)
 end)
 
 -- The greeting goes to guild chat (random variant); there is no whisper. Returns true when it was sent.
-function Recruit.Welcome(name, text)
+-- kind: "welcome" (role play, officers) or nil = recruiter greeting with Discord
+function Recruit.Welcome(name, text, kind)
 	local db = BG.db
 	if not name or name == "" then return false end
 	local by = Recruit.greeted[name]
@@ -519,7 +519,7 @@ function Recruit.Welcome(name, text)
 		BG.Print(BG.T("welcome_already", name, by))
 		return false
 	end
-	text = text or BG.PickVariant(Recruit.WelcomeKind())
+	text = text or BG.PickVariant(kind or Recruit.WelcomeKind())
 	if text and BG.Trim(text) ~= "" then
 		BG.SendChat(BG.Fill(text, { name = name }), "GUILD")
 		MarkGreeted(name, BG.me)
@@ -537,7 +537,7 @@ function Recruit.IsMyJoin(name)
 	return Recruit.active and true or false
 end
 
--- The window for a new member opens for the inviter / recruiter and for every officer (rank setting).
+-- Officers (rank setting) get a small greeting popup for every join; the note window is only for the inviter / recruiter.
 function Recruit.IsOfficer()
 	local me = BG.roster and BG.roster[BG.me]
 	if not me or not me.rankIndex then return false end
@@ -556,8 +556,29 @@ function Recruit.OnJoin(name, fromRoster)
 	if not mine and (fromRoster or not Recruit.IsOfficer()) then return end
 	Recruit.joinSeen[name] = time()
 	Recruit.greeted[name] = nil -- a fresh join (re-join) may be greeted again
-	if mine and db.features.autoWelcome then
-		-- random delay so two clients never greet at the same moment; whoever is first tells the others (kind W)
+	if not mine then
+		-- an officer who did not invite him: only a small popup with a role play greeting, no note window
+		if db.features.welcomePopup then
+			BG.After(2, function()
+				if Recruit.greeted[name] then return end
+				local text = BG.PickVariant("welcome")
+				BG.Popup.Push({
+					type = "welcome", defer = true,
+					key = "join-" .. name,
+					title = BG.T("pop_join_title", name),
+					body = BG.T("pop_join_body", name),
+					buttons = {
+						{ text = BG.T("btn_welcome"), tip = text and BG.Fill(text, { name = name }),
+						  fn = function() Recruit.Welcome(name, text, "welcome") end },
+						{ text = BG.T("btn_ignore"), fn = function() end },
+					},
+				})
+			end)
+		end
+		return
+	end
+	if db.features.autoWelcome then
+		-- random delay so the greeting does not collide with an officer's; whoever is first tells the others (kind W)
 		BG.After(3 + math.random() * 2, function()
 			if not Recruit.greeted[name] then Recruit.Welcome(name) end
 		end)
@@ -572,14 +593,15 @@ function Recruit.OnJoin(name, fromRoster)
 				open = function() BG.NoteWin.Open(name, "join", { greet = true }) end,
 			})
 		end)
-	elseif not Recruit.greeted[name] and db.features.welcomePopup then
+	elseif not db.features.autoWelcome and db.features.welcomePopup then
+		local text = BG.PickVariant(Recruit.WelcomeKind())
 		BG.Popup.Push({
 			type = "welcome", defer = true,
 			key = "join-" .. name,
 			title = BG.T("pop_join_title", name),
 			body = BG.T("pop_join_body", name),
 			buttons = {
-				{ text = BG.T("btn_welcome"), fn = function() Recruit.Welcome(name) end },
+				{ text = BG.T("btn_welcome"), tip = text and BG.Fill(text, { name = name }), fn = function() Recruit.Welcome(name, text) end },
 				{ text = BG.T("btn_ignore"), fn = function() end },
 			},
 		})
