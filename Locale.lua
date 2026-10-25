@@ -1545,3 +1545,9 @@ de.tip_greet_rank = "Alle ab diesem Rang bekommen bei neuen Mitgliedern ein klei
 en.tip_greet_rank = "Everybody from this rank up gets a small popup for new members to send a role play greeting quickly. Click to switch to the next rank."
 de.welcome_nodiscord = "Hinweis: Es ist noch kein Discord-Link eingetragen (Reiter Texte). Darum wird der Rollenspiel-Gruß ohne Discord gesendet."
 en.welcome_nodiscord = "Note: no Discord link is set yet (Texts tab), so the role play greeting without Discord is sent."
+
+-- 1.13.2: several people may greet; only the Discord text stays the recruiter's alone
+de.pop_join_body = "%s ist der Gilde beigetreten. Willkommensgruß (Rollenspiel) im Gildenchat senden? Je mehr Leben im Chat, desto besser."
+en.pop_join_body = "%s joined the guild. Send a welcome greeting (role play) to guild chat? The more life in chat, the better."
+de.tip_welcomepopup = "Offiziere (Rang einstellbar) bekommen bei jedem Beitritt ein kleines Popup mit einem Rollenspiel-Gruß zum Absenden - ohne Discord-Link, der bleibt dem Einlader / Rekrutierer vorbehalten. Wer das neue Mitglied selbst eingeladen hat, bekommt stattdessen das Neuzugang-Fenster."
+en.tip_welcomepopup = "Officers (rank is configurable) get a small popup on every join with a role play greeting to send - without the Discord link, which is reserved for the inviter / recruiter. Whoever invited the new member gets the new member window instead."

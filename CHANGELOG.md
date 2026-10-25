@@ -3,6 +3,9 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 1.13.2
+- Die Sperre gegen doppelte Begrüßungen ist entfernt: Mehrere Offiziere dürfen im Gildenchat Hallo sagen, damit mehr los ist. Es gibt keine Meldung „Bereits begrüßt von ..." mehr, keine Abstimmung zwischen den Clients und keine Zufallsverzögerung. Einzige Regel bleibt: Der Gruß mit Discord-Link kommt nur vom Einlader / Rekrutierer, Offiziere senden immer einen Rollenspiel-Text.
+
 ## 1.13.1
 - Korrektur der Begrüßungs-Logik: Das Neuzugang-Fenster (Main/Twink, Berufe, Spec) bekommt nur noch, wer das neue Mitglied eingeladen hat (bzw. rekrutiert). Offiziere (Einstellungen > Beförderung, „Begrüßungs-Popup für Offiziere ab Rang", Standard Offiziere) bekommen stattdessen ein kleines Popup mit einem Rollenspiel-Gruß zum schnellen Absenden. Niemand wird doppelt begrüßt (wie in 1.13.0).
 - Der Einlader / Rekrutierer sendet immer den Gruß mit Discord-Link. Die 30 Texte wurden neu geschrieben und erklären den Ablauf im Discord: Regeln im Willkommenschat akzeptieren, kurz vorstellen, Klasse wählen (Rolle vom Bot), Rolle Banane von den Offizieren nach der Vorstellung. Ein Teil erwähnt die Gildenaddons BananaBank / BananaCraft. Alle bleiben deutlich unter der Chat-Grenze. Eigene Änderungen an den alten Rekrutierungs-Texten bleiben vorn erhalten. Ohne echten Discord-Link wird der Rollenspiel-Gruß genutzt.

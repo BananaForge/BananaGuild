@@ -491,39 +491,15 @@ function Recruit.WelcomeKind(quiet)
 	return "welcome"
 end
 
--- name -> who greeted (nobody gets two greetings: every greeting is announced to the other BananaGuild clients)
-Recruit.greeted = {}
-
-function Recruit.GreetedBy(name)
-	return Recruit.greeted[name]
-end
-
-local function MarkGreeted(name, by)
-	Recruit.greeted[name] = by
-	if BG.NoteWin and BG.NoteWin.MarkGreeted then BG.NoteWin.MarkGreeted(name, by) end
-end
-
-BG.OnComm("W", function(sender, p)
-	local who = BG.NormName(p[1] or "")
-	if who == "" then return end
-	MarkGreeted(who, sender)
-end)
-
 -- The greeting goes to guild chat (random variant); there is no whisper. Returns true when it was sent.
--- kind: "welcome" (role play, officers) or nil = recruiter greeting with Discord
+-- kind: "welcome" (role play, officers) or nil = recruiter greeting with Discord. Several people may greet (more life in chat);
+-- the only rule: officers always use the role play text, the Discord text is the recruiter's alone.
 function Recruit.Welcome(name, text, kind)
 	local db = BG.db
 	if not name or name == "" then return false end
-	local by = Recruit.greeted[name]
-	if by then
-		BG.Print(BG.T("welcome_already", name, by))
-		return false
-	end
 	text = text or BG.PickVariant(kind or Recruit.WelcomeKind())
 	if text and BG.Trim(text) ~= "" then
 		BG.SendChat(BG.Fill(text, { name = name }), "GUILD")
-		MarkGreeted(name, BG.me)
-		BG.Send("W", name)
 	end
 	db.stats.welcomes = db.stats.welcomes + 1
 	return true
@@ -555,12 +531,10 @@ function Recruit.OnJoin(name, fromRoster)
 	local mine = Recruit.IsMyJoin(name)
 	if not mine and (fromRoster or not Recruit.IsOfficer()) then return end
 	Recruit.joinSeen[name] = time()
-	Recruit.greeted[name] = nil -- a fresh join (re-join) may be greeted again
 	if not mine then
 		-- an officer who did not invite him: only a small popup with a role play greeting, no note window
 		if db.features.welcomePopup then
 			BG.After(2, function()
-				if Recruit.greeted[name] then return end
 				local text = BG.PickVariant("welcome")
 				BG.Popup.Push({
 					type = "welcome", defer = true,
@@ -578,10 +552,7 @@ function Recruit.OnJoin(name, fromRoster)
 		return
 	end
 	if db.features.autoWelcome then
-		-- random delay so the greeting does not collide with an officer's; whoever is first tells the others (kind W)
-		BG.After(3 + math.random() * 2, function()
-			if not Recruit.greeted[name] then Recruit.Welcome(name) end
-		end)
+		BG.After(3, function() Recruit.Welcome(name) end)
 	end
 	if db.features.joinWindow then
 		-- window to enter the guild note (main/twink, professions, spec); the roster needs a moment to know the new member

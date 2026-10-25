@@ -135,18 +135,11 @@ function NW.Redraw()
 	else
 		win.btnGo:Disable() win.btnOnly:Disable()
 	end
-	-- nobody gets two greetings: somebody else may have greeted already
-	local by = BG.Recruit and BG.Recruit.GreetedBy(win.target)
-	local canGreet = win.mode == "join" and win.greet and not by
+	local canGreet = win.mode == "join" and win.greet
 	win.btnGo:SetText(BG.T(canGreet and "btn_note_greet" or "btn_note_set"))
 	win.btnOnly:SetText(BG.T("btn_note_only"))
 	win.btnLater:SetText(BG.T(win.mode == "join" and "btn_later" or "btn_close"))
 	if canGreet then win.btnOnly:Show() else win.btnOnly:Hide() end
-	if win.mode == "join" and by then
-		win.greetInfo:SetText(GREEN .. BG.T("nwin_greeted", by) .. "|r")
-	else
-		win.greetInfo:SetText("")
-	end
 	NW.RedrawAsk()
 end
 
@@ -393,8 +386,6 @@ local function Build()
 	win.sugBtn:SetPoint("TOPRIGHT", win, "TOPRIGHT", -16, -482)
 	win.sugBtn:SetScript("OnClick", function() NW.ApplySuggestion() end)
 	win.sugBtn:Hide()
-	win.greetInfo = Text(win, 200, -398, "GameFontHighlightSmall", W - 216)
-	win.greetInfo:SetJustifyH("RIGHT")
 
 	-- actions
 	win.btnGo = BG.MakeButton(win, Name("Btn"), 186, 24, "")
@@ -450,7 +441,7 @@ function NW.Apply(greet)
 	if note == "" or string.len(note) > BG.Notes.MAXLEN then return end
 	if win.kind == "twink" and (not win.main or win.main == "") then return end
 	BG.Notes.Set(name, note)
-	if greet and BG.Recruit and not BG.Recruit.GreetedBy(name) then BG.Recruit.Welcome(name) end
+	if greet and BG.Recruit then BG.Recruit.Welcome(name) end
 	win:Hide()
 end
 
@@ -521,11 +512,6 @@ function NW.ApplySuggestion()
 	end
 	if sug.spec then win.spec = sug.spec[1] end
 	NW.Redraw()
-end
-
--- somebody greeted this member (kind W): the greet button of an open window is switched off
-function NW.MarkGreeted(name, by)
-	if win and win:IsShown() and win.target == name then NW.Redraw() end
 end
 
 BG.On("CHAT_MSG_WHISPER", function(msg, sender) NW.OnWhisper(msg, sender) end)
