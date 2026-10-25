@@ -421,6 +421,10 @@ local function Build()
 	win.soon:SetHeight(76)
 	win.soon:SetJustifyH("LEFT")
 	win.soon:SetJustifyV("TOP")
+	win.none = win:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+	win.none:SetPoint("TOPLEFT", win, "TOPLEFT", 18, -86)
+	win.none:SetWidth(W - 36)
+	win.none:SetJustifyH("LEFT")
 	win.more = win:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 	win.more:SetPoint("BOTTOMLEFT", win, "BOTTOMLEFT", 18, 44)
 	win.more:SetWidth(W - 36)
@@ -494,7 +498,9 @@ function Promo.Refresh()
 		win.soon:SetText(GOLD .. BG.T("promo_soon", Promo.SOON_DAYS) .. "|r\n" .. GRAY .. BG.T("promo_soon_none") .. "|r")
 	end
 	local extra = table.getn(shown) - ROWS
-	win.more:SetText(extra > 0 and (GRAY .. "+ " .. extra .. "|r") or (table.getn(shown) == 0 and (GRAY .. BG.T("promo_none") .. "|r") or ""))
+	win.more:SetText(extra > 0 and (GRAY .. "+ " .. extra .. "|r") or "")
+	-- "nobody due" sits in the empty list area at the top, not at the bottom over the "due soon" block
+	win.none:SetText(table.getn(shown) == 0 and (GRAY .. BG.T("promo_none") .. "|r") or "")
 	local cur = Promo.cur
 	if cur then
 		local info = BG.roster[cur.name]

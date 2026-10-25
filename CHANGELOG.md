@@ -3,6 +3,9 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 1.13.3
+- Neuling Check: „Niemand ist gerade fällig." steht jetzt oben im leeren Listenbereich und nicht mehr unten über dem Block „Bald fällig".
+
 ## 1.13.2
 - Die Sperre gegen doppelte Begrüßungen ist entfernt: Mehrere Offiziere dürfen im Gildenchat Hallo sagen, damit mehr los ist. Es gibt keine Meldung „Bereits begrüßt von ..." mehr, keine Abstimmung zwischen den Clients und keine Zufallsverzögerung. Einzige Regel bleibt: Der Gruß mit Discord-Link kommt nur vom Einlader / Rekrutierer, Offiziere senden immer einen Rollenspiel-Text.
 
