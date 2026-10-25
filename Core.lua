@@ -356,24 +356,34 @@ local function MigrateTo20()
 	db.variants.gz = FillNew("gz", gzEdited)
 	db.variants.welcome = FillNew("welcome", rp)
 	db.variants.welcomeRec = FillNew("welcomeRec", rec)
-	db.variantsV = 3 -- welcomeRec was just filled with the current defaults
+	db.variantsV = 4 -- just filled with the current defaults
 end
 
--- 1.13.1: the recruiter greetings were rewritten (Discord steps) and grew to 30. Edited ones stay in front.
-local function MigrateTo30()
+-- 1.14: gz / welcome / welcomeRec got casual new default texts. Edited variants stay in front, untouched old defaults
+-- (1.13.0 and 1.13.1 versions, German or English) are replaced.
+local function MigrateTexts()
 	local db = BG.db
-	local cur = db.variants.welcomeRec
 	local L = BG.L
-	local edited = {}
-	for i = 1, table.getn(cur) do
-		local v = cur[i]
-		if type(v) == "string" and BG.Trim(v) ~= "" then
-			local d = L.de["old13_welcomeRec_" .. i]
-			local e = L.en["old13_welcomeRec_" .. i]
-			if v ~= d and v ~= e then table.insert(edited, v) end
+	local kinds = { "gz", "welcome", "welcomeRec" }
+	for k = 1, 3 do
+		local kind = kinds[k]
+		local cur = db.variants[kind]
+		if type(cur) == "table" then
+			local edited = {}
+			for i = 1, table.getn(cur) do
+				local v = cur[i]
+				if type(v) == "string" and BG.Trim(v) ~= "" then
+					local old = false
+					for _, p in ipairs({ "old13_", "old131_" }) do
+						local key = p .. kind .. "_" .. i
+						if v == L.de[key] or v == L.en[key] then old = true end
+					end
+					if not old then table.insert(edited, v) end
+				end
+			end
+			db.variants[kind] = FillNew(kind, edited)
 		end
 	end
-	db.variants.welcomeRec = FillNew("welcomeRec", edited)
 end
 
 local function MigrateVariants()
@@ -381,9 +391,9 @@ local function MigrateVariants()
 	if type(db.variants.gz) == "table" or type(db.variants.welcome) == "table" then
 		MigrateTo20()
 	end
-	if (db.variantsV or 0) < 3 then
-		if type(db.variants.welcomeRec) == "table" then MigrateTo30() end
-		db.variantsV = 3 -- (fresh install: defaults are filled below)
+	if (db.variantsV or 0) < 4 then
+		MigrateTexts()
+		db.variantsV = 4 -- (fresh install: defaults are filled below)
 	end
 	for i = 1, table.getn(BG.VARIANT_KINDS) do
 		local kind = BG.VARIANT_KINDS[i]
