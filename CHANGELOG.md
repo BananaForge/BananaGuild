@@ -3,6 +3,9 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 1.15.0
+- Die Nachfrage-Texte per Flüstern (Berufe, Spec, Twinks, „Alles fragen") sind neu geschrieben und klingen lockerer und menschlicher: kürzer, ohne „kurze Frage von der Gildenleitung" und Umfrage-Floskeln, teils klein geschrieben. Deutsch und Englisch. Eigene Änderungen bleiben vorn stehen, unveränderte alte Standardtexte werden ersetzt.
+
 ## 1.14.0
 - Alle GZ- und Begrüßungstexte (20 GZ, 30 Rekrutierung mit Discord, 20 Rollenspiel) sind neu und klingen lockerer und menschlicher: kürzer, oft klein geschrieben, weniger Pathos und Ausrufezeichen, unterschiedliche Satzanfänge, der Discord-Ablauf in einem lockeren Satz statt als Liste. Nur Deutsch, bei englischer Oberfläche werden die deutschen Texte genutzt.
 - Eigene Änderungen an diesen Texten bleiben vorn stehen, unveränderte alte Standardtexte (1.13.x) werden ersetzt.

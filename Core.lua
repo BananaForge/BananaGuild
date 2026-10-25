@@ -356,7 +356,7 @@ local function MigrateTo20()
 	db.variants.gz = FillNew("gz", gzEdited)
 	db.variants.welcome = FillNew("welcome", rp)
 	db.variants.welcomeRec = FillNew("welcomeRec", rec)
-	db.variantsV = 4 -- just filled with the current defaults
+	db.variantsV = 5 -- just filled with the current defaults
 end
 
 -- 1.14: gz / welcome / welcomeRec got casual new default texts. Edited variants stay in front, untouched old defaults
@@ -364,8 +364,8 @@ end
 local function MigrateTexts()
 	local db = BG.db
 	local L = BG.L
-	local kinds = { "gz", "welcome", "welcomeRec" }
-	for k = 1, 3 do
+	local kinds = { "gz", "welcome", "welcomeRec", "askProf", "askSpec", "askTwink", "askAll" }
+	for k = 1, table.getn(kinds) do
 		local kind = kinds[k]
 		local cur = db.variants[kind]
 		if type(cur) == "table" then
@@ -374,7 +374,7 @@ local function MigrateTexts()
 				local v = cur[i]
 				if type(v) == "string" and BG.Trim(v) ~= "" then
 					local old = false
-					for _, p in ipairs({ "old13_", "old131_" }) do
+					for _, p in ipairs({ "old13_", "old131_", "oldask_" }) do
 						local key = p .. kind .. "_" .. i
 						if v == L.de[key] or v == L.en[key] then old = true end
 					end
@@ -391,9 +391,9 @@ local function MigrateVariants()
 	if type(db.variants.gz) == "table" or type(db.variants.welcome) == "table" then
 		MigrateTo20()
 	end
-	if (db.variantsV or 0) < 4 then
+	if (db.variantsV or 0) < 5 then
 		MigrateTexts()
-		db.variantsV = 4 -- (fresh install: defaults are filled below)
+		db.variantsV = 5 -- (fresh install: defaults are filled below)
 	end
 	for i = 1, table.getn(BG.VARIANT_KINDS) do
 		local kind = BG.VARIANT_KINDS[i]
