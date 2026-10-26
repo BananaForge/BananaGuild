@@ -491,7 +491,7 @@ local function Build()
 	win.status:SetJustifyH("LEFT")
 	win.allOnline = BG.MakeButton(win, Name("Btn"), 190, 24, "")
 	win.allOnline:SetPoint("BOTTOMRIGHT", win, "BOTTOMRIGHT", -252, 14)
-	win.allOnline:SetScript("OnClick", function() Promo.EnqueueOnline() end)
+	win.allOnline:SetScript("OnClick", function() Promo.Arm("online") end)
 	win.allOnline:SetScript("OnEnter", function()
 		GameTooltip:SetOwner(this, "ANCHOR_TOP")
 		GameTooltip:SetText(BG.T("tip_promo_online"), 1, 1, 1, 1, 1)
@@ -500,11 +500,7 @@ local function Build()
 	win.allOnline:SetScript("OnLeave", function() GameTooltip:Hide() end)
 	win.all = BG.MakeButton(win, Name("Btn"), 140, 24, "")
 	win.all:SetPoint("BOTTOMRIGHT", win, "BOTTOMRIGHT", -108, 14)
-	win.all:SetScript("OnClick", function()
-		local names = {}
-		for i = 1, table.getn(win.shown or {}) do table.insert(names, win.shown[i].name) end
-		Promo.Enqueue(names)
-	end)
+	win.all:SetScript("OnClick", function() Promo.Arm("all") end)
 	win.closeBtn = BG.MakeButton(win, Name("Btn"), 90, 24, "")
 	win.closeBtn:SetPoint("BOTTOMRIGHT", win, "BOTTOMRIGHT", -16, 14)
 	win.closeBtn:SetScript("OnClick", function() win:Hide() end)
@@ -516,6 +512,25 @@ local function Build()
 		this.elapsed = 0
 		Promo.Refresh()
 	end)
+end
+
+-- the two bulk buttons need a second click within 6 seconds ("Sure? N will be promoted"), so nobody is promoted by accident
+function Promo.Arm(which)
+	if not win then return end
+	if win.armed == which and GetTime() - (win.armedAt or 0) < 6 then
+		win.armed = nil
+		if which == "online" then
+			Promo.EnqueueOnline()
+		else
+			local names = {}
+			for i = 1, table.getn(win.shown or {}) do table.insert(names, win.shown[i].name) end
+			Promo.Enqueue(names)
+		end
+	else
+		win.armed = which
+		win.armedAt = GetTime()
+	end
+	Promo.Refresh()
 end
 
 function Promo.Scroll(d)
@@ -586,10 +601,19 @@ function Promo.Refresh()
 	else
 		win.status:SetText(Promo.lastMsg ~= "" and (GRAY .. Promo.lastMsg .. "|r") or "")
 	end
-	win.all:SetText(BG.T("btn_promote_all"))
 	local nOnline = 0
 	for i = 1, table.getn(shown) do if shown[i].online then nOnline = nOnline + 1 end end
-	win.allOnline:SetText(BG.T("btn_promote_online", nOnline))
+	if win.armed and GetTime() - (win.armedAt or 0) >= 6 then win.armed = nil end
+	if win.armed == "all" then
+		win.all:SetText(RED .. BG.T("btn_promote_sure", table.getn(shown)) .. "|r")
+	else
+		win.all:SetText(BG.T("btn_promote_all"))
+	end
+	if win.armed == "online" then
+		win.allOnline:SetText(RED .. BG.T("btn_promote_sure", nOnline) .. "|r")
+	else
+		win.allOnline:SetText(BG.T("btn_promote_online", nOnline))
+	end
 	if nOnline > 0 and steps and Promo.CanPromote() then win.allOnline:Enable() else win.allOnline:Disable() end
 	win.closeBtn:SetText(BG.T("btn_close"))
 	if table.getn(shown) > 0 and steps and Promo.CanPromote() then win.all:Enable() else win.all:Disable() end

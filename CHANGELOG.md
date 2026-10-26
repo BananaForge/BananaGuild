@@ -3,6 +3,9 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 1.16.1
+- Neuling Check: „Alle befördern" und „Alle Online befördern" brauchen jetzt einen zweiten Klick innerhalb von 6 Sekunden („Sicher? N befördern"), damit niemand versehentlich befördert wird. Der Einzel-Knopf „-> Member" befördert wie bisher nur diese eine Person.
+
 ## 1.16.0
 - Neuling Check: Wer online ist, steht oben, danach nach „zuletzt online" (zuletzt gesehen zuerst). Neuer Button „Alle Online befördern (N)": befördert alle Online-Mitglieder der Liste, und zwar zuerst der neue Rang, danach bekommt jeder eine Flüster-Nachricht über den Zugriff auf die Bananenbank (Rezepte und BoEs zum halben AH-Preis, Addon-Download im Discord-Channel BananaForge-Addons).
 - Neuer Text im Reiter Texte: „Bank-Info" mit 3 humorvollen Varianten, editierbar. Die Flüster-Nachricht wird nach jeder Beförderung über den Neuling Check gesendet, wenn der Spieler online ist; abschaltbar unter Einstellungen > Beförderung („Nach Beförderung Bank-Info flüstern").

@@ -1703,3 +1703,6 @@ de.promo_soon_day1 = "Bald fällig - morgen (%s):"
 en.promo_soon_day1 = "Due soon - tomorrow (%s):"
 de.promo_soon_dayn = "Bald fällig - in %s Tagen (%s):"
 en.promo_soon_dayn = "Due soon - in %s days (%s):"
+
+de.btn_promote_sure = "Sicher? %s befördern"
+en.btn_promote_sure = "Sure? Promote %s"
