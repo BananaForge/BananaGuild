@@ -3,6 +3,9 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 1.15.1
+- Neuling Check: Das Fenster ist größer und die Zeilen passen jetzt (Name und „Notiz ok / fehlt" oben, Stufe / Beitritt / zuletzt online darunter, nichts läuft mehr über den Rand). Bei mehr Mitgliedern als Platz gibt es einen Scrollbalken (auch Mausrad). Der Text „+ N" überlagerte sich mit „Bald fällig" und ist weg, „Bald fällig" zeigt bei Bedarf „... und N weitere". „vor 1 Tagen" heißt jetzt „vor 1 Tag", „in 1 Tagen" „in 1 Tag".
+
 ## 1.15.0
 - Die Nachfrage-Texte per Flüstern (Berufe, Spec, Twinks, „Alles fragen") sind neu geschrieben und klingen lockerer und menschlicher: kürzer, ohne „kurze Frage von der Gildenleitung" und Umfrage-Floskeln, teils klein geschrieben. Deutsch und Englisch. Eigene Änderungen bleiben vorn stehen, unveränderte alte Standardtexte werden ersetzt.
 

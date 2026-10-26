@@ -33,6 +33,7 @@ end
 function Inactive.Ago(days)
 	if not days then return BG.T("detail_lastseen_unknown") end
 	if days < 1 then return BG.T("ago_less") end
+	if days < 2 then return BG.T("ago_day1") end
 	if days < 60 then return BG.T("ago_days", math.floor(days)) end
 	if days < 730 then return BG.T("ago_months", math.floor(days / 30)) end
 	return BG.T("ago_years", math.floor(days / 365))

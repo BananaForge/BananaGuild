@@ -1665,3 +1665,16 @@ de.def_askAll_4 = "Hallo {name}, ich ergänze grad unsere Mitgliederliste. Was s
 en.def_askAll_4 = "Hello {name}, i'm completing our member list. What are your professions and spec, and do you have twinks in the guild?"
 de.def_askAll_5 = "hey {name}, kurze Umfrage: Berufe, Spec, Twinks (inkl. Main). Ein paar Stichworte reichen, danke dir!"
 en.def_askAll_5 = "hey {name}, quick survey: professions, spec, twinks (incl. main). A few keywords are enough, thanks!"
+
+---------------------------------------------------------------- 1.15.1: Neuling Check layout
+de.ago_day1 = "vor 1 Tag"
+en.ago_day1 = "1 day ago"
+de.promo_row2 = "Stufe %s - seit %s (%s Tage) - online: %s"
+en.promo_row2 = "Level %s - since %s (%s days) - online: %s"
+de.promo_row2_approx = "Stufe %s - seit ca. %s (%s Tage) - online: %s"
+en.promo_row2_approx = "Level %s - since ~%s (%s days) - online: %s"
+de.promo_soon_row = "- in %s Tagen (Stufe %s, dabei seit %s Tagen)"
+de.promo_soon_row1 = "- in 1 Tag (Stufe %s, dabei seit %s Tagen)"
+en.promo_soon_row1 = "- in 1 day (level %s, member for %s days)"
+de.promo_soon_more = "... und %s weitere"
+en.promo_soon_more = "... and %s more"

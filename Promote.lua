@@ -348,7 +348,10 @@ end
 
 --------------------------------------------------------------------- window
 
-local W, ROWS = 560, 6
+local W, ROWS = 640, 6
+local ROWH = 46            -- height of one list row (name line + info line)
+local LISTY = -78          -- top of the list
+local SOONY = LISTY - ROWS * ROWH - 8
 local win
 local counter = 0
 
@@ -360,7 +363,7 @@ end
 local function Build()
 	win = CreateFrame("Frame", "BananaGuildPromoWin", UIParent)
 	win:SetWidth(W)
-	win:SetHeight(204 + ROWS * 38)
+	win:SetHeight(-SOONY + 76 + 56)
 	win:SetPoint("CENTER", UIParent, "CENTER", 0, 80)
 	win:SetFrameStrata("DIALOG")
 	win:EnableMouse(true)
@@ -387,17 +390,27 @@ local function Build()
 	win.hint:SetJustifyH("LEFT")
 
 	win.rows = {}
+	win.offset = 0
+	local ROWW = W - 32 - 20   -- room for the scroll bar
 	for i = 1, ROWS do
 		local row = CreateFrame("Frame", Name("Row"), win)
-		row:SetWidth(W - 32)
-		row:SetHeight(34)
-		row:SetPoint("TOPLEFT", win, "TOPLEFT", 16, -78 - (i - 1) * 38)
+		row:SetWidth(ROWW)
+		row:SetHeight(ROWH - 4)
+		row:SetPoint("TOPLEFT", win, "TOPLEFT", 16, LISTY - (i - 1) * ROWH)
 		BG.Backdrop(row, false)
+		row:EnableMouseWheel(true)
+		row:SetScript("OnMouseWheel", function() Promo.Scroll(-arg1) end)
 		row.name = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-		row.name:SetPoint("TOPLEFT", row, "TOPLEFT", 10, -5)
+		row.name:SetPoint("TOPLEFT", row, "TOPLEFT", 10, -6)
+		row.name:SetWidth(150)
+		row.name:SetJustifyH("LEFT")
+		row.note = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+		row.note:SetPoint("TOPLEFT", row, "TOPLEFT", 170, -8)
+		row.note:SetWidth(120)
+		row.note:SetJustifyH("LEFT")
 		row.info = row:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-		row.info:SetPoint("TOPLEFT", row, "TOPLEFT", 10, -19)
-		row.info:SetWidth(W - 240)
+		row.info:SetPoint("TOPLEFT", row, "TOPLEFT", 10, -24)
+		row.info:SetWidth(ROWW - 200)
 		row.info:SetJustifyH("LEFT")
 		row.later = BG.MakeButton(row, Name("Btn"), 70, 22, "")
 		row.later:SetPoint("RIGHT", row, "RIGHT", -6, 0)
@@ -414,21 +427,37 @@ local function Build()
 		row:Hide()
 		win.rows[i] = row
 	end
+	-- scroll bar (more members than rows)
+	win.slider = CreateFrame("Slider", Name("Slider"), win)
+	win.slider:SetWidth(14)
+	win.slider:SetHeight(ROWS * ROWH - 4)
+	win.slider:SetPoint("TOPRIGHT", win, "TOPRIGHT", -16, LISTY)
+	win.slider:EnableMouse(true)
+	win.slider:SetOrientation("VERTICAL")
+	win.slider:SetMinMaxValues(0, 0)
+	win.slider:SetValueStep(1)
+	win.slider:SetValue(0)
+	win.slider:SetThumbTexture("Interface\\Buttons\\UI-ScrollBar-Knob")
+	local thumb = win.slider:GetThumbTexture()
+	if thumb then thumb:SetWidth(14) thumb:SetHeight(24) end
+	win.slider:SetScript("OnValueChanged", function()
+		win.offset = math.floor((this:GetValue() or 0) + 0.5)
+		Promo.Refresh()
+	end)
+	win.slider:Hide()
+	win:EnableMouseWheel(true)
+	win:SetScript("OnMouseWheel", function() Promo.Scroll(-arg1) end)
 
 	win.soon = win:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-	win.soon:SetPoint("TOPLEFT", win, "TOPLEFT", 18, -86 - ROWS * 38)
+	win.soon:SetPoint("TOPLEFT", win, "TOPLEFT", 18, SOONY)
 	win.soon:SetWidth(W - 36)
 	win.soon:SetHeight(76)
 	win.soon:SetJustifyH("LEFT")
 	win.soon:SetJustifyV("TOP")
 	win.none = win:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-	win.none:SetPoint("TOPLEFT", win, "TOPLEFT", 18, -86)
+	win.none:SetPoint("TOPLEFT", win, "TOPLEFT", 18, LISTY - 8)
 	win.none:SetWidth(W - 36)
 	win.none:SetJustifyH("LEFT")
-	win.more = win:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-	win.more:SetPoint("BOTTOMLEFT", win, "BOTTOMLEFT", 18, 44)
-	win.more:SetWidth(W - 36)
-	win.more:SetJustifyH("LEFT")
 	win.status = win:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	win.status:SetPoint("BOTTOMLEFT", win, "BOTTOMLEFT", 18, 20)
 	win.status:SetWidth(W - 280)
@@ -453,6 +482,12 @@ local function Build()
 	end)
 end
 
+function Promo.Scroll(d)
+	if not win or not win.slider then return end
+	local v = win.slider:GetValue() + d * 2
+	win.slider:SetValue(v)
+end
+
 function Promo.Refresh()
 	if BG.UI and BG.UI.UpdatePromoButton then BG.UI.UpdatePromoButton() end
 	if not win or not win:IsShown() then return end
@@ -466,16 +501,21 @@ function Promo.Refresh()
 	local shown = {}
 	for i = 1, table.getn(list) do shown[i] = list[i] end
 	win.shown = shown
+	-- scroll bar: only when there are more members than rows
+	local maxOff = math.max(0, table.getn(shown) - ROWS)
+	if win.offset > maxOff then win.offset = maxOff end
+	win.slider:SetMinMaxValues(0, maxOff)
+	if maxOff > 0 then win.slider:Show() else win.slider:Hide() end
 	for i = 1, ROWS do
 		local row = win.rows[i]
-		local item = shown[i]
+		local item = shown[i + win.offset]
 		row.item = item
 		if item then
 			row.name:SetText(item.name)
 			local c = BG.Inactive and BG.Inactive.Ago
 			local last = item.online and BG.T("promo_online_now") or (c and BG.Inactive.Ago(item.off) or "?")
-			local note = item.noteOk and (GREEN .. BG.T("promo_note_ok") .. "|r") or (RED .. BG.T("promo_note_missing") .. "|r")
-			row.info:SetText(BG.T(item.approx and "promo_row2_approx" or "promo_row2", item.level or "?", item.joined, item.days, last) .. " - " .. note)
+			row.note:SetText(item.noteOk and (GREEN .. BG.T("promo_note_ok") .. "|r") or (RED .. BG.T("promo_note_missing") .. "|r"))
+			row.info:SetText(BG.T(item.approx and "promo_row2_approx" or "promo_row2", item.level or "?", item.joined, item.days, last))
 			row.go:SetText(BG.T("btn_promote_to", pr.to))
 			row.later:SetText(BG.T("btn_later"))
 			if steps and Promo.CanPromote() then row.go:Enable() else row.go:Disable() end
@@ -488,17 +528,15 @@ function Promo.Refresh()
 	local soon = Promo.Soon()
 	local lines = {}
 	for i = 1, table.getn(soon) do
-		if i > 5 then lines[i] = GRAY .. "+ " .. (table.getn(soon) - 5) .. "|r" break end
+		if i > 4 then lines[i] = GRAY .. BG.T("promo_soon_more", table.getn(soon) - 4) .. "|r" break end
 		local it = soon[i]
-		lines[i] = WHITE .. it.name .. "|r " .. GRAY .. BG.T("promo_soon_row", it.left, it.level or "?", it.days) .. "|r"
+		lines[i] = WHITE .. it.name .. "|r " .. GRAY .. (it.left == 1 and BG.T("promo_soon_row1", it.level or "?", it.days) or BG.T("promo_soon_row", it.left, it.level or "?", it.days)) .. "|r"
 	end
 	if table.getn(soon) > 0 then
 		win.soon:SetText(GOLD .. BG.T("promo_soon", Promo.SOON_DAYS) .. "|r\n" .. table.concat(lines, "\n"))
 	else
 		win.soon:SetText(GOLD .. BG.T("promo_soon", Promo.SOON_DAYS) .. "|r\n" .. GRAY .. BG.T("promo_soon_none") .. "|r")
 	end
-	local extra = table.getn(shown) - ROWS
-	win.more:SetText(extra > 0 and (GRAY .. "+ " .. extra .. "|r") or "")
 	-- "nobody due" sits in the empty list area at the top, not at the bottom over the "due soon" block
 	win.none:SetText(table.getn(shown) == 0 and (GRAY .. BG.T("promo_none") .. "|r") or "")
 	local cur = Promo.cur
