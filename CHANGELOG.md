@@ -3,6 +3,12 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 1.16.0
+- Neuling Check: Wer online ist, steht oben, danach nach „zuletzt online" (zuletzt gesehen zuerst). Neuer Button „Alle Online befördern (N)": befördert alle Online-Mitglieder der Liste, und zwar zuerst der neue Rang, danach bekommt jeder eine Flüster-Nachricht über den Zugriff auf die Bananenbank (Rezepte und BoEs zum halben AH-Preis, Addon-Download im Discord-Channel BananaForge-Addons).
+- Neuer Text im Reiter Texte: „Bank-Info" mit 3 humorvollen Varianten, editierbar. Die Flüster-Nachricht wird nach jeder Beförderung über den Neuling Check gesendet, wenn der Spieler online ist; abschaltbar unter Einstellungen > Beförderung („Nach Beförderung Bank-Info flüstern").
+- „Bald fällig" zeigt nur noch den nächsten Tag mit allen Namen in einer Zeile (kein „... und N weitere" mehr).
+- Texte-Reiter: Fünf Knöpfe pro Reihe, damit der neue Text passt; Texte mit weniger als 5 Varianten zeigen nur so viele Variantenknöpfe wie vorhanden.
+
 ## 1.15.1
 - Neuling Check: Das Fenster ist größer und die Zeilen passen jetzt (Name und „Notiz ok / fehlt" oben, Stufe / Beitritt / zuletzt online darunter, nichts läuft mehr über den Rand). Bei mehr Mitgliedern als Platz gibt es einen Scrollbalken (auch Mausrad). Der Text „+ N" überlagerte sich mit „Bald fällig" und ist weg, „Bald fällig" zeigt bei Bedarf „... und N weitere". „vor 1 Tagen" heißt jetzt „vor 1 Tag", „in 1 Tagen" „in 1 Tag".
 

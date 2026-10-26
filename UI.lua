@@ -601,7 +601,7 @@ end
 
 --------------------------------------------------------------------- panel: texts
 
-local TEXT_KEYS = { "welcome", "welcomeRec", "funny", "gz", "repliesDE", "repliesEN", "contactDE", "contactEN", "askProf", "askSpec", "askTwink", "askAll" }
+local TEXT_KEYS = { "welcome", "welcomeRec", "funny", "gz", "repliesDE", "repliesEN", "contactDE", "contactEN", "askProf", "askSpec", "askTwink", "askAll", "promoBank" }
 
 -- the texts of the language that is NOT active are greyed out (they are still used automatically for
 -- whispers in that language)
@@ -624,10 +624,10 @@ local function BuildTexts(p)
 	p.btns = {}
 	for i = 1, table.getn(TEXT_KEYS) do
 		local k = TEXT_KEYS[i] -- Lua 5.0: closures share the loop variable, so copy it into a local
-		local b = MakeButton(p, NextName("Btn"), "txt_" .. k, 146, 22, function() UI.SelectText(k) end)
-		local row = math.floor((i - 1) / 4)
-		local col = (i - 1) - row * 4
-		b:SetPoint("TOPLEFT", p, "TOPLEFT", col * 150, -84 - row * 26)
+		local b = MakeButton(p, NextName("Btn"), "txt_" .. k, 116, 22, function() UI.SelectText(k) end)
+		local row = math.floor((i - 1) / 5)
+		local col = (i - 1) - row * 5
+		b:SetPoint("TOPLEFT", p, "TOPLEFT", col * 120, -84 - row * 26)
 		p.btns[k] = b
 	end
 	-- the 5 variants of the chosen kind
@@ -716,8 +716,12 @@ function UI.UpdateTextButtons()
 		p.varDrop:Hide()
 		p.varDrop.list:Hide()
 		for s = 1, BG.VARIANTS do
-			p.slotBtns[s]:Show()
-			UI.MarkSelected(p.slotBtns[s], s == UI.slotSel)
+			if s <= n then
+				p.slotBtns[s]:Show()
+				UI.MarkSelected(p.slotBtns[s], s == UI.slotSel)
+			else
+				p.slotBtns[s]:Hide()
+			end
 		end
 	end
 	p.resetAll:SetText(BG.T("btn_reset_alln", n))
@@ -1420,6 +1424,9 @@ local function BuildPromoPage(root, pp)
 	MakeCheck("settings", pp, 0, -88, "promo_enabled",
 		function() return db.promo.enabled end,
 		function(v) db.promo.enabled = v UI.UpdatePromoButton() end)
+	MakeCheck("settings", pp, 300, -88, "promo_bankwhisper",
+		function() return db.promo.bankWhisper end,
+		function(v) db.promo.bankWhisper = v end, "tip_promo_bankwhisper")
 	Label(pp, "promo_weeks", 0, -124)
 	MakeEdit("settings", pp, 110, -120, 36, function() return db.promo.weeks end, function(t)
 		NumberSetter(db.promo, "weeks", 1)(t)

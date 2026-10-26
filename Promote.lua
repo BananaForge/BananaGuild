@@ -115,7 +115,13 @@ function Promo.Due(includeSnoozed)
 		local it = all[i]
 		if it.days >= need and (includeSnoozed or pr.snooze[it.name] ~= today) then table.insert(out, it) end
 	end
+	-- online members first, then by "last online" (most recently seen first), unknown offline time last
 	table.sort(out, function(a, b)
+		if (a.online and true or false) ~= (b.online and true or false) then return a.online and true or false end
+		if not a.online then
+			local oa, ob = a.off or 99999, b.off or 99999
+			if oa ~= ob then return oa < ob end
+		end
 		if a.days ~= b.days then return a.days > b.days end
 		return a.name < b.name
 	end)
@@ -179,6 +185,16 @@ end
 local function BatchAdd()
 	if not Promo.batch or (not Promo.cur and table.getn(Promo.queue) == 0) then Promo.batch = { ok = 0, fail = 0, total = 0 } end
 	Promo.batch.total = Promo.batch.total + 1
+end
+
+-- the members of the list that are online right now
+function Promo.EnqueueOnline()
+	local names = {}
+	local due = Promo.Due(false)
+	for i = 1, table.getn(due) do
+		if due[i].online then table.insert(names, due[i].name) end
+	end
+	return Promo.Enqueue(names)
 end
 
 -- queue entries: { name, to = target rank name, toIdx, dir = -1 promote (index gets smaller) / 1 demote,
@@ -250,6 +266,16 @@ function Promo.Cancel()
 	Promo.Refresh()
 end
 
+-- after the new rank is set: tell the member about the guild bank (editable text "promoBank"); only when he is online
+function Promo.BankWhisper(name)
+	if not BG.db.promo.bankWhisper then return end
+	local info = BG.roster[name]
+	if not info or not info.online then return end
+	local line = BG.PickVariant("promoBank")
+	if not line then return end
+	BG.SendChat(BG.Fill(line, { name = name }), "WHISPER", name)
+end
+
 local function Done(cur, ok, rankNow)
 	Promo.busy[cur.name] = nil
 	Promo.cur = nil
@@ -258,6 +284,7 @@ local function Done(cur, ok, rankNow)
 		BG.AddLog(up and "promote" or "demote", BG.me, cur.name, cur.to)
 		BG.db.promo.snooze[cur.name] = nil
 		Note(BG.T(up and "promo_done" or "promo_done_demote", cur.name, cur.to))
+		if up and cur.auto then Promo.BankWhisper(cur.name) end
 	else
 		Note(BG.T(up and "promo_fail" or "promo_fail_demote", cur.name, rankNow or "?"))
 	end
@@ -459,11 +486,20 @@ local function Build()
 	win.none:SetWidth(W - 36)
 	win.none:SetJustifyH("LEFT")
 	win.status = win:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-	win.status:SetPoint("BOTTOMLEFT", win, "BOTTOMLEFT", 18, 20)
-	win.status:SetWidth(W - 280)
+	win.status:SetPoint("BOTTOMLEFT", win, "BOTTOMLEFT", 18, 46)
+	win.status:SetWidth(W - 36)
 	win.status:SetJustifyH("LEFT")
-	win.all = BG.MakeButton(win, Name("Btn"), 130, 24, "")
-	win.all:SetPoint("BOTTOMRIGHT", win, "BOTTOMRIGHT", -112, 14)
+	win.allOnline = BG.MakeButton(win, Name("Btn"), 190, 24, "")
+	win.allOnline:SetPoint("BOTTOMRIGHT", win, "BOTTOMRIGHT", -252, 14)
+	win.allOnline:SetScript("OnClick", function() Promo.EnqueueOnline() end)
+	win.allOnline:SetScript("OnEnter", function()
+		GameTooltip:SetOwner(this, "ANCHOR_TOP")
+		GameTooltip:SetText(BG.T("tip_promo_online"), 1, 1, 1, 1, 1)
+		GameTooltip:Show()
+	end)
+	win.allOnline:SetScript("OnLeave", function() GameTooltip:Hide() end)
+	win.all = BG.MakeButton(win, Name("Btn"), 140, 24, "")
+	win.all:SetPoint("BOTTOMRIGHT", win, "BOTTOMRIGHT", -108, 14)
 	win.all:SetScript("OnClick", function()
 		local names = {}
 		for i = 1, table.getn(win.shown or {}) do table.insert(names, win.shown[i].name) end
@@ -526,14 +562,15 @@ function Promo.Refresh()
 	end
 	-- "soon due": who reaches the time in the next days
 	local soon = Promo.Soon()
-	local lines = {}
-	for i = 1, table.getn(soon) do
-		if i > 4 then lines[i] = GRAY .. BG.T("promo_soon_more", table.getn(soon) - 4) .. "|r" break end
-		local it = soon[i]
-		lines[i] = WHITE .. it.name .. "|r " .. GRAY .. (it.left == 1 and BG.T("promo_soon_row1", it.level or "?", it.days) or BG.T("promo_soon_row", it.left, it.level or "?", it.days)) .. "|r"
-	end
 	if table.getn(soon) > 0 then
-		win.soon:SetText(GOLD .. BG.T("promo_soon", Promo.SOON_DAYS) .. "|r\n" .. table.concat(lines, "\n"))
+		-- only the next day: everybody who is due on the earliest day, one wrapped line of names
+		local first = soon[1].left
+		local names = {}
+		for i = 1, table.getn(soon) do
+			if soon[i].left == first then table.insert(names, WHITE .. soon[i].name .. "|r " .. GRAY .. "(" .. (soon[i].level or "?") .. ")|r") end
+		end
+		local head = (first == 1) and BG.T("promo_soon_day1", table.getn(names)) or BG.T("promo_soon_dayn", first, table.getn(names))
+		win.soon:SetText(GOLD .. head .. "|r\n" .. table.concat(names, ", "))
 	else
 		win.soon:SetText(GOLD .. BG.T("promo_soon", Promo.SOON_DAYS) .. "|r\n" .. GRAY .. BG.T("promo_soon_none") .. "|r")
 	end
@@ -550,6 +587,10 @@ function Promo.Refresh()
 		win.status:SetText(Promo.lastMsg ~= "" and (GRAY .. Promo.lastMsg .. "|r") or "")
 	end
 	win.all:SetText(BG.T("btn_promote_all"))
+	local nOnline = 0
+	for i = 1, table.getn(shown) do if shown[i].online then nOnline = nOnline + 1 end end
+	win.allOnline:SetText(BG.T("btn_promote_online", nOnline))
+	if nOnline > 0 and steps and Promo.CanPromote() then win.allOnline:Enable() else win.allOnline:Disable() end
 	win.closeBtn:SetText(BG.T("btn_close"))
 	if table.getn(shown) > 0 and steps and Promo.CanPromote() then win.all:Enable() else win.all:Disable() end
 end

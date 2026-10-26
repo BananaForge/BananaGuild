@@ -190,7 +190,7 @@ local DEFAULTS = {
 	-- promotion of new members: reminder after 'weeks' on rank 'from', promoted step by step up to rank 'to' (rank names)
 	-- inactive members: offline for at least "days" -> set to rank "rank"; offline for "kickDays" -> may be removed
 	inactive = { days = 30, kickDays = 90, rank = "Inaktiv" },
-	promo = { enabled = true, weeks = 2, from = "Initiant", to = "Member", snooze = {}, day = "" },
+	promo = { enabled = true, bankWhisper = true, weeks = 2, from = "Initiant", to = "Member", snooze = {}, day = "" },
 	sync = { accept = true, trustRank = 2 },
 	minimap = { angle = 200 },
 	texts = {},
@@ -218,10 +218,10 @@ end
 
 BG.TEXT_NAMES = {}
 -- every kind has exactly 5 variants; one chat message per variant
-BG.VARIANT_KINDS = { "recruit", "welcome", "welcomeRec", "funny", "gz", "repliesDE", "repliesEN", "contactDE", "contactEN", "askProf", "askSpec", "askTwink", "askAll" }
+BG.VARIANT_KINDS = { "recruit", "welcome", "welcomeRec", "funny", "gz", "repliesDE", "repliesEN", "contactDE", "contactEN", "askProf", "askSpec", "askTwink", "askAll", "promoBank" }
 BG.VARIANTS = 5
 -- gz and welcome (role play) have 20 variants, welcomeRec (recruiter, with Discord) 30
-BG.VARIANT_COUNT = { gz = 20, welcome = 20, welcomeRec = 30 }
+BG.VARIANT_COUNT = { gz = 20, welcome = 20, welcomeRec = 30, promoBank = 3 }
 function BG.VariantCount(kind) return BG.VARIANT_COUNT[kind] or BG.VARIANTS end
 
 -- "contactDE" / "repliesEN" ... are tied to one language, independent of the UI language
