@@ -3,6 +3,9 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 1.16.2
+- Neuling Check: Nach dem ersten Klick auf „Alle Online befördern" / „Alle befördern" steht unten in Rot, dass man nochmal klicken muss (10 Sekunden Zeit statt 6), damit nicht der Eindruck entsteht, der Knopf tue nichts.
+
 ## 1.16.1
 - Neuling Check: „Alle befördern" und „Alle Online befördern" brauchen jetzt einen zweiten Klick innerhalb von 6 Sekunden („Sicher? N befördern"), damit niemand versehentlich befördert wird. Der Einzel-Knopf „-> Member" befördert wie bisher nur diese eine Person.
 

@@ -1706,3 +1706,5 @@ en.promo_soon_dayn = "Due soon - in %s days (%s):"
 
 de.btn_promote_sure = "Sicher? %s befördern"
 en.btn_promote_sure = "Sure? Promote %s"
+de.promo_confirm_hint = "Zum Bestätigen den Knopf noch einmal klicken (10 Sekunden): %s Mitglied(er) werden befördert."
+en.promo_confirm_hint = "Click the button once more to confirm (10 seconds): %s member(s) will be promoted."

@@ -514,10 +514,10 @@ local function Build()
 	end)
 end
 
--- the two bulk buttons need a second click within 6 seconds ("Sure? N will be promoted"), so nobody is promoted by accident
+-- the two bulk buttons need a second click within 10 seconds ("Sure? N will be promoted"), so nobody is promoted by accident
 function Promo.Arm(which)
 	if not win then return end
-	if win.armed == which and GetTime() - (win.armedAt or 0) < 6 then
+	if win.armed == which and GetTime() - (win.armedAt or 0) < 10 then
 		win.armed = nil
 		if which == "online" then
 			Promo.EnqueueOnline()
@@ -592,7 +592,11 @@ function Promo.Refresh()
 	-- "nobody due" sits in the empty list area at the top, not at the bottom over the "due soon" block
 	win.none:SetText(table.getn(shown) == 0 and (GRAY .. BG.T("promo_none") .. "|r") or "")
 	local cur = Promo.cur
-	if cur then
+	if win.armed then
+		-- first click of a bulk button: say clearly what the second click does
+		local n = (win.armed == "online") and nOnline or table.getn(shown)
+		win.status:SetText(RED .. BG.T("promo_confirm_hint", n) .. "|r")
+	elseif cur then
 		local info = BG.roster[cur.name]
 		local done = info and (cur.startIdx - info.rankIndex) or 0
 		win.status:SetText(GREEN .. BG.T("promo_status", cur.name, math.abs(done), math.abs(cur.startIdx - cur.toIdx)) .. "|r")
@@ -603,7 +607,7 @@ function Promo.Refresh()
 	end
 	local nOnline = 0
 	for i = 1, table.getn(shown) do if shown[i].online then nOnline = nOnline + 1 end end
-	if win.armed and GetTime() - (win.armedAt or 0) >= 6 then win.armed = nil end
+	if win.armed and GetTime() - (win.armedAt or 0) >= 10 then win.armed = nil end
 	if win.armed == "all" then
 		win.all:SetText(RED .. BG.T("btn_promote_sure", table.getn(shown)) .. "|r")
 	else
