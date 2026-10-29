@@ -269,11 +269,11 @@ end
 -- after the new rank is set: tell the member about the guild bank (editable text "promoBank"); only when he is online
 function Promo.BankWhisper(name)
 	if not BG.db.promo.bankWhisper then return end
-	local info = BG.roster[name]
-	if not info or not info.online then return end
 	local line = BG.PickVariant("promoBank")
-	if not line then return end
+	if not line then BG.Print(BG.T("promo_bank_notext")) return end
+	-- the roster's online flag can be a few seconds old, so the whisper is always tried (offline: the game just says so)
 	BG.SendChat(BG.Fill(line, { name = name }), "WHISPER", name)
+	BG.Print(BG.T("promo_bank_sent", name))
 end
 
 local function Done(cur, ok, rankNow)
@@ -495,12 +495,25 @@ local function Build()
 	win.allOnline:SetScript("OnEnter", function()
 		GameTooltip:SetOwner(this, "ANCHOR_TOP")
 		GameTooltip:SetText(BG.T("tip_promo_online"), 1, 1, 1, 1, 1)
+		GameTooltip:AddLine(BG.T("tip_promo_twice"), 1, 0.82, 0, 1)
 		GameTooltip:Show()
 	end)
 	win.allOnline:SetScript("OnLeave", function() GameTooltip:Hide() end)
 	win.all = BG.MakeButton(win, Name("Btn"), 140, 24, "")
 	win.all:SetPoint("BOTTOMRIGHT", win, "BOTTOMRIGHT", -108, 14)
 	win.all:SetScript("OnClick", function() Promo.Arm("all") end)
+	win.all:SetScript("OnEnter", function()
+		GameTooltip:SetOwner(this, "ANCHOR_TOP")
+		GameTooltip:SetText(BG.T("btn_promote_all"), 1, 1, 1)
+		GameTooltip:AddLine(BG.T("tip_promo_twice"), 1, 0.82, 0, 1)
+		GameTooltip:Show()
+	end)
+	win.all:SetScript("OnLeave", function() GameTooltip:Hide() end)
+	win.twiceHint = win:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+	win.twiceHint:SetPoint("BOTTOMLEFT", win, "BOTTOMLEFT", 18, 14)
+	win.twiceHint:SetWidth(170)
+	win.twiceHint:SetHeight(26)
+	win.twiceHint:SetJustifyH("LEFT")
 	win.closeBtn = BG.MakeButton(win, Name("Btn"), 90, 24, "")
 	win.closeBtn:SetPoint("BOTTOMRIGHT", win, "BOTTOMRIGHT", -16, 14)
 	win.closeBtn:SetScript("OnClick", function() win:Hide() end)
@@ -620,6 +633,7 @@ function Promo.Refresh()
 	end
 	if nOnline > 0 and steps and Promo.CanPromote() then win.allOnline:Enable() else win.allOnline:Disable() end
 	win.closeBtn:SetText(BG.T("btn_close"))
+	win.twiceHint:SetText(BG.T("promo_twice_hint"))
 	if table.getn(shown) > 0 and steps and Promo.CanPromote() then win.all:Enable() else win.all:Disable() end
 end
 

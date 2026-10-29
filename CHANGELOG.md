@@ -3,6 +3,10 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 1.16.3
+- Neuling Check: Dauerhafter Hinweis unten links („Sammel-Knöpfe: zum Bestätigen zweimal klicken") und Tooltips an „Alle Online befördern" / „Alle befördern".
+- Bank-Info-Whisper: Das Addon versucht den Whisper jetzt nach jeder Beförderung immer (das Online-Kennzeichen der Gildenliste kann ein paar Sekunden alt sein) und schreibt „Bank-Info an NAME geflüstert." in den Chat. Fehlt der Text, kommt ein Hinweis.
+
 ## 1.16.2
 - Neuling Check: Nach dem ersten Klick auf „Alle Online befördern" / „Alle befördern" steht unten in Rot, dass man nochmal klicken muss (10 Sekunden Zeit statt 6), damit nicht der Eindruck entsteht, der Knopf tue nichts.
 
