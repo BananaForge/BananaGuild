@@ -153,6 +153,198 @@ function Recruit.PickChannel()
 	return nil, first, inst
 end
 
+--------------------------------------------------------------------- wanted classes / roles
+
+-- The officers pick the classes and roles the guild is looking for. Nothing (or everything) picked = the general search
+-- texts; otherwise one of the texts for exactly this kind of list is posted. The list is synced between the officers.
+local CLASS_ORDER = { "WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "SHAMAN", "MAGE", "WARLOCK", "DRUID" }
+local CLASS_PLURAL = { WARRIOR = "Krieger", PALADIN = "Paladine", HUNTER = "J\195\164ger", ROGUE = "Schurken", PRIEST = "Priester",
+	SHAMAN = "Schamanen", MAGE = "Magier", WARLOCK = "Hexenmeister", DRUID = "Druiden" }
+local CLASS_NOM = { WARRIOR = "Krieger", PALADIN = "Paladin", HUNTER = "J\195\164ger", ROGUE = "Schurke", PRIEST = "Priester",
+	SHAMAN = "Schamane", MAGE = "Magier", WARLOCK = "Hexenmeister", DRUID = "Druide" }
+local CLASS_ACC = { WARRIOR = "Krieger", PALADIN = "Paladin", HUNTER = "J\195\164ger", ROGUE = "Schurken", PRIEST = "Priester",
+	SHAMAN = "Schamanen", MAGE = "Magier", WARLOCK = "Hexenmeister", DRUID = "Druiden" }
+local ROLE_ORDER = { "T", "H", "D" }
+local ROLE_PLURAL = { T = "Tanks", H = "Heiler", D = "DDs" }
+Recruit.CLASS_ORDER = CLASS_ORDER
+Recruit.ROLE_ORDER = ROLE_ORDER
+
+-- "A", "A und B", "A, B und C"
+local function JoinList(list, word)
+	local n = table.getn(list)
+	if n == 0 then return "" end
+	if n == 1 then return list[1] end
+	return table.concat(list, ", ", 1, n - 1) .. " " .. word .. " " .. list[n]
+end
+
+local function WantedPicked()
+	local w = BG.db.wanted
+	local classes, roles = {}, {}
+	for i = 1, table.getn(CLASS_ORDER) do if w.classes[CLASS_ORDER[i]] then table.insert(classes, CLASS_ORDER[i]) end end
+	for i = 1, table.getn(ROLE_ORDER) do if w.roles[ROLE_ORDER[i]] then table.insert(roles, ROLE_ORDER[i]) end end
+	return classes, roles
+end
+
+-- which text kind fits the list (nil = general search texts), plus the words for the placeholders
+function Recruit.WantedKind()
+	local classes, roles = WantedPicked()
+	local nc, nr = table.getn(classes), table.getn(roles)
+	if nc == table.getn(CLASS_ORDER) or nr == table.getn(ROLE_ORDER) or (nc == 0 and nr == 0) then return nil end
+	if nr == 0 then
+		if nc == 1 then return "recruitOne" end
+		if nc <= 4 then return "recruitFew" end
+		return "recruitMany"
+	end
+	if nc == 0 then return "recruitRole" end
+	return "recruitMix"
+end
+
+function Recruit.WantedVars()
+	local classes, roles = WantedPicked()
+	local plural = {}
+	for i = 1, table.getn(roles) do table.insert(plural, ROLE_PLURAL[roles[i]]) end
+	for i = 1, table.getn(classes) do table.insert(plural, CLASS_PLURAL[classes[i]]) end
+	local vars = { klassen = JoinList(plural, "und"), klassen_oder = JoinList(plural, "oder") }
+	if table.getn(classes) == 1 and table.getn(roles) == 0 then
+		vars.klasse, vars.klasse_akk = CLASS_NOM[classes[1]], CLASS_ACC[classes[1]]
+	end
+	return vars
+end
+
+-- readable list for the settings page / popup ("Tanks, Heiler, Magier")
+function Recruit.WantedText()
+	local classes, roles = WantedPicked()
+	local out = {}
+	for i = 1, table.getn(roles) do table.insert(out, ROLE_PLURAL[roles[i]]) end
+	for i = 1, table.getn(classes) do table.insert(out, CLASS_PLURAL[classes[i]]) end
+	return table.concat(out, ", ")
+end
+
+-- which roles a class can play (from the specs in the note tables)
+local function ClassRoles(key)
+	local r = {}
+	local specs = BG.Notes.Specs(key)
+	for i = 1, table.getn(specs) do r[specs[i][4]] = true end
+	return r
+end
+
+-- verdict for a player class key: nil (no list active), "class", "role" (+ list of roles), or "no"
+function Recruit.WantedMatch(key)
+	if not Recruit.WantedKind() or not key then return nil end
+	local w = BG.db.wanted
+	if w.classes[key] then return "class" end
+	local can, got = ClassRoles(key), {}
+	for i = 1, table.getn(ROLE_ORDER) do
+		local r = ROLE_ORDER[i]
+		if w.roles[r] and can[r] then table.insert(got, ROLE_PLURAL[r]) end
+	end
+	if table.getn(got) > 0 then return "role", table.concat(got, ", ") end
+	return "no"
+end
+
+function Recruit.WantedLine(key)
+	local m, extra = Recruit.WantedMatch(key)
+	if not m then return nil end
+	local name = BG.Notes.ClassName(key)
+	if m == "class" then return "|cffffd100" .. BG.T("wanted_class", name) .. "|r" end
+	if m == "role" then return "|cff9be37a" .. BG.T("wanted_role", extra) .. "|r" end
+	return "|cffff8844" .. BG.T("wanted_no", name, Recruit.WantedText()) .. "|r"
+end
+
+-- officers (rank up to the sync trust rank or the officer rank of the greeting popup) may change and send the list
+local function OfficerRank(sender)
+	local info = BG.roster[sender]
+	if not info then return false end
+	local idx = BG.Promo and BG.Promo.RankIndex and BG.Promo.RankIndex(BG.db.greet.rank)
+	local lim = math.max(BG.db.sync.trustRank or 2, idx or 0)
+	return (info.rankIndex or 99) <= lim
+end
+
+function Recruit.CanEditWanted()
+	return OfficerRank(BG.me)
+end
+
+local function EncodeWanted()
+	local w = BG.db.wanted
+	local c, r = {}, {}
+	for i = 1, table.getn(CLASS_ORDER) do c[i] = w.classes[CLASS_ORDER[i]] and "1" or "0" end
+	for i = 1, table.getn(ROLE_ORDER) do r[i] = w.roles[ROLE_ORDER[i]] and "1" or "0" end
+	return table.concat(c) .. ";" .. table.concat(r) .. ";" .. tostring(w.ts or 0)
+end
+
+function Recruit.BroadcastWanted()
+	BG.Send("K", EncodeWanted())
+end
+
+-- called by the settings page when an officer ticks a class or role
+function Recruit.SetWanted(kind, key, on)
+	if not Recruit.CanEditWanted() then return false end
+	local w = BG.db.wanted
+	w[kind][key] = on and true or nil
+	w.ts = time()
+	w.by = BG.me
+	Recruit.BroadcastWanted()
+	Refresh()
+	return true
+end
+
+function Recruit.SetWantedAll(classes, roles)
+	if not Recruit.CanEditWanted() then return false end
+	local w = BG.db.wanted
+	w.classes, w.roles = {}, {}
+	if classes then for i = 1, table.getn(CLASS_ORDER) do w.classes[CLASS_ORDER[i]] = true end end
+	w.ts = time()
+	w.by = BG.me
+	Recruit.BroadcastWanted()
+	Refresh()
+	return true
+end
+
+-- incoming list from an officer: newest wins
+BG.OnComm("K", function(sender, p)
+	if not OfficerRank(sender) or not BG.db.sync.accept then return end
+	local cm, rm, ts = p[1], p[2], tonumber(p[3]) or 0
+	if not cm or not rm or string.len(cm) ~= table.getn(CLASS_ORDER) or string.len(rm) ~= table.getn(ROLE_ORDER) then return end
+	local w = BG.db.wanted
+	if ts <= (w.ts or 0) then return end
+	w.classes, w.roles = {}, {}
+	for i = 1, table.getn(CLASS_ORDER) do if string.sub(cm, i, i) == "1" then w.classes[CLASS_ORDER[i]] = true end end
+	for i = 1, table.getn(ROLE_ORDER) do if string.sub(rm, i, i) == "1" then w.roles[ROLE_ORDER[i]] = true end end
+	w.ts, w.by = ts, sender
+	Refresh()
+end)
+
+-- a client that just logged in asks; officers answer after a random pause (the first answer wins, the rest is ignored by ts)
+BG.OnComm("KQ", function(sender)
+	if not Recruit.CanEditWanted() or (BG.db.wanted.ts or 0) == 0 then return end
+	BG.After(1 + math.random() * 5, function() Recruit.BroadcastWanted() end)
+end)
+
+BG.OnLogin(function()
+	BG.After(45, function() BG.Send("KQ") end)
+end)
+
+function Recruit.PostText()
+	local kind = Recruit.WantedKind()
+	local vars = kind and Recruit.WantedVars() or {}
+	local line
+	if kind then
+		line = BG.PickVariant(kind)
+		if line then
+			local msg = BG.Fill(line, vars)
+			if string.len(msg) > 255 then
+				-- too long with this list: the words for the classes shrink to "viele Klassen"
+				vars.klassen, vars.klassen_oder = BG.T("wanted_many"), BG.T("wanted_many")
+				msg = BG.Fill(line, vars)
+			end
+			if string.len(msg) <= 255 then return msg end
+		end
+	end
+	line = BG.PickVariant("recruit")
+	if not line then return nil end
+	return BG.Fill(line, {})
+end
+
 function Recruit.PostNow()
 	local id, n, inst = Recruit.PickChannel()
 	if not id then
@@ -160,9 +352,8 @@ function Recruit.PostNow()
 		BG.Print(BG.T("rec_no_channel", n or "?"))
 		return false
 	end
-	local line = BG.PickVariant("recruit")
-	if not line then Recruit.lastChannelText = BG.T("rec_nomsg") return false end
-	local msg = BG.Fill(line, {})
+	local msg = Recruit.PostText()
+	if not msg then Recruit.lastChannelText = BG.T("rec_nomsg") return false end
 	if BG.SendChat(msg, "CHANNEL", id) then
 		Recruit.lastPost = time()
 		Recruit.posts = Recruit.posts + 1
@@ -319,7 +510,11 @@ function Recruit.InfoText(info, waiting)
 	local guild = (info.guild and info.guild ~= "") and BG.T("pop_info_guild", info.guild) or BG.T("pop_info_noguild")
 	local line2 = "|cffcccccc" .. guild
 	if info.zone and info.zone ~= "" then line2 = line2 .. "  -  " .. info.zone end
-	return line1 .. "\n" .. line2 .. "|r"
+	local out = line1 .. "\n" .. line2 .. "|r"
+	-- control: is this class one of the wanted ones?
+	local wl = Recruit.WantedLine(key)
+	if wl then out = out .. "\n" .. wl end
+	return out
 end
 
 -- push a popup item and fill in the player info as soon as it is known

@@ -126,7 +126,7 @@ function BG.Fill(tpl, vars)
 		if k == "guild" then return db.guildTag or "" end
 		return "{" .. k .. "}"
 	end
-	tpl = string.gsub(tpl, "{(%w+)}", val)
+	tpl = string.gsub(tpl, "{([%w_]+)}", val)
 	tpl = string.gsub(tpl, "%*[Ss]pielername%*", val("name"))
 	tpl = string.gsub(tpl, "%*[Pp]layer[Nn]ame%*", val("name"))
 	tpl = string.gsub(tpl, "%*[Dd]iscord[ %-]?[Ll]ink%*", val("discord"))
@@ -189,6 +189,9 @@ local DEFAULTS = {
 	sync = { accept = true, trustRank = 2 },
 	minimap = { angle = 200 },
 	texts = {},
+	variantsOff = {},   -- kind -> { [i] = true } variants that are switched off (skipped by the random pick)
+	-- wanted classes / roles of the guild search (synced between the officers): classes = { WARRIOR = true ... }, roles = { T, H, D }
+	wanted = { classes = {}, roles = {}, ts = 0, by = "" },
 	variants = {},   -- 5 editable chat variants per kind (welcome, funny, repliesDE/EN, contactDE/EN)
 	keywords = {},
 	chars = {},
@@ -213,10 +216,12 @@ end
 
 BG.TEXT_NAMES = {}
 -- every kind has exactly 5 variants; one chat message per variant
-BG.VARIANT_KINDS = { "recruit", "welcome", "welcomeRec", "funny", "repliesDE", "repliesEN", "contactDE", "contactEN", "askProf", "askSpec", "askTwink", "askAll", "promoBank" }
+BG.VARIANT_KINDS = { "recruit", "welcome", "welcomeRec", "funny", "repliesDE", "repliesEN", "contactDE", "contactEN", "askProf", "askSpec", "askTwink", "askAll", "promoBank",
+	"recruitOne", "recruitFew", "recruitMany", "recruitRole", "recruitMix" }
 BG.VARIANTS = 5
 -- welcome (role play) has 20 variants, welcomeRec (recruiter, with Discord) 30
-BG.VARIANT_COUNT = { welcome = 20, welcomeRec = 30, promoBank = 3 }
+BG.VARIANT_COUNT = { welcome = 20, welcomeRec = 30, promoBank = 3,
+	recruitOne = 10, recruitFew = 10, recruitMany = 10, recruitRole = 10, recruitMix = 10 }
 function BG.VariantCount(kind) return BG.VARIANT_COUNT[kind] or BG.VARIANTS end
 
 -- "contactDE" / "repliesEN" ... are tied to one language, independent of the UI language
@@ -271,10 +276,18 @@ function BG.PickVariant(kind)
 	local v = BG.db and BG.db.variants and BG.db.variants[kind]
 	if not v then return nil end
 	local idx = {}
+	local off = BG.db.variantsOff and BG.db.variantsOff[kind]
 	for i = 1, BG.VariantCount(kind) do
-		if v[i] and BG.Trim(v[i]) ~= "" then table.insert(idx, i) end
+		if v[i] and BG.Trim(v[i]) ~= "" and not (off and off[i]) then table.insert(idx, i) end
 	end
 	local n = table.getn(idx)
+	if n == 0 then
+		-- everything switched off: better one of the texts than nothing
+		for i = 1, BG.VariantCount(kind) do
+			if v[i] and BG.Trim(v[i]) ~= "" then table.insert(idx, i) end
+		end
+		n = table.getn(idx)
+	end
 	if n == 0 then return nil end
 	local last = BG.lastVariant[kind]
 	local pool = idx

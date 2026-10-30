@@ -416,46 +416,40 @@ local function BuildRecruit(p)
 	now:SetPoint("TOPLEFT", p, "TOPLEFT", 400, -128)
 	Tooltip(now, "tip_postnow")
 
-	Label(p, "rec_message", 0, -160, "GameFontNormal")
-	p.counter = Label(p, nil, 400, -160, "GameFontDisableSmall", 190)
-	p.counter:SetJustifyH("RIGHT")
-	Label(p, "lbl_variant", 0, -186, "GameFontNormalSmall", 70)
-	p.slotBtns = {}
-	for s = 1, BG.VARIANTS do
-		local slot = s
-		local b = BG.MakeButton(p, NextName("Btn"), 40, 22, tostring(s))
-		b:SetPoint("TOPLEFT", p, "TOPLEFT", 74 + (s - 1) * 44, -181)
-		b:SetScript("OnClick", function() UI.SelectRecruitSlot(slot) end)
-		p.slotBtns[s] = b
+	-- wanted classes / roles (synced between the officers; the search then only posts the matching class texts)
+	Label(p, "rec_wanted_title", 0, -164, "GameFontNormal")
+	p.wantedClear = MakeButton(p, NextName("Btn"), "btn_wanted_clear", 170, 22, function()
+		BG.Recruit.SetWantedAll(false, false)
+	end)
+	p.wantedClear:SetPoint("TOPLEFT", p, "TOPLEFT", 426, -162)
+	p.wantedStatus = Label(p, nil, 0, -190, "GameFontHighlightSmall", 590)
+	Label(p, "rec_wanted_roles", 0, -214, "GameFontNormalSmall", 200)
+	p.wantedChecks = {}
+	local ROLE_LABEL = { T = "role_t_pl", H = "role_h_pl", D = "role_d_pl" }
+	for i = 1, 3 do
+		local role = BG.Recruit.ROLE_ORDER[i] -- own local per iteration (Lua 5.0 closures share the loop variable)
+		local c = MakeCheck("recruit", p, (i - 1) * 200, -230, ROLE_LABEL[role],
+			function() return db.wanted.roles[role] end,
+			function(v) if not BG.Recruit.SetWanted("roles", role, v) then UI.UpdateWanted() end end)
+		table.insert(p.wantedChecks, c)
 	end
-	UI.recSlot = 1
-	p.area = MakeTextArea("recruit", p, 0, -210, 596, 100,
-		function()
-			local v = db.variants.recruit
-			return v and v[UI.recSlot or 1] or ""
-		end,
-		function(v)
-			db.variants.recruit = db.variants.recruit or {}
-			db.variants.recruit[UI.recSlot or 1] = (string.gsub(v, "[\r\n]+", " "))
-			UI.UpdateCounter()
-		end, 255)
-
-	local reset = MakeButton(p, NextName("Btn"), "btn_reset_variant", 170, 22, function()
-		BG.ResetVariant("recruit", UI.recSlot or 1)
-		p.area.edit:Load()
-		UI.UpdateCounter()
-	end)
-	reset:SetPoint("TOPLEFT", p, "TOPLEFT", 0, -316)
-	local resetAll = MakeButton(p, NextName("Btn"), "btn_reset_all5", 150, 22, function()
-		BG.ResetVariants("recruit")
-		p.area.edit:Load()
-		UI.UpdateCounter()
-	end)
-	resetAll:SetPoint("TOPLEFT", p, "TOPLEFT", 178, -316)
-	local hint = Label(p, "rec_hint", 0, -346, "GameFontDisableSmall", 590)
-	hint:SetHeight(70)
-	hint:SetJustifyV("TOP")
-	p.stats = Label(p, nil, 0, -420, "GameFontDisableSmall", 590)
+	Label(p, "rec_wanted_classes", 0, -262, "GameFontNormalSmall", 200)
+	for i = 1, 9 do
+		local key = BG.Recruit.CLASS_ORDER[i]
+		local row = math.floor((i - 1) / 3)
+		local col = (i - 1) - row * 3
+		local c = MakeCheck("recruit", p, col * 200, -278 - row * 24, "class_" .. key,
+			function() return db.wanted.classes[key] end,
+			function(v) if not BG.Recruit.SetWanted("classes", key, v) then UI.UpdateWanted() end end)
+		local fs = getglobal(c:GetName() .. "Text")
+		fs:SetTextColor(BG.Notes.ClassColor(key))
+		table.insert(p.wantedChecks, c)
+	end
+	p.wantedBy = Label(p, nil, 0, -356, "GameFontDisableSmall", 590)
+	local help = Label(p, "wanted_help", 0, -374, "GameFontDisableSmall", 590)
+	help:SetHeight(36)
+	help:SetJustifyV("TOP")
+	p.stats = Label(p, nil, 0, -428, "GameFontDisableSmall", 590)
 
 	p.elapsed = 0
 	p:SetScript("OnUpdate", function()
@@ -464,27 +458,34 @@ local function BuildRecruit(p)
 		this.elapsed = 0
 		UI.UpdateRecruitStatus()
 	end)
-	p.refresh = function() UI.UpdateRecruitStatus() UI.UpdateCounter() end
+	p.refresh = function() UI.UpdateRecruitStatus() UI.UpdateWanted() end
 end
 
-function UI.UpdateCounter()
+-- wanted list: status line, who changed it, read-only for everybody who is not an officer
+function UI.UpdateWanted()
 	local p = panels.recruit
-	if not p or not p.counter then return end
-	local v = BG.db.variants.recruit
-	local n = string.len(v and v[UI.recSlot or 1] or "")
-	local col = (n > 255) and RED or GRAY
-	p.counter:SetText(col .. n .. "/255|r")
-	if p.slotBtns then
-		for s = 1, BG.VARIANTS do UI.MarkSelected(p.slotBtns[s], s == (UI.recSlot or 1)) end
+	if not p or not p.wantedStatus then return end
+	local R = BG.Recruit
+	local txt = R.WantedText()
+	if R.WantedKind() then
+		p.wantedStatus:SetText(GOLD .. BG.T("wanted_status_list", txt) .. "|r")
+	else
+		p.wantedStatus:SetText(GRAY .. BG.T("wanted_status_none") .. "|r")
 	end
-end
-
-function UI.SelectRecruitSlot(s)
-	local p = panels.recruit
-	if not p or not p.slotBtns then return end
-	UI.recSlot = s
-	p.area.edit:Load()
-	UI.UpdateCounter()
+	local can = R.CanEditWanted()
+	for i = 1, table.getn(p.wantedChecks) do
+		p.wantedChecks[i]:Load()
+		if can then p.wantedChecks[i]:Enable() else p.wantedChecks[i]:Disable() end
+	end
+	if can then p.wantedClear:Enable() else p.wantedClear:Disable() end
+	local w = BG.db.wanted
+	if not can then
+		p.wantedBy:SetText(YELLOW .. BG.T("wanted_readonly") .. "|r")
+	elseif (w.ts or 0) > 0 then
+		p.wantedBy:SetText(BG.T("wanted_by", w.by or "?", BG.Stamp(w.ts)))
+	else
+		p.wantedBy:SetText("")
+	end
 end
 
 function UI.UpdateRecruitStatus()
@@ -601,7 +602,37 @@ end
 
 --------------------------------------------------------------------- panel: texts
 
-local TEXT_KEYS = { "welcome", "welcomeRec", "funny", "repliesDE", "repliesEN", "contactDE", "contactEN", "askProf", "askSpec", "askTwink", "askAll", "promoBank" }
+-- text kinds by theme; the sidebar of the texts page follows this order
+local TEXT_GROUPS = {
+	{ "grp_search", { "recruit", "recruitOne", "recruitFew", "recruitMany", "recruitRole", "recruitMix" } },
+	{ "grp_greet", { "welcomeRec", "welcome" } },
+	{ "grp_prospects", { "repliesDE", "repliesEN", "contactDE", "contactEN", "funny" } },
+	{ "grp_members", { "askAll", "askProf", "askSpec", "askTwink", "promoBank" } },
+}
+local FIRST_TEXT = "recruit"
+
+-- placeholders each kind understands (the chips under the editor insert them)
+local TEXT_PH = {
+	recruit = { "{guild}", "{discord}" },
+	recruitOne = { "{guild}", "{klasse}", "{klasse_akk}", "{klassen}" },
+	recruitFew = { "{guild}", "{klassen}", "{klassen_oder}" },
+	recruitMany = { "{guild}", "{klassen}", "{klassen_oder}" },
+	recruitRole = { "{guild}", "{klassen}", "{klassen_oder}" },
+	recruitMix = { "{guild}", "{klassen}", "{klassen_oder}" },
+	welcomeRec = { "{name}", "{guild}", "{discord}" },
+	welcome = { "{name}", "{guild}" },
+	repliesDE = { "{name}", "{guild}", "{discord}" }, repliesEN = { "{name}", "{guild}", "{discord}" },
+	contactDE = { "{name}", "{guild}", "{discord}" }, contactEN = { "{name}", "{guild}", "{discord}" },
+	funny = { "{name}" },
+	askAll = { "{name}", "{guild}" }, askProf = { "{name}", "{guild}" }, askSpec = { "{name}", "{guild}" }, askTwink = { "{name}", "{guild}" },
+	promoBank = { "{name}", "{discord}" },
+}
+
+-- example values for the preview under the editor
+local function SampleVars()
+	return { name = (BG.me and BG.me ~= "") and BG.me or "Thrall", level = 60, klassen = "Priester, Druiden und Magier",
+		klassen_oder = "Priester, Druiden oder Magier", klasse = "Druide", klasse_akk = "Druiden" }
+end
 
 -- the texts of the language that is NOT active are greyed out (they are still used automatically for
 -- whispers in that language)
@@ -612,139 +643,299 @@ local function TextOff(kind)
 	return false
 end
 
+-- shorten for the list without cutting an UTF-8 character in half
+local function Cut(s, n)
+	if string.len(s) <= n then return s end
+	local cut = n
+	while cut > 1 do
+		local b = string.byte(s, cut + 1)
+		if b and b >= 128 and b < 192 then cut = cut - 1 else break end
+	end
+	return string.sub(s, 1, cut) .. "..."
+end
+
+local TROWS, TROWH, TX = 7, 22, 186
+
 local function BuildTexts(p)
 	local db = BG.db
-	Label(p, "texts_header", 0, -2, "GameFontNormal")
-	Label(p, "lbl_discord", 0, -30)
-	MakeEdit("texts", p, 130, -26, 320, function() return db.discord end, function(t) db.discord = t end, 120)
-	Label(p, "lbl_guildtag", 0, -56)
-	MakeEdit("texts", p, 130, -52, 200, function() return db.guildTag end, function(t) db.guildTag = t end, 60)
+	-- sidebar: groups with their text kinds
+	p.side = {}
+	local y = -2
+	for g = 1, table.getn(TEXT_GROUPS) do
+		local fs = p:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+		fs:SetPoint("TOPLEFT", p, "TOPLEFT", 6, y - 3)
+		fs:SetTextColor(0.62, 0.64, 0.72)
+		fs.key = TEXT_GROUPS[g][1]
+		table.insert(p.side, fs)
+		y = y - 17
+		local kinds = TEXT_GROUPS[g][2]
+		for i = 1, table.getn(kinds) do
+			local k = kinds[i] -- Lua 5.0: closures share the loop variable, so copy it into a local
+			local b = CreateFrame("Button", NextName("Side"), p)
+			b:SetWidth(172)
+			b:SetHeight(17)
+			b:SetPoint("TOPLEFT", p, "TOPLEFT", 0, y)
+			b.bg = b:CreateTexture(nil, "BACKGROUND")
+			b.bg:SetAllPoints(b)
+			b.bg:SetTexture(1, 0.82, 0, 0)
+			b.fs = b:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+			b.fs:SetPoint("LEFT", b, "LEFT", 10, 0)
+			b.cnt = b:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+			b.cnt:SetPoint("RIGHT", b, "RIGHT", -6, 0)
+			b.kind = k
+			b:SetScript("OnClick", function() UI.SelectText(k) end)
+			b:SetScript("OnEnter", function() if UI.textSel ~= this.kind then this.bg:SetTexture(1, 1, 1, 0.08) end end)
+			b:SetScript("OnLeave", function() if UI.textSel ~= this.kind then this.bg:SetTexture(1, 0.82, 0, 0) end end)
+			p.side[k] = b
+			y = y - 17
+		end
+		y = y - 5
+	end
+	p.sideHint = Label(p, "tx_settings_hint", 4, y - 4, "GameFontDisableSmall", 168)
+	p.sideHint:SetHeight(40)
+	p.sideHint:SetJustifyV("TOP")
 
-	-- row 1: greetings (role play / recruiting), funny; row 2: replies and contact messages (DE / EN); row 3: questions to members
-	p.btns = {}
-	for i = 1, table.getn(TEXT_KEYS) do
-		local k = TEXT_KEYS[i] -- Lua 5.0: closures share the loop variable, so copy it into a local
-		local b = MakeButton(p, NextName("Btn"), "txt_" .. k, 116, 22, function() UI.SelectText(k) end)
-		local row = math.floor((i - 1) / 5)
-		local col = (i - 1) - row * 5
-		b:SetPoint("TOPLEFT", p, "TOPLEFT", col * 120, -84 - row * 26)
-		p.btns[k] = b
-	end
-	-- the 5 variants of the chosen kind
-	Label(p, "lbl_variant", 0, -172, "GameFontNormalSmall", 70)
-	p.slotBtns = {}
-	for s = 1, BG.VARIANTS do
-		local slot = s
-		local b = BG.MakeButton(p, NextName("Btn"), 40, 22, tostring(s))
-		b:SetPoint("TOPLEFT", p, "TOPLEFT", 74 + (s - 1) * 44, -167)
-		b:SetScript("OnClick", function() UI.SelectSlot(slot) end)
-		p.slotBtns[s] = b
-	end
-	-- kinds with more than 5 variants (greetings): a scrolling list instead of the five buttons
-	p.varDrop = BG.Dropdown(p, 74, -167, 160, function(v) UI.SelectSlot(v) end, 10)
-	p.varDrop:Hide()
-	p.desc = Label(p, nil, 0, -198, "GameFontDisableSmall", 590)
-	p.desc:SetHeight(30)
+	-- right side: title, description, variant list, editor
+	p.title = Label(p, nil, TX, -2, "GameFontNormalLarge", 410)
+	p.desc = Label(p, nil, TX, -24, "GameFontDisableSmall", 410)
+	p.desc:SetHeight(44)
 	p.desc:SetJustifyV("TOP")
-	p.area = MakeTextArea("texts", p, 0, -230, 596, 136,
+	p.rows = {}
+	local ROWW = 396
+	for i = 1, TROWS do
+		local idx = i
+		local r = CreateFrame("Button", NextName("TRow"), p)
+		r:SetWidth(ROWW)
+		r:SetHeight(TROWH - 2)
+		r:SetPoint("TOPLEFT", p, "TOPLEFT", TX, -72 - (i - 1) * TROWH)
+		BG.Backdrop(r, false)
+		r.bg = r:CreateTexture(nil, "BACKGROUND")
+		r.bg:SetAllPoints(r)
+		r.bg:SetTexture(1, 0.82, 0, 0)
+		r.num = r:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+		r.num:SetPoint("LEFT", r, "LEFT", 6, 0)
+		r.num:SetWidth(20)
+		r.num:SetJustifyH("LEFT")
+		r.txt = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+		r.txt:SetPoint("LEFT", r, "LEFT", 28, 0)
+		r.txt:SetWidth(ROWW - 90)
+		r.txt:SetHeight(12)
+		r.txt:SetJustifyH("LEFT")
+		r.cnt = r:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+		r.cnt:SetPoint("RIGHT", r, "RIGHT", -6, 0)
+		r:SetScript("OnClick", function() UI.SelectSlot((p.offset or 0) + idx) end)
+		r:EnableMouseWheel(true)
+		r:SetScript("OnMouseWheel", function() UI.ScrollTexts(-arg1) end)
+		p.rows[i] = r
+	end
+	p.offset = 0
+	p.slider = CreateFrame("Slider", NextName("TSlider"), p)
+	p.slider:SetWidth(14)
+	p.slider:SetHeight(TROWS * TROWH - 2)
+	p.slider:SetPoint("TOPLEFT", p, "TOPLEFT", TX + ROWW + 2, -72)
+	p.slider:EnableMouse(true)
+	p.slider:SetOrientation("VERTICAL")
+	p.slider:SetMinMaxValues(0, 0)
+	p.slider:SetValueStep(1)
+	p.slider:SetValue(0)
+	p.slider:SetThumbTexture("Interface\\Buttons\\UI-ScrollBar-Knob")
+	local thumb = p.slider:GetThumbTexture()
+	if thumb then thumb:SetWidth(14) thumb:SetHeight(24) end
+	p.slider:SetScript("OnValueChanged", function()
+		p.offset = math.floor((this:GetValue() or 0) + 0.5)
+		UI.UpdateTextRows()
+	end)
+	p.slider:Hide()
+
+	p.area = MakeTextArea("texts", p, TX, -232, 410, 76,
 		function()
-			local v = db.variants[UI.textSel or TEXT_KEYS[1]]
+			local v = db.variants[UI.textSel or FIRST_TEXT]
 			return v and v[UI.slotSel or 1] or ""
 		end,
 		function(v)
-			local kind = UI.textSel or TEXT_KEYS[1]
+			local kind = UI.textSel or FIRST_TEXT
 			db.variants[kind] = db.variants[kind] or {}
 			db.variants[kind][UI.slotSel or 1] = (string.gsub(v, "[\r\n]+", " "))
 			UI.UpdateTextCounter()
 		end, 255)
-	local reset = MakeButton(p, NextName("Btn"), "btn_reset_variant", 170, 22, function()
+	p.count = Label(p, nil, TX, -312, "GameFontDisableSmall", 200)
+	p.chars = Label(p, nil, TX + 210, -312, "GameFontDisableSmall", 200)
+	p.chars:SetJustifyH("RIGHT")
+	Label(p, "tx_insert", TX, -330, "GameFontNormalSmall", 120)
+	p.chips = {}
+	for i = 1, 4 do
+		local b = BG.MakeButton(p, NextName("Chip"), 66, 18, "")
+		b:SetPoint("TOPLEFT", p, "TOPLEFT", TX + 118 + (i - 1) * 72, -327)
+		local fs = b:GetFontString()
+		if fs then fs:SetFont("Fonts\\FRIZQT__.TTF", 8) end
+		b:SetScript("OnClick", function()
+			if this.ph then
+				p.area.edit:SetFocus()
+				p.area.edit:Insert(this.ph)
+			end
+		end)
+		p.chips[i] = b
+	end
+	p.preview = Label(p, nil, TX, -350, "GameFontHighlightSmall", 410)
+	p.preview:SetHeight(40)
+	p.preview:SetJustifyV("TOP")
+
+	p.btnReset = MakeButton(p, NextName("Btn"), "tx_reset_one", 120, 22, function()
 		BG.ResetVariant(UI.textSel, UI.slotSel)
 		p.area.edit:Load()
-		UI.UpdateTextCounter()
+		UI.UpdateTexts()
 	end)
-	reset:SetPoint("TOPLEFT", p, "TOPLEFT", 0, -376)
-	local resetAll = MakeButton(p, NextName("Btn"), "btn_reset_all5", 150, 22, function()
+	p.btnReset:SetPoint("TOPLEFT", p, "TOPLEFT", TX, -394)
+	p.btnOff = BG.MakeButton(p, NextName("Btn"), 160, 22, "")
+	p.btnOff:SetPoint("LEFT", p.btnReset, "RIGHT", 4, 0)
+	p.btnOff:SetScript("OnClick", function()
+		local kind, i = UI.textSel, UI.slotSel
+		db.variantsOff = db.variantsOff or {}
+		db.variantsOff[kind] = db.variantsOff[kind] or {}
+		db.variantsOff[kind][i] = (not db.variantsOff[kind][i]) and true or nil
+		UI.UpdateTexts()
+	end)
+	p.btnOff:SetScript("OnEnter", function()
+		GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
+		GameTooltip:SetText(BG.T("tx_toggle_tip"), 1, 1, 1, 1, 1)
+		GameTooltip:Show()
+	end)
+	p.btnOff:SetScript("OnLeave", function() GameTooltip:Hide() end)
+	p.btnShow = MakeButton(p, NextName("Btn"), "tx_chat_preview", 120, 22, function()
+		local v = db.variants[UI.textSel]
+		local t = v and v[UI.slotSel]
+		if t then BG.Print(BG.T("preview_variant", UI.slotSel) .. " " .. BG.Fill(t, SampleVars())) end
+	end)
+	p.btnShow:SetPoint("LEFT", p.btnOff, "RIGHT", 4, 0)
+	p.btnResetAll = MakeButton(p, NextName("Btn"), "tx_reset_all", 150, 22, function()
 		BG.ResetVariants(UI.textSel)
 		p.area.edit:Load()
-		UI.UpdateTextCounter()
+		UI.UpdateTexts()
 	end)
-	resetAll:SetPoint("TOPLEFT", p, "TOPLEFT", 178, -376)
-	p.resetAll = resetAll
-	local prev = MakeButton(p, NextName("Btn"), "btn_preview", 140, 22, function()
-		local line, idx = BG.PickVariant(UI.textSel)
-		if line then BG.Print(BG.T("preview_variant", idx) .. " " .. BG.Fill(line, { name = BG.me, level = 60 })) end
-	end)
-	prev:SetPoint("TOPLEFT", p, "TOPLEFT", 336, -376)
-	p.counter = Label(p, nil, 400, -402, "GameFontDisableSmall", 190)
-	p.counter:SetJustifyH("RIGHT")
-	UI.textSel = TEXT_KEYS[1]
+	p.btnResetAll:SetPoint("TOPLEFT", p, "TOPLEFT", TX, -420)
+
+	UI.textSel = FIRST_TEXT
 	UI.slotSel = 1
-	p.refresh = function() UI.SelectText(UI.textSel) end
+	p.refresh = function() UI.UpdateTexts() end
+end
+
+local function IsEdited(kind, i)
+	local v = BG.db.variants[kind]
+	local cur = v and v[i] or ""
+	return cur ~= BG.DefaultVariant(kind, i)
+end
+
+-- the list rows (scrolled)
+function UI.UpdateTextRows()
+	local p = panels.texts
+	if not p or not p.rows then return end
+	local kind = UI.textSel
+	local n = BG.VariantCount(kind)
+	local v = BG.db.variants[kind] or {}
+	local off = BG.db.variantsOff and BG.db.variantsOff[kind] or {}
+	local maxOff = math.max(0, n - TROWS)
+	if p.offset > maxOff then p.offset = maxOff end
+	for i = 1, TROWS do
+		local r = p.rows[i]
+		local idx = p.offset + i
+		if idx <= n then
+			local text = v[idx] or ""
+			r:Show()
+			r.num:SetText(idx)
+			r.txt:SetText(Cut(text, 58))
+			r.cnt:SetText(string.len(BG.Fill(text, SampleVars())))
+			local edited = IsEdited(kind, idx)
+			r.num:SetTextColor(edited and 0.25 or 1, edited and 1 or 0.82, edited and 0.25 or 0)
+			if off[idx] then r.txt:SetTextColor(0.5, 0.5, 0.5) else r.txt:SetTextColor(1, 1, 1) end
+			r.bg:SetTexture(1, 0.82, 0, (idx == UI.slotSel) and 0.22 or 0)
+		else
+			r:Hide()
+		end
+	end
 end
 
 function UI.UpdateTextCounter()
 	local p = panels.texts
-	if not p or not p.counter then return end
-	local v = BG.db.variants[UI.textSel]
-	local n = string.len(BG.Fill(v and v[UI.slotSel or 1] or "", { name = "Playername", level = 60 }))
-	local col = (n > 255) and RED or GRAY
-	p.counter:SetText(col .. BG.T("longest_line", n) .. "|r")
+	if not p or not p.rows then return end
+	local kind, slot = UI.textSel, UI.slotSel or 1
+	local v = BG.db.variants[kind]
+	local text = v and v[slot] or ""
+	local filled = BG.Fill(text, SampleVars())
+	local n = string.len(filled)
+	p.count:SetText(BG.T("tx_count", slot, BG.VariantCount(kind)))
+	p.chars:SetText((n > 255 and RED or GRAY) .. BG.T("tx_chars", n) .. "|r")
+	p.preview:SetText(GREEN .. BG.T("tx_preview") .. ":|r " .. filled)
+	UI.UpdateTextRows()
 end
 
--- highlight the chosen kind and variant, grey out the kinds of the other language
-function UI.UpdateTextButtons()
+function UI.UpdateTexts()
 	local p = panels.texts
-	if not p or not p.btns then return end
-	if TextOff(UI.textSel) then
-		UI.textSel = TEXT_KEYS[1]
-		UI.slotSel = 1
+	if not p or not p.rows then return end
+	if TextOff(UI.textSel) then UI.textSel = FIRST_TEXT UI.slotSel = 1 end
+	local kind = UI.textSel
+	if UI.slotSel > BG.VariantCount(kind) then UI.slotSel = 1 end
+	for g = 1, table.getn(TEXT_GROUPS) do
+		-- group headers carry their key; items are looked up by kind
 	end
-	for key, b in pairs(p.btns) do
-		UI.MarkSelected(b, key == UI.textSel)
-		if TextOff(key) then b:Disable() end
+	for i = 1, table.getn(p.side) do
+		local fs = p.side[i]
+		if fs.key then fs:SetText(string.upper(BG.T(fs.key))) end
 	end
-	local n = BG.VariantCount(UI.textSel)
-	if UI.slotSel > n then UI.slotSel = 1 end
-	if n > BG.VARIANTS then
-		for s = 1, BG.VARIANTS do p.slotBtns[s]:Hide() end
-		local items = {}
-		for s = 1, n do table.insert(items, { label = BG.T("variant_n", s), value = s }) end
-		p.varDrop.SetItems(items)
-		p.varDrop.SetValue(UI.slotSel, BG.T("variant_n", UI.slotSel))
-		p.varDrop:Show()
-	else
-		p.varDrop:Hide()
-		p.varDrop.list:Hide()
-		for s = 1, BG.VARIANTS do
-			if s <= n then
-				p.slotBtns[s]:Show()
-				UI.MarkSelected(p.slotBtns[s], s == UI.slotSel)
-			else
-				p.slotBtns[s]:Hide()
-			end
+	for g = 1, table.getn(TEXT_GROUPS) do
+		local kinds = TEXT_GROUPS[g][2]
+		for i = 1, table.getn(kinds) do
+			local k = kinds[i]
+			local b = p.side[k]
+			b.fs:SetText(BG.T("side_" .. k))
+			b.cnt:SetText(BG.VariantCount(k))
+			local sel = (k == kind)
+			b.bg:SetTexture(1, 0.82, 0, sel and 0.22 or 0)
+			local off = TextOff(k)
+			if sel then b.fs:SetTextColor(1, 0.82, 0) elseif off then b.fs:SetTextColor(0.45, 0.45, 0.45) else b.fs:SetTextColor(1, 1, 1) end
+			if off then b:Disable() else b:Enable() end
 		end
 	end
-	p.resetAll:SetText(BG.T("btn_reset_alln", n))
+	p.title:SetText(GOLD .. BG.T("side_" .. kind) .. "|r")
+	p.desc:SetText(BG.T("txtdesc_" .. kind))
+	local n = BG.VariantCount(kind)
+	p.slider:SetMinMaxValues(0, math.max(0, n - TROWS))
+	if n > TROWS then p.slider:Show() else p.slider:Hide() end
+	-- keep the chosen variant in view
+	if UI.slotSel <= p.offset then p.offset = UI.slotSel - 1 elseif UI.slotSel > p.offset + TROWS then p.offset = UI.slotSel - TROWS end
+	if p.offset < 0 then p.offset = 0 end
+	p.slider:SetValue(p.offset)
+	local ph = TEXT_PH[kind] or {}
+	for i = 1, 4 do
+		if ph[i] then p.chips[i]:SetText(ph[i]) p.chips[i].ph = ph[i] p.chips[i]:Show() else p.chips[i]:Hide() end
+	end
+	local off = BG.db.variantsOff and BG.db.variantsOff[kind] and BG.db.variantsOff[kind][UI.slotSel]
+	p.btnOff:SetText(BG.T(off and "tx_toggle_on" or "tx_toggle_off"))
+	p.area.edit:Load()
+	UI.UpdateTextCounter()
 end
+UI.UpdateTextButtons = UI.UpdateTexts
 
 function UI.SelectText(k)
 	local p = panels.texts
-	if not p or not p.btns or TextOff(k) then return end
+	if not p or not p.rows or TextOff(k) then return end
 	UI.textSel = k
 	UI.slotSel = 1
-	UI.UpdateTextButtons()
-	p.desc:SetText(BG.T("txtdesc_" .. k))
-	p.area.edit:Load()
-	UI.UpdateTextCounter()
+	p.offset = 0
+	UI.UpdateTexts()
 end
 
 function UI.SelectSlot(s)
 	local p = panels.texts
-	if not p or not p.btns then return end
+	if not p or not p.rows then return end
+	if s < 1 or s > BG.VariantCount(UI.textSel) then return end
 	UI.slotSel = s
-	UI.UpdateTextButtons()
-	p.area.edit:Load()
-	UI.UpdateTextCounter()
+	UI.UpdateTexts()
+end
+
+function UI.ScrollTexts(d)
+	local p = panels.texts
+	if not p or not p.slider then return end
+	p.slider:SetValue(p.slider:GetValue() + d * 2)
 end
 
 --------------------------------------------------------------------- panel: members / twinks
@@ -1485,6 +1676,16 @@ function UI.UpdatePromoPage()
 	pp.ranks:SetText(table.concat(lines, "\n"))
 end
 
+function UI.UpdateGuildStatus()
+	local p = panels.settings
+	if not p or not p.guildStatus then return end
+	if BG.DiscordReady and BG.DiscordReady() then
+		p.guildStatus:SetText(GREEN .. BG.T("guild_discord_ok") .. "|r  " .. GRAY .. BG.T("guild_hint") .. "|r")
+	else
+		p.guildStatus:SetText(YELLOW .. BG.T("guild_discord_missing") .. "|r")
+	end
+end
+
 function UI.SettingsPage(which)
 	local root = panels.settings
 	if not root or not root.pages then return end
@@ -1543,59 +1744,74 @@ local function BuildSettings(root)
 	end
 	local C1, C2 = 0, 300
 
+	-- guild name and Discord link (the values behind {guild} and {discord} in all texts)
+	Section("sec_guild", -24)
+	Label(p, "lbl_guildtag", 0, -52)
+	MakeEdit("settings", p, 150, -48, 250, function() return db.guildTag end, function(t)
+		db.guildTag = t
+	end, 60)
+	Label(p, "lbl_discord", 0, -78)
+	MakeEdit("settings", p, 150, -74, 400, function() return db.discord end, function(t)
+		db.discord = t
+		UI.UpdateGuildStatus()
+	end, 120)
+	p.guildStatus = Label(p, nil, 0, -98, "GameFontDisableSmall", 590)
+	root.guildStatus = p.guildStatus
+
 	-- recruiting
-	Section("sec_recruit", -24)
-	Feat(C1, -44, "recruit")
-	Feat(C2, -44, "whisperPopup")
-	Feat(C1, -66, "scanner")
-	Feat(C2, -66, "rightClickInvite")
-	Feat(C1, -88, "welcomePopup")
-	Feat(C2, -88, "joinWindow")
-	Feat(C1, -110, "autoWelcome")
-	Label(p, "lbl_whisper_window", C2 + 4, -116, "GameFontHighlightSmall", 232)
-	MakeEdit("settings", p, 540, -112, 40, function() return db.recruit.window end, NumberSetter(db.recruit, "window", 1), 4)
+	Section("sec_recruit", -120)
+	Feat(C1, -140, "recruit")
+	Feat(C2, -140, "whisperPopup")
+	Feat(C1, -162, "scanner")
+	Feat(C2, -162, "rightClickInvite")
+	Feat(C1, -184, "welcomePopup")
+	Feat(C2, -184, "joinWindow")
+	Feat(C1, -206, "autoWelcome")
+	Label(p, "lbl_whisper_window", C2 + 4, -212, "GameFontHighlightSmall", 232)
+	MakeEdit("settings", p, 540, -208, 40, function() return db.recruit.window end, NumberSetter(db.recruit, "window", 1), 4)
 
 	-- general
-	Section("sec_general", -144)
-	Feat(C1, -164, "minimap")
-	Feat(C2, -164, "sound")
-	Feat(C1, -186, "guildBroadcast")
-	Feat(C2, -186, "worldPing")
-	local warn = Label(p, "worldping_warn", 0, -212, "GameFontDisableSmall", 590)
+	Section("sec_general", -240)
+	Feat(C1, -260, "minimap")
+	Feat(C2, -260, "sound")
+	Feat(C1, -282, "guildBroadcast")
+	Feat(C2, -282, "worldPing")
+	local warn = Label(p, "worldping_warn", 0, -308, "GameFontDisableSmall", 590)
 	warn:SetHeight(26)
 	warn:SetJustifyV("TOP")
 
 	-- sync
-	Section("sec_sync", -244)
-	MakeCheck("settings", p, C1, -264, "chk_sync_accept",
+	Section("sec_sync", -340)
+	MakeCheck("settings", p, C1, -360, "chk_sync_accept",
 		function() return db.sync.accept end, function(v) db.sync.accept = v end, "tip_sync_accept")
-	Label(p, "lbl_trust_rank", C2 + 4, -270, "GameFontHighlightSmall", 232)
-	MakeEdit("settings", p, 540, -266, 40, function() return db.sync.trustRank end, NumberSetter(db.sync, "trustRank", 0), 2)
+	Label(p, "lbl_trust_rank", C2 + 4, -366, "GameFontHighlightSmall", 232)
+	MakeEdit("settings", p, 540, -362, 40, function() return db.sync.trustRank end, NumberSetter(db.sync, "trustRank", 0), 2)
 	local syncNow = MakeButton(p, NextName("Btn"), "btn_sync_now", 190, 24, function() BG.Roster.RequestSync(true) end)
-	syncNow:SetPoint("TOPLEFT", p, "TOPLEFT", 0, -294)
+	syncNow:SetPoint("TOPLEFT", p, "TOPLEFT", 0, -390)
 	Tooltip(syncNow, "tip_sync_now")
-	p.syncStatus = Label(p, nil, 200, -300, "GameFontDisableSmall", 390)
+	p.syncStatus = Label(p, nil, 200, -396, "GameFontDisableSmall", 390)
 	local rp = MakeButton(p, NextName("Btn"), "btn_reset_presence", 190, 22, function()
 		db.presence = {}
 		BG.Presence.Record(BG.me, BG.Presence.LocalAddons(), "self")
 		UI.Refresh("addons")
 		BG.Print(BG.T("done"))
 	end)
-	rp:SetPoint("TOPLEFT", p, "TOPLEFT", 0, -328)
+	rp:SetPoint("TOPLEFT", p, "TOPLEFT", 0, -424)
 	local rt = MakeButton(p, NextName("Btn"), "btn_reset_texts", 220, 22, function()
 		BG.ResetTexts()
 		BG.ResetKeywords()
 		UI.Refresh("all")
 		BG.Print(BG.T("done"))
 	end)
-	rt:SetPoint("TOPLEFT", p, "TOPLEFT", 200, -328)
+	rt:SetPoint("TOPLEFT", p, "TOPLEFT", 200, -424)
 	local st = MakeButton(p, "BananaGuildSelfTestBtn", "btn_selftest", 160, 22, function()
 		UI.Show("selftest")
 		BG.SelfTest.Run()
 	end)
-	st:SetPoint("TOPLEFT", p, "TOPLEFT", 430, -328)
+	st:SetPoint("TOPLEFT", p, "TOPLEFT", 430, -424)
 	Tooltip(st, "tip_selftest")
 	root.refresh = function()
+		UI.UpdateGuildStatus()
 		local last = BG.db.sync.last
 		if last then
 			p.syncStatus:SetText(BG.T("sync_status", BG.Stamp(last), BG.db.sync.lastApplied or 0))

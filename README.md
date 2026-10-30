@@ -8,7 +8,7 @@ GitHub-Link zum Installieren: **https://github.com/bananaforge/bananaguild**
 
 Der Ordnername ist egal (`BananaGuild`, `bananaguild`, `BananaGuild-main` …) – das Addon findet ihn selbst. Falls nichts passiert: `/bgd` tippen, es meldet dann, was nicht geladen wurde.
 
-Ingame: `/bgd` (oder `/bananaguild`, oder Minimap-Button). **Als Erstes im Reiter „Texte" deinen Discord-Link eintragen!**
+Ingame: `/bgd` (oder `/bananaguild`, oder Minimap-Button). **Als Erstes unter Einstellungen > Gilde deinen Discord-Link und den Gildennamen eintragen!**
 
 ## Funktionen
 
@@ -23,7 +23,7 @@ Ingame: `/bgd` (oder `/bananaguild`, oder Minimap-Button). **Als Erstes im Reite
 | **Neuzugang-Fenster** | Beim Einlader / Rekrutierenden öffnet sich nach dem Beitritt ein Fenster (von Hand: `/bgd join Name`): Main/Twink (mit Mainname), bis zu 2 Hauptberufe (oder bewusst keiner), Spec. Das Addon setzt die Gildennotiz im richtigen Format, mit Zeichenzähler (max. 31). Dazu optional die Begrüßung im Gildenchat und Knöpfe, um den Spieler per Flüstern nach Berufen/Spec/Twinks zu fragen; aus seiner Antwort macht das Addon einen Vorschlag. Dasselbe Fenster gibt es im Mitglieder-Reiter über „Notiz bearbeiten ...". |
 | **Neuling Check** | Nach einstellbarer Zeit (Standard 2 Wochen) auf dem Startrang (Standard Initiant) meldet sich ein Fenster bei allen mit Beförderungsrecht. Ein Klick befördert Schritt für Schritt bis zum Zielrang (Standard Member). Angefasst werden nur Mitglieder, die gerade auf dem Startrang stehen. Alles einstellbar unter Einstellungen > Beförderung. Manuell (hoch und runter, auch für mehrere): Mitglieder per Checkbox markieren (Rangfilter + „Alle sichtbaren markieren") und „Rang für Markierte ändern ..." wählen, Zielrang im Auswahlmenü, Vorschau mit Haken, Degradieren mit Extra-Bestätigung. Nur Ränge unterhalb deines eigenen. |
 | **Verlauf** | Beitritte, Einladungen, Beförderungen/Degradierungen, Kicks, Austritte. |
-| **Gildensuche (Auto-Recruiting)** | Postet deine Nachricht im frei wählbaren Minutenabstand in `/4` (in Instanzen in `/5`). Nur **eine** Person der Gilde kann gleichzeitig werben; sonst Warnung + Option, der Person etwas Witziges zu flüstern. |
+| **Gildensuche (Auto-Recruiting)** | Postet deine Nachricht im frei wählbaren Minutenabstand in `/4` (in Instanzen in `/5`). Nur **eine** Person der Gilde kann gleichzeitig werben; sonst Warnung + Option, der Person etwas Witziges zu flüstern. Mit Wunschliste: Offiziere haken gesuchte Klassen und Rollen an, dann postet die Suche nur passende Klassen-Texte; die Liste wird an alle Rekrutierer synchronisiert und die Popups zeigen „Gesuchte Klasse" bzw. einen Hinweis. |
 | **Flüster-Popup** | Meldet sich jemand per Flüstern, erscheint ein Popup: Antwort + Einladen, Nur Antwort, Andere Variante, Nur einladen, Sprache wechseln, Ignorieren. |
 | **Scanner** | Filtert `/4` und `/5` nach Spielern, die (deutsch oder englisch) eine Gilde suchen, ignoriert werbende Gilden, Popup mit Kontakt-Nachricht + Einladen. Schlagwörter sind editierbar, es gibt ein Testfeld. |
 | **Rechtsklick-Einladen** | Rechtsklick auf einen Namen im Chat → „In Gilde einladen". |
@@ -32,7 +32,7 @@ Ingame: `/bgd` (oder `/bananaguild`, oder Minimap-Button). **Als Erstes im Reite
 | **Instanz-/Raid-Modus** | In Instanzen, Schlachtfeldern und Raids sind alle Popups, Meldungen und Töne automatisch stumm. In den Einstellungen (Seite „Instanzmodus") kann jede Meldungsart einzeln trotzdem erlaubt werden; verpasste Interessenten kommen nach dem Verlassen nachgeholt. |
 | **Selbsttest** | Prüft API, Gilde, Channels, Texte, Hooks, Übersetzungen, Laufzeitfehler. |
 
-Alle Texte sind editierbar (je 5 Varianten, Begrüßungen 20, zufällig und nie zweimal dieselbe hintereinander), alle Funktionen einzeln ein-/ausschaltbar (Reiter *Einstellungen*), die Sprache DE/EN oben rechts umschaltbar. Herz-Symbol oben rechts (Danke-Fenster mit Charakter Lumihunt, wie in den anderen Banana-Addons), Version + Selbsttest unten rechts.
+Alle Texte sind im Reiter „Texte" editierbar (Liste der Varianten, Editor mit Vorschau und Platzhalter-Knöpfen, einzelne Varianten ausschaltbar; je 5 Varianten, Begrüßungen 20, Suchtexte für gesuchte Klassen je 10, zufällig und nie zweimal dieselbe hintereinander), alle Funktionen einzeln ein-/ausschaltbar (Reiter *Einstellungen*), die Sprache DE/EN oben rechts umschaltbar. Herz-Symbol oben rechts (Danke-Fenster mit Charakter Lumihunt, wie in den anderen Banana-Addons), Version + Selbsttest unten rechts.
 
 ### Format der Gildennotiz
 

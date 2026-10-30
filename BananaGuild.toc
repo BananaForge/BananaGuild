@@ -4,7 +4,7 @@
 ## Notes: Dashboard for guild leaders & recruiting: addon usage overview, main/twink tracking, auto recruiting, whisper replies, LFG scanner.
 ## Notes-deDE: Dashboard fuer Gildenleitung & Recruiting: Addon-Uebersicht, Main/Twink-Verwaltung, Auto-Gildensuche, Whisper-Antworten, Gildensuche-Scanner.
 ## Author: BananaForge
-## Version: 1.17.0
+## Version: 1.18.0
 ## SavedVariables: BananaGuildDB
 ## X-Website: https://github.com/bananaforge/bananaguild
 

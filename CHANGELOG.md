@@ -3,6 +3,14 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 1.18.0
+- Gildensuche: Neue Wunschliste. Offiziere haken die gesuchten Klassen (9) und Rollen (Tank, Heiler, DD) an. Ist nichts oder alles angehakt, werden wie bisher die allgemeinen Suchtexte gepostet. Sonst postet die Suche nur noch Texte für genau diese Auswahl: 1 Klasse, 2-4 Klassen, 5+ Klassen, nur Rollen oder Rollen + Klassen, je 10 Varianten (50 neue Texte, lockerer Ton). Platzhalter: `{klassen}` (Priester, Druiden und Magier), `{klassen_oder}`, `{klasse}`, `{klasse_akk}` und `{guild}`. Wird die Nachricht mit der Liste länger als 255 Zeichen, steht „viele Klassen" statt der Aufzählung.
+- Die Wunschliste wird an alle Rekrutierer synchronisiert: Offiziere (bis zum Sync-Rang oder dem Offiziersrang der Einstellungen) ändern sie, andere Addon-Nutzer übernehmen sie automatisch, auch beim Login. Die Seite zeigt, wer sie zuletzt geändert hat.
+- Flüster- und Scanner-Popup kontrollieren die Klasse des Interessenten: „Gesuchte Klasse: Magier" in Gold, „Gesuchte Rolle möglich: Tank, Heiler" in Grün oder „Achtung: Priester wird aktuell nicht gesucht (gesucht: ...)" in Orange.
+- Die Seite Gildensuche ist jetzt reine Steuerung: der Texteditor ist entfernt, die Texte stehen nur noch im Reiter Texte.
+- Reiter Texte komplett neu: Links die Textarten nach Themen (Gildensuche, Begrüßung, Interessenten, Mitglieder) mit Anzahl, in der Mitte die Varianten als scrollbare Liste (Nummer, Textanfang, Länge, geänderte Varianten grün markiert), darunter der Editor mit Zeichenzähler, Platzhalter-Knöpfen zum Einfügen und Live-Vorschau. Einzelne Varianten lassen sich ausschalten (werden beim Zufall übersprungen). Neu im Reiter: die allgemeinen Suchtexte und die fünf Klassen-Suchtexte.
+- Discord-Link und Gildenname sind von der Texte-Seite nach Einstellungen > Gilde umgezogen, mit Hinweis, ob der Link eingetragen ist.
+
 ## 1.17.0
 - GZ- und Levelup-Funktion entfernt, ist jetzt Teil von BananaBank: Levelup-Hinweis mit GZ-Button, Stufe-60-Anzeige, GZ-Texte und die zugehörigen Einstellungen (GZ-Modi, Schalter „Levelup-Hinweis", „Stufe 60", „auch für mich selbst"), die Befehle `/bgd gz`, `/bgd test60`, `/bgd testlevel` sowie die Levelup-Meldungen im Instanzmodus. Alte gespeicherte GZ-Daten werden beim Start verworfen. Alte Levelup-Einträge im Verlauf bleiben sichtbar, neue entstehen hier nicht mehr.
 - Das Addon zeigt weiterhin die Stufe der Mitglieder (Mitgliederliste, Neuling Check, Statistik).
