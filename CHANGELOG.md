@@ -3,6 +3,10 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 1.19.0
+- Statistik: Neuer Knopf „Rollen" neben „Klassen" und „Specs pro Klasse". Er zeigt ein Kuchendiagramm (Donut) mit der Rollenverteilung Tank / Heal / DD / unbekannt für einen frei wählbaren Level-Bereich, damit Low-Level- und Level-Charaktere die Auswertung nicht verfälschen (Standard Level 40 bis 60). Zwei Felder für „Level von ... bis ..." und Schnellknöpfe „Ab 40", „Ab 50", „Nur 60" und „Alle"; der Bereich wird gespeichert.
+- Mouse-over auf einer Rolle (Segment oder Zeile) zeigt, aus welchen Klassen und Specs sie besteht, z. B. „Krieger (Schutz): 4". Die Rolle kommt aus dem Spec in der Gildennotiz; ohne Spec zählt der Charakter als „unbekannt".
+
 ## 1.18.0
 - Gildensuche: Neue Wunschliste. Offiziere haken die gesuchten Klassen (9) und Rollen (Tank, Heiler, DD) an. Ist nichts oder alles angehakt, werden wie bisher die allgemeinen Suchtexte gepostet. Sonst postet die Suche nur noch Texte für genau diese Auswahl: 1 Klasse, 2-4 Klassen, 5+ Klassen, nur Rollen oder Rollen + Klassen, je 10 Varianten (50 neue Texte, lockerer Ton). Platzhalter: `{klassen}` (Priester, Druiden und Magier), `{klassen_oder}`, `{klasse}`, `{klasse_akk}` und `{guild}`. Wird die Nachricht mit der Liste länger als 255 Zeichen, steht „viele Klassen" statt der Aufzählung.
 - Die Wunschliste wird an alle Rekrutierer synchronisiert: Offiziere (bis zum Sync-Rang oder dem Offiziersrang der Einstellungen) ändern sie, andere Addon-Nutzer übernehmen sie automatisch, auch beim Login. Die Seite zeigt, wer sie zuletzt geändert hat.

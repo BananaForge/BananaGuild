@@ -4,6 +4,8 @@
     "Klassen":        donut chart of the classes + ranked list with bars + role split; hover on a slice or a row shows
                       the class with its specs, a click opens the specs of that class
     "Specs pro Klasse": pick a class (buttons) -> one donut chart with the specs of exactly that class
+    "Rollen":         donut chart of Tank / Heal / DD (from the specs in the notes) for a level range, e.g. only level 40 and up,
+                      so that low level and levelling characters do not distort what the guild has at the top
   WoW 1.12 has no drawing functions. The slices are painted with coloured strips (one texture per run of equal colour on
   a pixel row, painted a few rows per frame); a ring-shaped overlay texture (Media\donut.tga, antialiased) cuts the
   round outer edge and the hole and adds the golden rims.
@@ -53,6 +55,51 @@ function Stats.Collect()
 		return a.key < b.key
 	end)
 	return list, total
+end
+
+-- roles inside a level range: { T, H, D, ? } counts, the number of characters in the range, and per role the
+-- "class / spec" breakdown for the tooltip
+function Stats.CollectRoles(lo, hi)
+	local out = { T = 0, H = 0, D = 0, ["?"] = 0, inRange = 0, total = 0, detail = { T = {}, H = {}, D = {}, ["?"] = {} } }
+	for name, info in pairs(BG.roster) do
+		out.total = out.total + 1
+		local lvl = info.level or 0
+		if lvl >= lo and lvl <= hi then
+			out.inRange = out.inRange + 1
+			local pn = info.parsed
+			local role = (pn and pn.spec and pn.role) or "?"
+			out[role] = out[role] + 1
+			local label
+			if role == "?" then
+				label = info.ckey and BG.Notes.ClassName(info.ckey) or BG.T("stats_unknown_class")
+			else
+				label = BG.Notes.ClassName(info.ckey) .. " (" .. BG.Notes.SpecName(pn.spec) .. ")"
+			end
+			out.detail[role][label] = (out.detail[role][label] or 0) + 1
+		end
+	end
+	return out
+end
+
+-- level range from the settings (saved): lo <= hi, 1..60
+function Stats.Range()
+	local r = BG.db.statsRange
+	local lo, hi = tonumber(r.min) or 40, tonumber(r.max) or 60
+	if lo < 1 then lo = 1 end
+	if hi > 60 then hi = 60 end
+	if hi < lo then hi = lo end
+	return lo, hi
+end
+
+function Stats.SetRange(lo, hi)
+	lo, hi = tonumber(lo), tonumber(hi)
+	if not lo or not hi then return end
+	if hi < lo then lo, hi = hi, lo end
+	if lo < 1 then lo = 1 end
+	if hi > 60 then hi = 60 end
+	if lo > hi then lo = hi end
+	BG.db.statsRange = { min = lo, max = hi }
+	Stats.Refresh(true)
 end
 
 local function ClassLabel(key)
@@ -327,6 +374,25 @@ local function ClassTip(c, total)
 	return lines
 end
 
+-- hover text of a role slice: which classes / specs make it up
+local function RoleTip(role, n, rolesData, inRange)
+	local col = ROLE_COL[role] or { 0.55, 0.58, 0.66 }
+	local title = (role == "?") and BG.T("stats_unknown") or BG.Notes.RoleName(role)
+	local lines = { { title, col[1], col[2], col[3] } }
+	table.insert(lines, { BG.T("stats_members", n, Pct(n, inRange)), 1, 1, 1 })
+	local items = {}
+	for label, c in pairs(rolesData.detail[role]) do table.insert(items, { label = label, n = c }) end
+	table.sort(items, function(a, b)
+		if a.n ~= b.n then return a.n > b.n end
+		return a.label < b.label
+	end)
+	for i = 1, table.getn(items) do
+		if i > 12 then table.insert(lines, { "  ...", 0.6, 0.6, 0.6 }) break end
+		table.insert(lines, { "  " .. items[i].label .. ":  " .. items[i].n, col[1], col[2], col[3] })
+	end
+	return lines
+end
+
 local function SpecTip(seg, c)
 	local lines = { { seg.label, seg.r, seg.g, seg.b } }
 	table.insert(lines, { BG.T("stats_members", seg.n, Pct(seg.n, c.total)), 1, 1, 1 })
@@ -385,12 +451,15 @@ local function Build()
 	win.sub = win:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 	win.sub:SetPoint("TOPLEFT", win, "TOPLEFT", 66, -38)
 
-	win.btnClasses = BG.MakeButton(win, Name("Btn"), 150, 24, "")
+	win.btnClasses = BG.MakeButton(win, Name("Btn"), 100, 24, "")
 	win.btnClasses:SetPoint("TOPLEFT", win, "TOPLEFT", RX, -18)
 	win.btnClasses:SetScript("OnClick", function() Stats.mode = "classes" Stats.Refresh(true) end)
-	win.btnSpecs = BG.MakeButton(win, Name("Btn"), 200, 24, "")
+	win.btnSpecs = BG.MakeButton(win, Name("Btn"), 160, 24, "")
 	win.btnSpecs:SetPoint("LEFT", win.btnClasses, "RIGHT", 6, 0)
 	win.btnSpecs:SetScript("OnClick", function() Stats.mode = "specs" Stats.Refresh(true) end)
+	win.btnRoles = BG.MakeButton(win, Name("Btn"), 90, 24, "")
+	win.btnRoles:SetPoint("LEFT", win.btnSpecs, "RIGHT", 6, 0)
+	win.btnRoles:SetScript("OnClick", function() Stats.mode = "roles" Stats.Refresh(true) end)
 
 	-- the chart: a button (click on a slice), strips inside, the ring overlay on top
 	win.chart = CreateFrame("Button", Name("Chart"), win)
@@ -437,6 +506,46 @@ local function Build()
 	win.roleTxt:SetWidth(RW)
 	win.roleTxt:SetJustifyH("LEFT")
 
+	-- level range (mode "roles"): from / to and quick buttons
+	win.rngLbl1 = win:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	win.rngLbl1:SetPoint("TOPLEFT", win, "TOPLEFT", RX, -86)
+	local function RangeBox(x)
+		local e = CreateFrame("EditBox", Name("Range"), win, "InputBoxTemplate")
+		e:SetWidth(36)
+		e:SetHeight(20)
+		e:SetPoint("TOPLEFT", win, "TOPLEFT", x, -82)
+		e:SetAutoFocus(false)
+		e:SetNumeric(true)
+		e:SetMaxLetters(2)
+		e:SetScript("OnEscapePressed", function() this:ClearFocus() end)
+		e:SetScript("OnEnterPressed", function() this:ClearFocus() end)
+		e:SetScript("OnEditFocusLost", function()
+			Stats.SetRange(win.rngMin:GetText(), win.rngMax:GetText())
+		end)
+		e:Hide()
+		return e
+	end
+	win.rngMin = RangeBox(RX + 84)
+	win.rngLbl2 = win:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	win.rngLbl2:SetPoint("TOPLEFT", win, "TOPLEFT", RX + 132, -86)
+	win.rngMax = RangeBox(RX + 164)
+	win.presets = {}
+	local PRE = { { "stats_pre_40", 40, 60 }, { "stats_pre_50", 50, 60 }, { "stats_pre_60", 60, 60 }, { "stats_pre_all", 1, 60 } }
+	for i = 1, 4 do
+		local lo, hi = PRE[i][2], PRE[i][3]
+		local b = BG.MakeButton(win, Name("Pre"), 82, 22, "")
+		b:SetPoint("TOPLEFT", win, "TOPLEFT", RX + (i - 1) * 88, -110)
+		b.key = PRE[i][1]
+		b.lo, b.hi = lo, hi
+		b:SetScript("OnClick", function() Stats.SetRange(this.lo, this.hi) end)
+		b:Hide()
+		win.presets[i] = b
+	end
+	win.rngInfo = win:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+	win.rngInfo:SetPoint("TOPLEFT", win, "TOPLEFT", RX, -138)
+	win.rngInfo:SetWidth(RW)
+	win.rngInfo:SetJustifyH("LEFT")
+
 	-- hover over the chart: which slice?
 	win.chart.t = 0
 	win.chart:SetScript("OnUpdate", function()
@@ -479,8 +588,13 @@ function Stats.Refresh(force)
 	if not Stats.class or not byKey[Stats.class] then Stats.class = list[1] and list[1].key or nil end
 	local cur = Stats.class and byKey[Stats.class]
 
+	local rangeLo, rangeHi = Stats.Range()
+	local rd
+	if Stats.mode == "roles" then rd = Stats.CollectRoles(rangeLo, rangeHi) end
+
 	-- signature: only repaint when something visible changed
 	local sig = Stats.mode .. ":" .. tostring(Stats.class) .. ":" .. total
+	if rd then sig = sig .. ":" .. rangeLo .. "-" .. rangeHi .. ":" .. rd.T .. "," .. rd.H .. "," .. rd.D .. "," .. rd["?"] end
 	for i = 1, table.getn(list) do
 		local c = list[i]
 		sig = sig .. "," .. c.key .. c.total .. "/" .. c.unknown
@@ -491,8 +605,10 @@ function Stats.Refresh(force)
 	win.sub:SetText(BG.T("stats_total", total))
 	win.btnClasses:SetText(BG.T("stats_classes"))
 	win.btnSpecs:SetText(BG.T("stats_specs"))
+	win.btnRoles:SetText(BG.T("stats_roles_btn"))
 	Mark(win.btnClasses, Stats.mode == "classes")
 	Mark(win.btnSpecs, Stats.mode == "specs")
+	Mark(win.btnRoles, Stats.mode == "roles")
 	if not force and sig == Stats.sig then return end
 	Stats.sig = sig
 
@@ -500,6 +616,71 @@ function Stats.Refresh(force)
 	for i = 1, table.getn(win.roleBar) do win.roleBar[i]:Hide() end
 	win.roleHdr:SetText("")
 	win.roleTxt:SetText("")
+	-- range controls only in the roles view
+	local rolesMode = (Stats.mode == "roles")
+	win.rngLbl1:SetText(rolesMode and BG.T("stats_range_from") or "")
+	win.rngLbl2:SetText(rolesMode and BG.T("stats_range_to") or "")
+	win.rngInfo:SetText("")
+	if rolesMode then
+		win.rngMin:Show() win.rngMax:Show()
+		win.rngMin:SetText(rangeLo) win.rngMax:SetText(rangeHi)
+	else
+		win.rngMin:Hide() win.rngMax:Hide()
+	end
+	for i = 1, table.getn(win.presets) do
+		local b = win.presets[i]
+		if rolesMode then
+			b:SetText(BG.T(b.key))
+			Mark(b, b.lo == rangeLo and b.hi == rangeHi)
+			b:Show()
+		else
+			b:Hide()
+		end
+	end
+	if rolesMode then
+		-- donut of Tank / Heal / DD / unknown for the level range
+		local segs = {}
+		local order = { "T", "H", "D", "?" }
+		Stats.tips = {}
+		local entries = {}
+		local max = 0
+		for i = 1, 4 do if rd[order[i]] > max then max = rd[order[i]] end end
+		for i = 1, 4 do
+			local role = order[i]
+			local n = rd[role]
+			if n > 0 then
+				local col = ROLE_COL[role] or { 0.30, 0.33, 0.42 }
+				local label = (role == "?") and BG.T("stats_unknown") or BG.Notes.RoleName(role)
+				table.insert(segs, { n = n, r = col[1], g = col[2], b = col[3], label = label, role = role })
+			end
+		end
+		if rd.inRange == 0 then
+			for i = 1, table.getn(pool) do pool[i].tex:Hide() end
+			used = 0
+			job = nil
+			Stats.cur = nil
+			win.cBig:SetText("")
+			win.cSmall:SetText("")
+			win.empty:SetText(BG.T("stats_range_empty", rangeLo, rangeHi))
+			ShowRows({}, 0)
+			Header(BG.T("stats_hdr_roles"))
+			return
+		end
+		StartPaint(segs)
+		win.cBig:SetText(GOLD .. rd.inRange .. "|r")
+		win.cSmall:SetText(BG.T("stats_range_center", rangeLo, rangeHi))
+		Header(BG.T("stats_hdr_roles"))
+		win.rngInfo:SetText(GRAY .. BG.T("stats_range_info", rd.inRange, rd.total) .. "|r")
+		for i = 1, table.getn(segs) do
+			local sg = segs[i]
+			local tip = RoleTip(sg.role, sg.n, rd, rd.inRange)
+			Stats.tips[i] = tip
+			table.insert(entries, { r = sg.r, g = sg.g, b = sg.b, label = sg.label, n = sg.n, pct = GRAY .. Pct(sg.n, rd.inRange) .. "|r",
+				share = sg.n / math.max(max, 1), tip = tip })
+		end
+		ShowRows(entries, -168)
+		return
+	end
 	if total == 0 or not cur then
 		for i = 1, table.getn(pool) do pool[i].tex:Hide() end
 		used = 0
