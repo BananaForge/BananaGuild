@@ -185,7 +185,7 @@ local DEFAULTS = {
 	-- promotion of new members: reminder after 'weeks' on rank 'from', promoted step by step up to rank 'to' (rank names)
 	-- inactive members: offline for at least "days" -> set to rank "rank"; offline for "kickDays" -> may be removed
 	inactive = { days = 30, kickDays = 90, rank = "Inaktiv" },
-	promo = { enabled = true, bankWhisper = true, weeks = 2, from = "Initiant", to = "Member", snooze = {}, day = "" },
+	promo = { enabled = true, onlinePopup = true, bankWhisper = true, weeks = 2, from = "Initiant", to = "Member", snooze = {}, day = "" },
 	sync = { accept = true, trustRank = 2 },
 	minimap = { angle = 200 },
 	texts = {},

@@ -1612,6 +1612,9 @@ local function BuildPromoPage(root, pp)
 	MakeCheck("settings", pp, 0, -88, "promo_enabled",
 		function() return db.promo.enabled end,
 		function(v) db.promo.enabled = v UI.UpdatePromoButton() end)
+	MakeCheck("settings", pp, 300, -112, "promo_onlinepopup",
+		function() return db.promo.onlinePopup end,
+		function(v) db.promo.onlinePopup = v end, "tip_promo_onlinepopup")
 	MakeCheck("settings", pp, 300, -88, "promo_bankwhisper",
 		function() return db.promo.bankWhisper end,
 		function(v) db.promo.bankWhisper = v end, "tip_promo_bankwhisper")

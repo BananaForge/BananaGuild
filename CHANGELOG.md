@@ -3,6 +3,11 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 1.20.0
+- Neuling Check: Automatisches Popup, sobald jemand aus der Liste online ist (kommt online oder ist beim Login schon online, ca. 35 Sekunden nach dem Login). Oben groß „Neuling Check", darunter Name in Klassenfarbe, Stufe, Klasse und Tage in der Gilde, dazu der Knopf „Zu Member befördern" (befördert genau diese Person, danach geht wie gewohnt die Bank-Info per Flüstern raus), „Neuling Check öffnen" und „Später" (heute nicht mehr melden). Pro Person höchstens alle 2 Stunden; sind mehr als drei gleichzeitig online, gibt es ein Sammel-Popup mit „Neuling Check öffnen". Nur für Spieler mit Beförderungsrecht, im Instanzmodus wie die anderen Beförderungs-Meldungen unterdrückt.
+- Abschaltbar unter Einstellungen > Beförderung („Popup, wenn ein Neuling online ist").
+- Popups können eine große Überschrift haben.
+
 ## 1.19.2
 - Das BananaGuild-Hauptfenster kommt jetzt beim Öffnen und beim Anklicken nach vorn (auch vor andere Addon-Fenster wie BananaBank). Vorher konnten sich Teile beider Fenster ineinander mischen, wenn sie gleichzeitig offen waren.
 

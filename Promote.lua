@@ -373,6 +373,90 @@ function Promo.Remind()
 	BG.Popup.Push({ type = "promo", defer = true, key = "promo", open = function() Promo.Open() end })
 end
 
+
+--------------------------------------------------------------------- popup when a listed newcomer is online
+
+-- A member of the newcomer check list who is online right now gets a popup of his own: big title "Neuling Check" and one
+-- button to promote him. Triggered by every roster scan; a member pops up when he comes online (or at login), at most
+-- once every 2 hours per person. Members that were postponed ("Later") today stay quiet.
+Promo.wasOnline = {}
+Promo.popped = {}
+Promo.ready = false
+local POP_GAP = 2 * 3600
+
+local function PromoPopup(it)
+	local pr = BG.db.promo
+	local info = BG.roster[it.name]
+	local cls = (info and info.class) or "?"
+	local key = info and info.ckey
+	local col = "|cffffffff"
+	if key then
+		local r, g, b = BG.Notes.ClassColor(key)
+		col = string.format("|cff%02x%02x%02x", math.floor(r * 255 + 0.5), math.floor(g * 255 + 0.5), math.floor(b * 255 + 0.5))
+	end
+	local name = it.name
+	BG.Popup.Push({
+		type = "promo", defer = false, big = true,
+		key = "promoon-" .. name,
+		title = BG.T("promo_pop_title"),
+		body = col .. name .. "|r " .. BG.T("promo_pop_body", it.level or "?", cls, it.days),
+		buttons = {
+			{ text = BG.T("btn_promote_member", pr.to), tip = BG.T("tip_promo_member", name, pr.to),
+			  fn = function() Promo.Enqueue({ name }) end },
+			{ text = BG.T("btn_open_check"), fn = function() Promo.Open() end },
+			{ text = BG.T("btn_later"), fn = function() Promo.Snooze(name) end },
+		},
+	})
+end
+
+local function PromoPopupMany(list)
+	BG.Popup.Push({
+		type = "promo", defer = false, big = true,
+		key = "promoon-many",
+		title = BG.T("promo_pop_title"),
+		body = BG.T("promo_pop_many", table.getn(list)),
+		buttons = {
+			{ text = BG.T("btn_open_check"), fn = function() Promo.Open() end },
+			{ text = BG.T("btn_later"), fn = function() end },
+		},
+	})
+end
+
+function Promo.OnRoster()
+	local pr = BG.db.promo
+	if not Promo.ready or not pr.enabled or not pr.onlinePopup then return end
+	if not Promo.CanPromote() or not Promo.Steps() then return end
+	local due = Promo.Due(false)
+	local fresh, now = {}, time()
+	local online = {}
+	for i = 1, table.getn(due) do
+		local it = due[i]
+		if it.online then
+			online[it.name] = true
+			if not Promo.wasOnline[it.name] and (not Promo.popped[it.name] or now - Promo.popped[it.name] > POP_GAP) then
+				table.insert(fresh, it)
+			end
+		end
+	end
+	Promo.wasOnline = online
+	if table.getn(fresh) == 0 then return end
+	for i = 1, table.getn(fresh) do Promo.popped[fresh[i].name] = now end
+	if table.getn(fresh) <= 3 then
+		for i = 1, table.getn(fresh) do PromoPopup(fresh[i]) end
+	else
+		PromoPopupMany(fresh)
+	end
+end
+
+-- a little after login (the roster must be known first) everybody who is online and listed gets his popup
+BG.OnLogin(function()
+	BG.After(35, function()
+		Promo.ready = true
+		Promo.wasOnline = {}
+		Promo.OnRoster()
+	end)
+end)
+
 --------------------------------------------------------------------- window
 
 local W, ROWS = 640, 6

@@ -126,6 +126,7 @@ end
 local function Show(item)
 	if not pf then BuildPopup() end
 	Popup.current = item
+	pf.title:SetFontObject(item.big and GameFontNormalLarge or GameFontNormal)
 	pf.title:SetText(item.title or "BananaGuild")
 	pf.body:SetText(item.body or "")
 	local n = table.getn(item.buttons)
