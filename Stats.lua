@@ -60,7 +60,8 @@ end
 -- roles inside a level range: { T, H, D, ? } counts, the number of characters in the range, and per role the
 -- "class / spec" breakdown for the tooltip
 function Stats.CollectRoles(lo, hi)
-	local out = { T = 0, H = 0, D = 0, ["?"] = 0, inRange = 0, total = 0, detail = { T = {}, H = {}, D = {}, ["?"] = {} } }
+	local out = { T = 0, H = 0, D = 0, ["?"] = 0, inRange = 0, total = 0, detail = { T = {}, H = {}, D = {}, ["?"] = {} },
+		members = { T = {}, H = {}, D = {}, ["?"] = {} } }
 	for name, info in pairs(BG.roster) do
 		out.total = out.total + 1
 		local lvl = info.level or 0
@@ -76,6 +77,7 @@ function Stats.CollectRoles(lo, hi)
 				label = BG.Notes.ClassName(info.ckey) .. " (" .. BG.Notes.SpecName(pn.spec) .. ")"
 			end
 			out.detail[role][label] = (out.detail[role][label] or 0) + 1
+			table.insert(out.members[role], { name = name, key = info.ckey or "?", spec = (role ~= "?") and pn.spec[1] or nil })
 		end
 	end
 	return out
@@ -374,6 +376,73 @@ local function ClassTip(c, total)
 	return lines
 end
 
+-- the names behind the chart: per role (Tank, Heal, DD, unknown) a heading, below it one entry per class with the
+-- characters in class colours, wrapped to the width of the right hand side. Too many for the space: the rest is counted.
+local LIST_VIEW = 17            -- lines visible at once, the rest scrolls
+local LIST_LINE_CHARS = 58
+function Stats.RoleListLines(rd)
+	local lines, order = {}, { "T", "H", "D", "?" }
+	local function Add(line) table.insert(lines, line) end
+	for oi = 1, 4 do
+		local role = order[oi]
+		local list = rd.members[role]
+		if table.getn(list) > 0 then
+			local col = ROLE_COL[role] or { 0.55, 0.58, 0.66 }
+			local title = (role == "?") and BG.T("stats_unknown") or BG.Notes.RoleName(role)
+			Add(Hex(col[1], col[2], col[3]) .. title .. " (" .. table.getn(list) .. ")|r")
+			-- group by class
+			local byClass, keys = {}, {}
+			for i = 1, table.getn(list) do
+				local m = list[i]
+				if not byClass[m.key] then byClass[m.key] = {} table.insert(keys, m.key) end
+				table.insert(byClass[m.key], m.name)
+			end
+			table.sort(keys, function(a, b) return ClassLabel(a) < ClassLabel(b) end)
+			for ki = 1, table.getn(keys) do
+				local key = keys[ki]
+				local names = byClass[key]
+				table.sort(names)
+				local r, g, b = BG.Notes.ClassColor(key)
+				local cc = Hex(r, g, b)
+				local label = ClassLabel(key)
+				local cur = "  " .. cc .. label .. "|r" .. GRAY .. ":|r "
+				local curLen = 2 + string.len(label) + 2
+				local fresh = true
+				for i = 1, table.getn(names) do
+					local nm = names[i]
+					if not fresh and curLen + string.len(nm) + 2 > LIST_LINE_CHARS then
+						Add(cur .. ",")
+						cur, curLen, fresh = "    ", 4, true
+					end
+					cur = cur .. (fresh and "" or ", ") .. cc .. nm .. "|r"
+					curLen = curLen + string.len(nm) + (fresh and 0 or 2)
+					fresh = false
+				end
+				Add(cur)
+			end
+		end
+	end
+	return lines
+end
+
+-- show LIST_VIEW lines of the list starting at the scroll offset
+function Stats.ShowList()
+	if not win or not win.listLines then return end
+	local n = table.getn(win.listLines)
+	local maxOff = math.max(0, n - LIST_VIEW)
+	if win.listOff > maxOff then win.listOff = maxOff end
+	local out = {}
+	for i = win.listOff + 1, math.min(n, win.listOff + LIST_VIEW) do table.insert(out, win.listLines[i]) end
+	win.roleList:SetText(table.concat(out, "\n"))
+	win.listSlider:SetMinMaxValues(0, maxOff)
+	if win.listSlider:GetValue() ~= win.listOff then
+		win.listBusy = true
+		win.listSlider:SetValue(win.listOff)
+		win.listBusy = false
+	end
+	if maxOff > 0 then win.listSlider:Show() else win.listSlider:Hide() end
+end
+
 -- hover text of a role slice: which classes / specs make it up
 local function RoleTip(role, n, rolesData, inRange)
 	local col = ROLE_COL[role] or { 0.55, 0.58, 0.66 }
@@ -451,13 +520,13 @@ local function Build()
 	win.sub = win:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 	win.sub:SetPoint("TOPLEFT", win, "TOPLEFT", 66, -38)
 
-	win.btnClasses = BG.MakeButton(win, Name("Btn"), 100, 24, "")
+	win.btnClasses = BG.MakeButton(win, Name("Btn"), 92, 24, "")
 	win.btnClasses:SetPoint("TOPLEFT", win, "TOPLEFT", RX, -18)
 	win.btnClasses:SetScript("OnClick", function() Stats.mode = "classes" Stats.Refresh(true) end)
-	win.btnSpecs = BG.MakeButton(win, Name("Btn"), 160, 24, "")
+	win.btnSpecs = BG.MakeButton(win, Name("Btn"), 150, 24, "")
 	win.btnSpecs:SetPoint("LEFT", win.btnClasses, "RIGHT", 6, 0)
 	win.btnSpecs:SetScript("OnClick", function() Stats.mode = "specs" Stats.Refresh(true) end)
-	win.btnRoles = BG.MakeButton(win, Name("Btn"), 90, 24, "")
+	win.btnRoles = BG.MakeButton(win, Name("Btn"), 84, 24, "")
 	win.btnRoles:SetPoint("LEFT", win.btnSpecs, "RIGHT", 6, 0)
 	win.btnRoles:SetScript("OnClick", function() Stats.mode = "roles" Stats.Refresh(true) end)
 
@@ -541,6 +610,41 @@ local function Build()
 		b:Hide()
 		win.presets[i] = b
 	end
+	-- list of the names per role / class (scrolls with the mouse wheel or the bar)
+	win.listFrame = CreateFrame("Frame", Name("List"), win)
+	win.listFrame:SetWidth(RW)
+	win.listFrame:SetHeight(LIST_VIEW * 12 + 4)
+	win.listFrame:EnableMouseWheel(true)
+	win.listFrame:SetScript("OnMouseWheel", function()
+		win.listSlider:SetValue(win.listSlider:GetValue() - arg1 * 3)
+	end)
+	win.roleList = win.listFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	win.roleList:SetPoint("TOPLEFT", win.listFrame, "TOPLEFT", 0, 0)
+	win.roleList:SetWidth(RW - 20)
+	win.roleList:SetJustifyH("LEFT")
+	win.roleList:SetJustifyV("TOP")
+	win.roleList:SetHeight(LIST_VIEW * 12 + 4)
+	win.listOff = 0
+	win.listLines = {}
+	win.listSlider = CreateFrame("Slider", Name("ListSlider"), win.listFrame)
+	win.listSlider:SetWidth(12)
+	win.listSlider:SetHeight(LIST_VIEW * 12)
+	win.listSlider:SetPoint("TOPRIGHT", win.listFrame, "TOPRIGHT", 0, 0)
+	win.listSlider:EnableMouse(true)
+	win.listSlider:SetOrientation("VERTICAL")
+	win.listSlider:SetMinMaxValues(0, 0)
+	win.listSlider:SetValueStep(1)
+	win.listSlider:SetValue(0)
+	win.listSlider:SetThumbTexture("Interface\\Buttons\\UI-ScrollBar-Knob")
+	local lthumb = win.listSlider:GetThumbTexture()
+	if lthumb then lthumb:SetWidth(12) lthumb:SetHeight(20) end
+	win.listSlider:SetScript("OnValueChanged", function()
+		if win.listBusy then return end
+		win.listOff = math.floor((this:GetValue() or 0) + 0.5)
+		Stats.ShowList()
+	end)
+	win.listSlider:Hide()
+	win.listFrame:Hide()
 	win.rngInfo = win:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 	win.rngInfo:SetPoint("TOPLEFT", win, "TOPLEFT", RX, -138)
 	win.rngInfo:SetWidth(RW)
@@ -618,6 +722,10 @@ function Stats.Refresh(force)
 	win.roleTxt:SetText("")
 	-- range controls only in the roles view
 	local rolesMode = (Stats.mode == "roles")
+	win.listLines = {}
+	win.listOff = 0
+	win.roleList:SetText("")
+	win.listFrame:Hide()
 	win.rngLbl1:SetText(rolesMode and BG.T("stats_range_from") or "")
 	win.rngLbl2:SetText(rolesMode and BG.T("stats_range_to") or "")
 	win.rngInfo:SetText("")
@@ -679,6 +787,12 @@ function Stats.Refresh(force)
 				share = sg.n / math.max(max, 1), tip = tip })
 		end
 		ShowRows(entries, -168)
+		win.listFrame:ClearAllPoints()
+		win.listFrame:SetPoint("TOPLEFT", win, "TOPLEFT", RX, -168 - table.getn(entries) * ROW_H - 10)
+		win.listFrame:Show()
+		win.listLines = Stats.RoleListLines(rd)
+		win.listOff = 0
+		Stats.ShowList()
 		return
 	end
 	if total == 0 or not cur then

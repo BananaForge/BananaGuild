@@ -3,6 +3,10 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 1.19.1
+- Rollen-Statistik: Unter dem Diagramm steht jetzt eine Liste mit den Namen. Oben die Rolle (Tank, Heal, DD, unbekannt) mit Anzahl, darunter je Klasse in Klassenfarbe die Charaktere. Bei langen Listen scrollt sie (Mausrad oder Balken).
+- Die drei Knöpfe oben (Klassen, Specs pro Klasse, Rollen) sind etwas schmaler, damit der Schließen-Knopf oben rechts nicht mehr überdeckt wird.
+
 ## 1.19.0
 - Statistik: Neuer Knopf „Rollen" neben „Klassen" und „Specs pro Klasse". Er zeigt ein Kuchendiagramm (Donut) mit der Rollenverteilung Tank / Heal / DD / unbekannt für einen frei wählbaren Level-Bereich, damit Low-Level- und Level-Charaktere die Auswertung nicht verfälschen (Standard Level 40 bis 60). Zwei Felder für „Level von ... bis ..." und Schnellknöpfe „Ab 40", „Ab 50", „Nur 60" und „Alle"; der Bereich wird gespeichert.
 - Mouse-over auf einer Rolle (Segment oder Zeile) zeigt, aus welchen Klassen und Specs sie besteht, z. B. „Krieger (Schutz): 4". Die Rolle kommt aus dem Spec in der Gildennotiz; ohne Spec zählt der Charakter als „unbekannt".
