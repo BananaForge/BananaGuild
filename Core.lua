@@ -151,8 +151,6 @@ local DEFAULTS = {
 	discord = "https://discord.gg/KNPPqHh8H",
 	guildTag = "<Bananenrepublik>",
 	features = {
-		levelup          = true,   -- chat hint + toast when a guild member levels up
-		level60          = true,   -- big splash at level 60
 		recruit          = true,   -- recruiting module available
 		whisperPopup     = true,   -- popup when somebody whispers after our ad
 		scanner          = true,   -- /4 /5 scanner for "looking for a guild"
@@ -164,7 +162,6 @@ local DEFAULTS = {
 		worldPing        = false,  -- hidden world-chat presence ping (see README)
 		minimap          = true,
 		sound            = true,
-		selfToast        = false,  -- also show toast for our own level ups
 	},
 	recruit = {
 		interval  = 10,   -- minutes
@@ -178,15 +175,13 @@ local DEFAULTS = {
 		cooldown = 30,     -- minutes before the same player triggers again
 		channels = "4,5",
 	},
-	-- which level ups trigger the GZ popup + chat notice: mode "all" or "tens" (only the ticked full tens)
 	-- mode: "all" (every level), "fives" (5, 10, 15 ...) or "tens" (10, 20 ...)
-	gz = { mode = "all" },
 	-- greeting popup for new members: officers from this rank up (rank name); the inviter / recruiter gets the note window
 	greet = { rank = "Offiziere" },
 	-- instance / raid mode: while in an instance, battleground or raid group every popup, notice and sound is muted,
 	-- except the kinds ticked in 'allow'. Missed prospects are shown again after leaving (catchup).
 	quiet = { enabled = true, catchup = true, summary = true,
-		allow = { levelup = false, level60 = false, whisper = false, scanner = false, welcome = false, conflict = false, promo = false } },
+		allow = { whisper = false, scanner = false, welcome = false, conflict = false, promo = false } },
 	-- promotion of new members: reminder after 'weeks' on rank 'from', promoted step by step up to rank 'to' (rank names)
 	-- inactive members: offline for at least "days" -> set to rank "rank"; offline for "kickDays" -> may be removed
 	inactive = { days = 30, kickDays = 90, rank = "Inaktiv" },
@@ -194,7 +189,7 @@ local DEFAULTS = {
 	sync = { accept = true, trustRank = 2 },
 	minimap = { angle = 200 },
 	texts = {},
-	variants = {},   -- 5 editable chat variants per kind (welcome, funny, gz, repliesDE/EN, contactDE/EN)
+	variants = {},   -- 5 editable chat variants per kind (welcome, funny, repliesDE/EN, contactDE/EN)
 	keywords = {},
 	chars = {},
 	log = {},
@@ -218,10 +213,10 @@ end
 
 BG.TEXT_NAMES = {}
 -- every kind has exactly 5 variants; one chat message per variant
-BG.VARIANT_KINDS = { "recruit", "welcome", "welcomeRec", "funny", "gz", "repliesDE", "repliesEN", "contactDE", "contactEN", "askProf", "askSpec", "askTwink", "askAll", "promoBank" }
+BG.VARIANT_KINDS = { "recruit", "welcome", "welcomeRec", "funny", "repliesDE", "repliesEN", "contactDE", "contactEN", "askProf", "askSpec", "askTwink", "askAll", "promoBank" }
 BG.VARIANTS = 5
--- gz and welcome (role play) have 20 variants, welcomeRec (recruiter, with Discord) 30
-BG.VARIANT_COUNT = { gz = 20, welcome = 20, welcomeRec = 30, promoBank = 3 }
+-- welcome (role play) has 20 variants, welcomeRec (recruiter, with Discord) 30
+BG.VARIANT_COUNT = { welcome = 20, welcomeRec = 30, promoBank = 3 }
 function BG.VariantCount(kind) return BG.VARIANT_COUNT[kind] or BG.VARIANTS end
 
 -- "contactDE" / "repliesEN" ... are tied to one language, independent of the UI language
@@ -246,7 +241,7 @@ function BG.ResetTexts(lang)
 	BG.ResetAllVariants()
 end
 
----------------------------------------------------------------- variants (5 per kind, 20 for gz / welcome / welcomeRec)
+---------------------------------------------------------------- variants (5 per kind, 20 for welcome, 30 for welcomeRec)
 
 -- default text of variant i; kinds ending in DE/EN keep their own language, the others follow the UI language
 function BG.DefaultVariant(kind, i, lang)
@@ -295,13 +290,12 @@ function BG.PickVariant(kind)
 end
 
 -- Migration from the old single text fields (1.3.x): own texts are kept as variant 1, the rest are the new defaults
-local OLD_KEY = { recruit = "recruitMsg", welcome = "welcomeGuild", funny = "funny", gz = "gz", repliesDE = "repliesDE", repliesEN = "repliesEN",
+local OLD_KEY = { recruit = "recruitMsg", welcome = "welcomeGuild", funny = "funny", repliesDE = "repliesDE", repliesEN = "repliesEN",
 	contactDE = "contactDE", contactEN = "contactEN" }
 local OLD_DEFAULT_START = {
 	recruit = {},
 	welcome = { "Willkommen in der Bananenrepublik, {name}! Schau gern", "Welcome to the Bananenrepublik, {name}! Feel free", "Grüß dich und" },
 	funny = { "Halt ein, edler {name}", "Hold, noble {name}" },
-	gz = { "GZ {name}!" },
 	repliesDE = { "Hey {name}, schön dass du Interesse hast" },
 	repliesEN = { "Hey {name}, nice that you are interested" },
 	contactDE = { "Hey {name}, wir sind die {guild} und freuen uns" },
@@ -315,7 +309,7 @@ local function IsOldDefault(kind, line)
 	return false
 end
 
--- 1.13: gz / welcome grow from 5 to 20 variants and the welcome kinds split in role play (welcome) and recruiting (welcomeRec).
+-- 1.13: welcome grows from 5 to 20 variants and the welcome kinds split in role play (welcome) and recruiting (welcomeRec).
 -- Variants the user edited stay at the front, untouched old defaults are replaced by the new ones.
 local function OldDefaultOf(kind, i)
 	local L = BG.L
@@ -345,26 +339,23 @@ end
 local function MigrateTo20()
 	local db = BG.db
 	if db.variantsV and db.variantsV >= 2 then return end
-	local oldGz = db.variants.gz
 	local oldW = db.variants.welcome
-	local gzEdited = EditedOld("gz", oldGz)
 	local rp, rec = {}, {}
 	local w = EditedOld("welcome", oldW)
 	for i = 1, table.getn(w) do
 		if string.find(w[i], "{discord}", 1, true) then table.insert(rec, w[i]) else table.insert(rp, w[i]) end
 	end
-	db.variants.gz = FillNew("gz", gzEdited)
 	db.variants.welcome = FillNew("welcome", rp)
 	db.variants.welcomeRec = FillNew("welcomeRec", rec)
 	db.variantsV = 5 -- just filled with the current defaults
 end
 
--- 1.14: gz / welcome / welcomeRec got casual new default texts. Edited variants stay in front, untouched old defaults
+-- 1.14: welcome / welcomeRec got casual new default texts. Edited variants stay in front, untouched old defaults
 -- (1.13.0 and 1.13.1 versions, German or English) are replaced.
 local function MigrateTexts()
 	local db = BG.db
 	local L = BG.L
-	local kinds = { "gz", "welcome", "welcomeRec", "askProf", "askSpec", "askTwink", "askAll" }
+	local kinds = { "welcome", "welcomeRec", "askProf", "askSpec", "askTwink", "askAll" }
 	for k = 1, table.getn(kinds) do
 		local kind = kinds[k]
 		local cur = db.variants[kind]
@@ -388,7 +379,7 @@ end
 
 local function MigrateVariants()
 	local db = BG.db
-	if type(db.variants.gz) == "table" or type(db.variants.welcome) == "table" then
+	if type(db.variants.welcome) == "table" then
 		MigrateTo20()
 	end
 	if (db.variantsV or 0) < 5 then
@@ -409,7 +400,7 @@ local function MigrateVariants()
 			if cur[k] == nil then cur[k] = BG.DefaultVariant(kind, k) end
 		end
 	end
-	for _, n in ipairs({ "recruitMsg", "welcomeMsg", "welcomeGuild", "repliesDE", "repliesEN", "contactDE", "contactEN", "funny", "gz" }) do
+	for _, n in ipairs({ "recruitMsg", "welcomeMsg", "welcomeGuild", "repliesDE", "repliesEN", "contactDE", "contactEN", "funny" }) do
 		db.texts[n] = nil
 	end
 end
@@ -436,10 +427,12 @@ local function InitDB()
 		end
 	end
 	MigrateVariants()
-	-- 1.13: the GZ setting has three exclusive modes now; everybody starts at "every level" once
-	if not BG.db.gzV13 then
-		BG.db.gz.mode = "all"
-		BG.db.gzV13 = true
+	-- 1.17: the GZ / level-up function moved to BananaBank; its old data is dropped
+	BG.db.gz, BG.db.gzV13 = nil, nil
+	BG.db.variants.gz = nil
+	for _, k in ipairs({ "levelup", "level60", "selfToast" }) do
+		BG.db.features[k] = nil
+		if BG.db.quiet and BG.db.quiet.allow then BG.db.quiet.allow[k] = nil end
 	end
 	-- the old placeholder link is replaced, an own link stays
 	local dc = BG.Trim(BG.db.discord or "")
@@ -643,7 +636,7 @@ end)
 
 --------------------------------------------------------------------- log
 
--- kinds: join leave kick promote demote invite levelup level60
+-- kinds: join leave kick promote demote invite (levelup / level60 only in old entries)
 function BG.AddLog(kind, a, b, c)
 	if not BG.db then return end
 	table.insert(BG.db.log, { t = time(), k = kind, a = a, b = b, c = c })
@@ -688,7 +681,7 @@ end
 
 --------------------------------------------------------------------- instance / raid mode
 
-BG.quiet = { was = false, missed = { levelup = 0, level60 = 0, whisper = 0, scanner = 0, welcome = 0, conflict = 0, promo = 0 }, deferred = {} }
+BG.quiet = { was = false, missed = { whisper = 0, scanner = 0, welcome = 0, conflict = 0, promo = 0 }, deferred = {} }
 
 function BG.InRaid()
 	return (GetNumRaidMembers and (GetNumRaidMembers() or 0) > 0) and true or false
@@ -719,7 +712,7 @@ function BG.QuietRelease()
 	q.deferred = {}
 	for i = 1, table.getn(list) do BG.Popup.Push(list[i]) end
 	if total > 0 and BG.db.quiet.summary then
-		BG.Print(BG.T("quiet_summary", m.levelup, m.level60, m.whisper + m.scanner, m.welcome))
+		BG.Print(BG.T("quiet_summary", m.whisper + m.scanner, m.welcome))
 	end
 	for k in pairs(m) do m[k] = 0 end
 end
@@ -767,12 +760,6 @@ local function Slash(msg)
 	elseif cmd == "recruit" then
 		local sub = string.lower(rest or "")
 		if sub == "start" then BG.Recruit.Start() elseif sub == "stop" then BG.Recruit.Stop() else BG.UI.Show("recruit") end
-	elseif cmd == "gz" then
-		BG.Alerts.SendGZ(rest ~= "" and rest or nil)
-	elseif cmd == "test60" then
-		BG.Alerts.ShowLevel60(rest ~= "" and BG.NormName(rest) or BG.me, true)
-	elseif cmd == "testlevel" then
-		BG.Alerts.LevelToast(rest ~= "" and BG.NormName(rest) or BG.me, 42, true)
 	elseif cmd == "welcome" then
 		if rest ~= "" then BG.Recruit.Welcome(BG.NormName(rest)) else BG.Print(BG.T("usage_welcome")) end
 	elseif cmd == "join" then

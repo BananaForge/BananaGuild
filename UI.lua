@@ -601,7 +601,7 @@ end
 
 --------------------------------------------------------------------- panel: texts
 
-local TEXT_KEYS = { "welcome", "welcomeRec", "funny", "gz", "repliesDE", "repliesEN", "contactDE", "contactEN", "askProf", "askSpec", "askTwink", "askAll", "promoBank" }
+local TEXT_KEYS = { "welcome", "welcomeRec", "funny", "repliesDE", "repliesEN", "contactDE", "contactEN", "askProf", "askSpec", "askTwink", "askAll", "promoBank" }
 
 -- the texts of the language that is NOT active are greyed out (they are still used automatically for
 -- whispers in that language)
@@ -620,7 +620,7 @@ local function BuildTexts(p)
 	Label(p, "lbl_guildtag", 0, -56)
 	MakeEdit("texts", p, 130, -52, 200, function() return db.guildTag end, function(t) db.guildTag = t end, 60)
 
-	-- row 1: greetings (role play / recruiting), funny, GZ; row 2: replies and contact messages (DE / EN); row 3: questions to members
+	-- row 1: greetings (role play / recruiting), funny; row 2: replies and contact messages (DE / EN); row 3: questions to members
 	p.btns = {}
 	for i = 1, table.getn(TEXT_KEYS) do
 		local k = TEXT_KEYS[i] -- Lua 5.0: closures share the loop variable, so copy it into a local
@@ -640,7 +640,7 @@ local function BuildTexts(p)
 		b:SetScript("OnClick", function() UI.SelectSlot(slot) end)
 		p.slotBtns[s] = b
 	end
-	-- kinds with 20 variants (GZ, greetings): a scrolling list instead of the five buttons
+	-- kinds with more than 5 variants (greetings): a scrolling list instead of the five buttons
 	p.varDrop = BG.Dropdown(p, 74, -167, 160, function(v) UI.SelectSlot(v) end, 10)
 	p.varDrop:Hide()
 	p.desc = Label(p, nil, 0, -198, "GameFontDisableSmall", 590)
@@ -1308,7 +1308,7 @@ end
 
 local LOG_COLORS = {
 	join = GREEN, leave = GRAY, kick = RED, promote = YELLOW, demote = "|cffffaa55", invite = "|cff66ccff",
-	levelup = WHITE, level60 = GOLD, decline = GRAY, prospect = "|cff66ccff",
+	decline = GRAY, prospect = "|cff66ccff",
 }
 
 local function BuildLog(p)
@@ -1338,9 +1338,6 @@ end
 --------------------------------------------------------------------- panel: settings
 
 local FEATURES = {
-	{ "levelup", "feat_levelup", "tip_levelup" },
-	{ "level60", "feat_level60", "tip_level60" },
-	{ "selfToast", "feat_selftoast", "tip_selftoast" },
 	{ "recruit", "feat_recruit", "tip_recruit" },
 	{ "whisperPopup", "feat_whisper", "tip_whisper" },
 	{ "scanner", "feat_scanner", "tip_scanner" },
@@ -1354,7 +1351,7 @@ local FEATURES = {
 	{ "sound", "feat_sound", "tip_sound" },
 }
 
-local QUIET_KINDS = { "levelup", "level60", "whisper", "scanner", "welcome", "conflict", "promo" }
+local QUIET_KINDS = { "whisper", "scanner", "welcome", "conflict", "promo" }
 
 -- page 2 of the settings: instance / raid mode
 local function BuildQuietPage(root, q)
@@ -1546,81 +1543,59 @@ local function BuildSettings(root)
 	end
 	local C1, C2 = 0, 300
 
-	-- notices
-	Section("sec_alerts", -24)
-	Feat(C1, -44, "levelup")
-	Feat(C2, -44, "selfToast")
-	Feat(C1, -66, "level60")
-	-- GZ popup: three exclusive modes
-	p.gzModeChecks = {}
-	local modes = { { "all", "gz_mode_all" }, { "fives", "gz_mode_fives" }, { "tens", "gz_mode_tens" } }
-	for i = 1, 3 do
-		local mode, key = modes[i][1], modes[i][2] -- own local per iteration: Lua 5.0 closures share the loop variable
-		local c = MakeCheck("settings", p, (i - 1) * 200, -90, key,
-			function() return db.gz.mode == mode end,
-			function(v)
-				db.gz.mode = mode -- a ticked box cannot be unticked: one mode is always active
-				UI.UpdateGZ()
-			end, "tip_gz_mode")
-		getglobal(c:GetName() .. "Text"):SetWidth(170)
-		p.gzModeChecks[mode] = c
-	end
-
 	-- recruiting
-	Section("sec_recruit", -126)
-	Feat(C1, -146, "recruit")
-	Feat(C2, -146, "whisperPopup")
-	Feat(C1, -168, "scanner")
-	Feat(C2, -168, "rightClickInvite")
-	Feat(C1, -190, "welcomePopup")
-	Feat(C2, -190, "joinWindow")
-	Feat(C1, -212, "autoWelcome")
-	Label(p, "lbl_whisper_window", C2 + 4, -218, "GameFontHighlightSmall", 232)
-	MakeEdit("settings", p, 540, -214, 40, function() return db.recruit.window end, NumberSetter(db.recruit, "window", 1), 4)
+	Section("sec_recruit", -24)
+	Feat(C1, -44, "recruit")
+	Feat(C2, -44, "whisperPopup")
+	Feat(C1, -66, "scanner")
+	Feat(C2, -66, "rightClickInvite")
+	Feat(C1, -88, "welcomePopup")
+	Feat(C2, -88, "joinWindow")
+	Feat(C1, -110, "autoWelcome")
+	Label(p, "lbl_whisper_window", C2 + 4, -116, "GameFontHighlightSmall", 232)
+	MakeEdit("settings", p, 540, -112, 40, function() return db.recruit.window end, NumberSetter(db.recruit, "window", 1), 4)
 
 	-- general
-	Section("sec_general", -246)
-	Feat(C1, -266, "minimap")
-	Feat(C2, -266, "sound")
-	Feat(C1, -288, "guildBroadcast")
-	Feat(C2, -288, "worldPing")
-	local warn = Label(p, "worldping_warn", 0, -314, "GameFontDisableSmall", 590)
+	Section("sec_general", -144)
+	Feat(C1, -164, "minimap")
+	Feat(C2, -164, "sound")
+	Feat(C1, -186, "guildBroadcast")
+	Feat(C2, -186, "worldPing")
+	local warn = Label(p, "worldping_warn", 0, -212, "GameFontDisableSmall", 590)
 	warn:SetHeight(26)
 	warn:SetJustifyV("TOP")
 
 	-- sync
-	Section("sec_sync", -346)
-	MakeCheck("settings", p, C1, -366, "chk_sync_accept",
+	Section("sec_sync", -244)
+	MakeCheck("settings", p, C1, -264, "chk_sync_accept",
 		function() return db.sync.accept end, function(v) db.sync.accept = v end, "tip_sync_accept")
-	Label(p, "lbl_trust_rank", C2 + 4, -372, "GameFontHighlightSmall", 232)
-	MakeEdit("settings", p, 540, -368, 40, function() return db.sync.trustRank end, NumberSetter(db.sync, "trustRank", 0), 2)
+	Label(p, "lbl_trust_rank", C2 + 4, -270, "GameFontHighlightSmall", 232)
+	MakeEdit("settings", p, 540, -266, 40, function() return db.sync.trustRank end, NumberSetter(db.sync, "trustRank", 0), 2)
 	local syncNow = MakeButton(p, NextName("Btn"), "btn_sync_now", 190, 24, function() BG.Roster.RequestSync(true) end)
-	syncNow:SetPoint("TOPLEFT", p, "TOPLEFT", 0, -396)
+	syncNow:SetPoint("TOPLEFT", p, "TOPLEFT", 0, -294)
 	Tooltip(syncNow, "tip_sync_now")
-	p.syncStatus = Label(p, nil, 200, -402, "GameFontDisableSmall", 390)
+	p.syncStatus = Label(p, nil, 200, -300, "GameFontDisableSmall", 390)
 	local rp = MakeButton(p, NextName("Btn"), "btn_reset_presence", 190, 22, function()
 		db.presence = {}
 		BG.Presence.Record(BG.me, BG.Presence.LocalAddons(), "self")
 		UI.Refresh("addons")
 		BG.Print(BG.T("done"))
 	end)
-	rp:SetPoint("TOPLEFT", p, "TOPLEFT", 0, -430)
+	rp:SetPoint("TOPLEFT", p, "TOPLEFT", 0, -328)
 	local rt = MakeButton(p, NextName("Btn"), "btn_reset_texts", 220, 22, function()
 		BG.ResetTexts()
 		BG.ResetKeywords()
 		UI.Refresh("all")
 		BG.Print(BG.T("done"))
 	end)
-	rt:SetPoint("TOPLEFT", p, "TOPLEFT", 200, -430)
+	rt:SetPoint("TOPLEFT", p, "TOPLEFT", 200, -328)
 	local st = MakeButton(p, "BananaGuildSelfTestBtn", "btn_selftest", 160, 22, function()
 		UI.Show("selftest")
 		BG.SelfTest.Run()
 	end)
-	st:SetPoint("TOPLEFT", p, "TOPLEFT", 430, -430)
+	st:SetPoint("TOPLEFT", p, "TOPLEFT", 430, -328)
 	Tooltip(st, "tip_selftest")
-	root.gzModeChecks = p.gzModeChecks
 	root.refresh = function()
-		UI.UpdateGZ()
 		local last = BG.db.sync.last
 		if last then
 			p.syncStatus:SetText(BG.T("sync_status", BG.Stamp(last), BG.db.sync.lastApplied or 0))
@@ -1654,13 +1629,6 @@ local BUILDERS = {
 	addons = BuildAddons, recruit = BuildRecruit, scanner = BuildScanner, texts = BuildTexts,
 	members = BuildMembers, log = BuildLog, settings = BuildSettings, selftest = BuildSelfTest,
 }
-
-function UI.UpdateGZ()
-	local p = panels.settings
-	if not p or not p.gzModeChecks then return end
-	local mode = BG.db.gz.mode
-	for m, c in pairs(p.gzModeChecks) do c:SetChecked((m == mode) and 1 or nil) end
-end
 
 function UI.Refresh(kind)
 	if not main or not main:IsVisible() then return end
@@ -1709,12 +1677,10 @@ function UI.ApplyLocale()
 		main.btnDE.fs:SetTextColor(deOn and 1 or 0.5, deOn and 0.82 or 0.5, deOn and 0 or 0.5)
 		main.btnEN.fs:SetTextColor(deOn and 0.5 or 1, deOn and 0.5 or 0.82, deOn and 0.5 or 0)
 		UI.UpdateScannerLang()
-		UI.UpdateGZ()
 		UI.UpdateQuiet()
 		UI.UpdateTextButtons()
 		if UI.current then UI.Refresh("all") end
 	end
-	if BG.Alerts then BG.Alerts.RelabelToast() BG.Alerts.RelabelSplash() end
 	if BG.Recruit then BG.Recruit.RelabelMenu() end
 	if UI.support then UI.support.RelabelSupport() end
 end

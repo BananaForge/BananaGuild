@@ -67,10 +67,6 @@ local function Scan()
 	local initial = not db.rosterInit
 	for name, info in pairs(new) do
 		-- level ups
-		local prev = db.levels[name]
-		if prev and info.level > prev and not first and info.online then
-			if BG.Alerts then BG.Alerts.OnLevel(name, info.level, "roster") end
-		end
 		db.levels[name] = info.level
 		-- newly seen characters
 		if not db.chars[name] then

@@ -3,6 +3,10 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 1.17.0
+- GZ- und Levelup-Funktion entfernt, ist jetzt Teil von BananaBank: Levelup-Hinweis mit GZ-Button, Stufe-60-Anzeige, GZ-Texte und die zugehörigen Einstellungen (GZ-Modi, Schalter „Levelup-Hinweis", „Stufe 60", „auch für mich selbst"), die Befehle `/bgd gz`, `/bgd test60`, `/bgd testlevel` sowie die Levelup-Meldungen im Instanzmodus. Alte gespeicherte GZ-Daten werden beim Start verworfen. Alte Levelup-Einträge im Verlauf bleiben sichtbar, neue entstehen hier nicht mehr.
+- Das Addon zeigt weiterhin die Stufe der Mitglieder (Mitgliederliste, Neuling Check, Statistik).
+
 ## 1.16.3
 - Neuling Check: Dauerhafter Hinweis unten links („Sammel-Knöpfe: zum Bestätigen zweimal klicken") und Tooltips an „Alle Online befördern" / „Alle befördern".
 - Bank-Info-Whisper: Das Addon versucht den Whisper jetzt nach jeder Beförderung immer (das Online-Kennzeichen der Gildenliste kann ein paar Sekunden alt sein) und schreibt „Bank-Info an NAME geflüstert." in den Chat. Fehlt der Text, kommt ein Hinweis.
