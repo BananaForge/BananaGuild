@@ -1870,6 +1870,7 @@ function UI.Show(key)
 		if k == key then b:Disable() else b:Enable() end
 	end
 	main:Show()
+	main:Raise()
 	local l = loaders[key]
 	if l then for _, w in ipairs(l) do w:Load() end end
 	local p = panels[key]
@@ -1908,6 +1909,7 @@ function UI.Build()
 	main:SetHeight(560)
 	main:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
 	main:SetFrameStrata("HIGH")
+	main:SetToplevel(true)   -- a click brings the window (and everything in it) in front of other addon windows, e.g. BananaBank
 	main:SetMovable(true)
 	main:EnableMouse(true)
 	main:RegisterForDrag("LeftButton")

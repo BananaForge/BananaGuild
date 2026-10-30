@@ -3,6 +3,9 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 1.19.2
+- Das BananaGuild-Hauptfenster kommt jetzt beim Öffnen und beim Anklicken nach vorn (auch vor andere Addon-Fenster wie BananaBank). Vorher konnten sich Teile beider Fenster ineinander mischen, wenn sie gleichzeitig offen waren.
+
 ## 1.19.1
 - Rollen-Statistik: Unter dem Diagramm steht jetzt eine Liste mit den Namen. Oben die Rolle (Tank, Heal, DD, unbekannt) mit Anzahl, darunter je Klasse in Klassenfarbe die Charaktere. Bei langen Listen scrollt sie (Mausrad oder Balken).
 - Die drei Knöpfe oben (Klassen, Specs pro Klasse, Rollen) sind etwas schmaler, damit der Schließen-Knopf oben rechts nicht mehr überdeckt wird.
