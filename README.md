@@ -16,8 +16,8 @@ Ingame: `/bgd` (oder `/bananaguild`, oder Minimap-Button). **Als Erstes unter Ei
 |---|---|
 | **Addons & Analytics** | Zeigt, wer in der Gilde BananaCraft / BananaBank / Banana Lootline / Bananaloot / BananaGuild installiert hat und ob es läuft (Version, zuletzt gesehen, Logins, Anteil, 7/30-Tage-Aktivität). |
 | **Stufe 60** | Große Bildschirmanzeige mit BananaGuild-Logo + Spielername. |
-| **Mitglieder & Twinks** | Mains, Twinks, Berufe und Spec kommen aus der **öffentlichen Gildennotiz** (siehe unten), nichts wird doppelt gepflegt und nichts muss dafür synchronisiert werden. Liste mit Name, Level, Beruf, Spec, Rolle. Beitrittsdatum, wer hat eingeladen und eine eigene Notiz bleiben zusätzlich pflegbar und synchronisierbar. |
-| **Mitglieder-Liste** | Spalten anklicken zum Sortieren, Filter für Suche, Rang, „Nur online" und „Ohne gültige Notiz". Rechtsklick auf ein Mitglied: per Flüstern nach Berufen, Spec oder Twinks fragen (Texte im Reiter Texte). |
+| **Mitglieder & Twinks** | Mains, Twinks, Berufe und Spec stehen im Addon und werden unter den Offizieren synchronisiert (siehe unten) und nichts muss dafür synchronisiert werden. Liste mit Name, Level, Beruf, Spec, Rolle. Beitrittsdatum, wer hat eingeladen und eine eigene Notiz bleiben zusätzlich pflegbar und synchronisierbar. |
+| **Mitglieder-Liste** | Spalten anklicken zum Sortieren, Filter für Suche, Rang, „Nur online" und „Ohne Daten". Rechtsklick auf ein Mitglied: per Flüstern nach Berufen, Spec oder Twinks fragen (Texte im Reiter Texte). |
 | **Nach Eintrittsdatum & Inaktive** | Zweite Ansicht im Mitglieder-Reiter mit Beitrittsdatum und Offline-Dauer, Filter „Offline ab N Tagen". Button „Inaktive ...": Mitglieder, die lange offline waren, auf Inaktiv setzen oder aus der Gilde entfernen (mit Vorschau und Bestätigung). |
 | **Gildenstatistik** | Button „Klassen- & Spec-Statistik" im Mitglieder-Reiter: Tortendiagramm der Klassen und ein Ringdiagramm mit den Specs jeder Klasse (Specs aus den Gildennotizen). |
 | **Neuzugang-Fenster** | Beim Einlader / Rekrutierenden öffnet sich nach dem Beitritt ein Fenster (von Hand: `/bgd join Name`): Main/Twink (mit Mainname), bis zu 2 Hauptberufe (oder bewusst keiner), Spec. Das Addon setzt die Gildennotiz im richtigen Format, mit Zeichenzähler (max. 31). Dazu optional die Begrüßung im Gildenchat und Knöpfe, um den Spieler per Flüstern nach Berufen/Spec/Twinks zu fragen; aus seiner Antwort macht das Addon einen Vorschlag. Dasselbe Fenster gibt es im Mitglieder-Reiter über „Notiz bearbeiten ...". |
@@ -34,14 +34,9 @@ Ingame: `/bgd` (oder `/bananaguild`, oder Minimap-Button). **Als Erstes unter Ei
 
 Alle Texte sind im Reiter „Texte" editierbar (Liste der Varianten, Editor mit Vorschau und Platzhalter-Knöpfen, einzelne Varianten ausschaltbar; je 5 Varianten, Begrüßungen 20, Suchtexte für gesuchte Klassen je 10, zufällig und nie zweimal dieselbe hintereinander), alle Funktionen einzeln ein-/ausschaltbar (Reiter *Einstellungen*), die Sprache DE/EN oben rechts umschaltbar. Herz-Symbol oben rechts (Danke-Fenster mit Charakter Lumihunt, wie in den anderen Banana-Addons), Version + Selbsttest unten rechts.
 
-### Format der Gildennotiz
+### Mitgliederdaten (ab 2.0)
 
-```
-[MAIN] [AL+VZ] [Retri]            Main, Berufe, Spec
-[TWINK Bananenbank] [KO] [Frost]  Twink von Bananenbank (Kurzform: [T Bananenbank])
-```
-
-1. Klammer = Rolle (Pflicht), 2. = Berufe (optional, `-` = keine), 3. = Spec (optional). Gross/Klein und Leerzeichen sind egal, getrennt wird mit `+`, `,`, `/` oder Leerzeichen. Mehr als 31 Zeichen lässt WoW nicht zu, deshalb gibt es Kürzel (Berufe: AL SM VZ IN KR LE BB KS SN JC KO EH AN; Specs je Klasse, z.B. Retri, Prot, Holy, Resto, Eule, Katze, Baer). Die längeren deutschen und englischen Namen werden ebenfalls erkannt. Die Notiz gewinnt immer; Charaktere ohne Notiz behalten ihre alte Zuordnung als Ersatz.
+Main/Twink, Berufe, Spec und Zweit-Spec stehen **im Addon**, nicht mehr in der Gildennotiz. Offiziere tragen sie im Fenster „Daten bearbeiten" ein (auch beim Neuzugang), alle Offiziere mit dem Addon bekommen sie automatisch. Die alten Notizen (`[MAIN] [AL+VZ] [Retri]`) werden einmalig gelesen und übernommen (Einstellungen > Daten, dort auch Export/Import als Text als Sicherung), danach aber nie wieder angefasst. Notizen, die sich nicht lesen lassen, erscheinen in einem Popup.
 
 ### Slash-Befehle
 

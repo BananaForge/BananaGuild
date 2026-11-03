@@ -19,6 +19,30 @@ function Roster.Count()        return BG.Count(BG.roster) end
 
 --------------------------------------------------------------------- scan
 
+-- builds info.parsed of every member from the addon data (and checks that the main of a twink exists in the guild)
+function Roster.ParseAll(list)
+	list = list or BG.roster
+	local byFold = {}
+	for name in pairs(list) do byFold[BG.Notes.Fold(name)] = name end
+	for name, info in pairs(list) do
+		info.ckey = BG.Notes.ClassKey(info.class)
+		info.parsed = BG.Data.Parsed(name, info)
+		local p = info.parsed
+		if p.kind == "twink" then
+			local real = byFold[BG.Notes.Fold(p.main)]
+			if real then p.main = real p.mainOk = true end
+			if p.main == name then
+				p.kind, p.main = nil, nil
+				table.insert(p.warn, { "nw_self" })
+			end
+		end
+	end
+end
+
+function Roster.Reparse()
+	Roster.ParseAll(BG.roster)
+end
+
 local function Scan()
 	if not IsInGuild or not IsInGuild() then
 		BG.roster = {}
@@ -43,22 +67,8 @@ local function Scan()
 			}
 		end
 	end
-	-- guild notes: [MAIN] / [TWINK Name] + professions + spec (see Notes.lua)
-	local byFold = {}
-	for name in pairs(new) do byFold[BG.Notes.Fold(name)] = name end
-	for name, info in pairs(new) do
-		info.ckey = BG.Notes.ClassKey(info.class)
-		info.parsed = BG.Notes.Parse(info.note, info.ckey)
-		local p = info.parsed
-		if p.kind == "twink" then
-			local real = byFold[BG.Notes.Fold(p.main)]
-			if real then p.main = real p.mainOk = true end
-			if p.main == name then
-				p.kind, p.main = nil, nil
-				table.insert(p.warn, { "nw_self" })
-			end
-		end
-	end
+	-- member data (main / twink, professions, spec) comes from the addon, see Data.lua
+	Roster.ParseAll(new)
 	local first = (Roster.scans == 0)
 	BG.roster = new
 	Roster.scans = Roster.scans + 1
@@ -90,6 +100,7 @@ local function Scan()
 		end
 	end
 	if initial then db.rosterInit = true end
+	if BG.Data then BG.Data.OnRoster() end
 	if BG.NoteWin then BG.NoteWin.OnRoster() end
 	if BG.Promo then BG.Promo.OnRoster() end
 	if BG.Stats then BG.Stats.OnRoster() end

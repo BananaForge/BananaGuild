@@ -3,6 +3,14 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 2.0.0
+- **Mitgliederdaten nur noch im Addon, keine Gildennotiz mehr.** Main/Twink, Berufe, Spec und Zweit-Spec werden im Fenster „Daten bearbeiten" (Neuzugang-Fenster) eingetragen und im Addon gespeichert. Es gibt keine 31-Zeichen-Grenze, keine Notiz-Vorschau und keinen Zeichenzähler mehr, statt dessen eine Statuszeile („✓ Daten vollständig" bzw. „Es fehlt noch: ..."). Bearbeiten dürfen Offiziere (Rang wie beim Begrüßungs-Popup) und alles darüber, das Notiz-Recht ist nicht mehr nötig.
+- **Sync unter den Offizieren:** Jeder Eintrag geht an alle Offiziere mit dem Addon (Nachricht `M`, nur von Offiziersrängen angenommen, neuere Daten gewinnen). Wer neu online kommt, fragt (`MQ`) und ein Offizier schickt ihm alles Bekannte (`MS`). Main/Twink läuft weiter über den bisherigen Abgleich.
+- **Einmaliger Import der alten Notizen** beim ersten Scan nach dem Update: Main/Twink, Berufe und Spec werden übernommen, die Notizen selbst bleiben unberührt und werden nie mehr geändert. Notizen, die sich nicht (vollständig) lesen lassen, listet ein **Popup** mit den Charakternamen, mit einem Knopf, der jeden Charakter samt Notiztext in den Chat schreibt. Später jederzeit über Einstellungen > Daten („Aus Gildennotizen importieren").
+- Neue Einstellungs-Seite **Daten**: Import der Notizen, Export und Import der Addon-Daten als Text (Sicherung, auch für neue Offiziere), Zahlen zu den vorhandenen Daten.
+- Entfernt: Schreiben der Gildennotiz, Notiz-Vorschau, Zeichenzähler und die automatische Auswertung der Antworten („Vorschlag aus der Antwort"). Die Nachfrage-Knöpfe und die Anzeige der letzten Antworten bleiben.
+- Statistik, Mitgliederliste, Accounts-Zähler und Neuling Check lesen jetzt die Addon-Daten („Daten ok / fehlen" statt „Notiz ok / fehlt", „Ohne Daten" statt „Ohne gültige Notiz"). Der Zweit-Spec zieht aus 1.24 automatisch in die neuen Daten um.
+
 ## 1.24.0
 - Dual-Spec umgebaut: Es wird **nichts mehr automatisch ausgelesen** (die Talent-Erkennung aus 1.23 ist entfernt). Stattdessen fragt der Einlader / Rekrutierer / Offizier den Spieler wie gewohnt nach den Specs und trägt den **Zweit-Spec** im Neuzugang-Fenster (auch über „Notiz bearbeiten ...") von Hand ein: neue Zeile „Zweit-Spec" mit denselben Knöpfen wie beim Spec, darunter „keiner". Der Zweit-Spec kommt **nicht** in die Gildennotiz, sondern bleibt im Addon, es gibt also kein Zeilenlängen-Problem.
 - Der Eintrag wird an alle Offiziere mit dem Addon weitergegeben (Nachricht `D`, nur von Offiziersrängen angenommen, Entfernen wird mitgeschickt). Wer neu online kommt, fragt (`DQ`) und ein Offizier schickt ihm alles Bekannte (`DS`).

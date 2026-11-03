@@ -584,11 +584,11 @@ function BG.OnComm(kind, fn)
 	BG.comm[kind] = fn
 end
 
-function BG.Send(a, b, c, d, e)
+function BG.Send(a, b, c, d, e, f, g)
 	-- BG.Send("R", x, y)  ->  "R;x;y"  (never use the pipe char: the server treats it as a chat escape)
 	local parts = {}
-	local list = { a, b, c, d, e }
-	for i = 1, 5 do
+	local list = { a, b, c, d, e, f, g }
+	for i = 1, 7 do
 		if list[i] == nil then break end
 		parts[i] = tostring(list[i])
 	end

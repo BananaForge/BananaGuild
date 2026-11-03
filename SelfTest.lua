@@ -168,9 +168,7 @@ function ST.Run()
 			if info.parsed and info.parsed.kind then valid = valid + 1 end
 		end
 		if total > 0 then Add("INFO", BG.T("st_notes"), BG.T("st_notes_ok", valid, total)) end
-		if CanEditPublicNote then
-			Add(BG.Notes.CanEdit() and "OK" or "INFO", BG.T("st_noteright"), BG.T(BG.Notes.CanEdit() and "st_yes" or "st_no"))
-		end
+		Add(BG.Data.CanEdit() and "OK" or "INFO", BG.T("st_noteright"), BG.T(BG.Data.CanEdit() and "st_yes" or "st_no"))
 		if CanGuildPromote then
 			Add(BG.Promo.CanPromote() and "OK" or "INFO", BG.T("st_promoright"), BG.T(BG.Promo.CanPromote() and "st_yes" or "st_no"))
 		end

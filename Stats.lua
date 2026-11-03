@@ -97,8 +97,8 @@ function Stats.CollectRoles(lo, hi, days, pool)
 				-- the roles this character counts for: its main role; with "both specs" every role it can play
 				local main = (pn and pn.spec and pn.role) or "?"
 				local roles = { main }
-				if pool and BG.Dual and main ~= "?" then
-					local set = BG.Dual.Roles(name, info)
+				if pool and BG.Data and main ~= "?" then
+					local set = BG.Data.Roles(name, info)
 					for _, r in ipairs({ "T", "H", "D" }) do
 						if set[r] and r ~= main then table.insert(roles, r) end
 					end
@@ -111,8 +111,8 @@ function Stats.CollectRoles(lo, hi, days, pool)
 					-- the spec behind this role: the one in the note, else one from the dual spec data
 					local spec
 					if pn and pn.spec and pn.spec[4] == role then spec = pn.spec
-					elseif BG.Dual and info.ckey then
-						local s2 = BG.Dual.Spec2(name, info.ckey)
+					elseif BG.Data and info.ckey then
+						local s2 = BG.Data.Spec2(name, info.ckey)
 						if s2 and s2[4] == role then spec = s2 end
 					end
 					local label

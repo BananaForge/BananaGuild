@@ -1475,11 +1475,12 @@ function UI.LoadDetail()
 			d.twinks:SetText(GRAY .. BG.T("detail_no_twinks") .. "|r")
 		end
 	end
+	-- the old guild note stays visible (gray), the data below comes from the addon
 	local note = info and info.note or ""
-	d.gnote:SetText(note ~= "" and note or (GRAY .. BG.T("note_none") .. "|r"))
+	d.gnote:SetText(note ~= "" and (GRAY .. note .. "|r") or (GRAY .. BG.T("note_none") .. "|r"))
 	-- second spec (entered in the new member window, kept in the addon)
 	local dualText = ""
-	local s2 = BG.Dual and info and info.ckey and BG.Dual.Spec2(name, info.ckey)
+	local s2 = BG.Data and info and info.ckey and BG.Data.Spec2(name, info.ckey)
 	if s2 then dualText = GRAY .. BG.T("dual_line") .. "|r " .. BG.Notes.SpecName(s2) end
 	d.dual:SetText(dualText)
 	local pn = info and info.parsed
@@ -1716,8 +1717,72 @@ function UI.SettingsPage(which)
 	UI.MarkSelected(root.btnGeneral, which == "general")
 	UI.MarkSelected(root.btnQuiet, which == "quiet")
 	UI.MarkSelected(root.btnPromo, which == "promo")
+	UI.MarkSelected(root.btnData, which == "data")
 	UI.UpdateQuiet()
 	UI.UpdatePromoPage()
+	UI.UpdateDataPage()
+end
+
+-- page 4 of the settings: the member data (import of the old notes, backup as text)
+local function BuildDataPage(root, dp)
+	local db = BG.db
+	Label(dp, "data_header", 0, -2, "GameFontNormal")
+	local desc = Label(dp, "data_desc", 0, -26, "GameFontHighlightSmall", 590)
+	desc:SetHeight(44)
+	desc:SetJustifyV("TOP")
+	local imp = MakeButton(dp, NextName("Btn"), "btn_data_import_notes", 240, 24, function()
+		local n, bad = BG.Data.ImportNotes()
+		BG.Print(BG.T("data_import_done", n))
+		if BG.Data.CanEdit() then BG.Data.ShowBad(bad) end
+		UI.UpdateDataPage()
+	end)
+	imp:SetPoint("TOPLEFT", dp, "TOPLEFT", 0, -78)
+	Tooltip(imp, "tip_data_import_notes")
+	dp.importInfo = Label(dp, nil, 250, -84, "GameFontDisableSmall", 340)
+	local exp = MakeButton(dp, NextName("Btn"), "btn_data_export", 150, 24, function()
+		local text = BG.Data.Export()
+		UI.dataText = text
+		dp.area.edit:Load()
+		dp.area.edit:SetFocus()
+		dp.area.edit:HighlightText()
+	end)
+	exp:SetPoint("TOPLEFT", dp, "TOPLEFT", 0, -118)
+	local imp2 = MakeButton(dp, NextName("Btn"), "btn_data_import_text", 150, 24, function()
+		local n = BG.Data.Import(UI.dataText or "")
+		if n == nil then BG.Print(BG.T("data_text_bad")) else BG.Print(BG.T("data_text_done", n)) end
+		UI.UpdateDataPage()
+	end)
+	imp2:SetPoint("LEFT", exp, "RIGHT", 6, 0)
+	Label(dp, "data_text_hint", 316, -124, "GameFontDisableSmall", 280)
+	dp.area = MakeTextArea("settings", dp, 0, -152, 596, 170,
+		function() return UI.dataText or "" end,
+		function(v) UI.dataText = v end, 60000)
+	dp.stats = Label(dp, nil, 0, -334, "GameFontNormalSmall", 590)
+	dp.note = Label(dp, "data_note", 0, -362, "GameFontDisableSmall", 590)
+	dp.note:SetHeight(40)
+	dp.note:SetJustifyV("TOP")
+	root.dataPage = dp
+end
+
+function UI.UpdateDataPage()
+	local root = panels.settings
+	local dp = root and root.dataPage
+	if not dp then return end
+	local db = BG.db
+	if db.dataImported then
+		dp.importInfo:SetText(BG.T("data_imported_at", BG.Stamp(db.dataImported), table.getn(db.dataImportBad or {})))
+	else
+		dp.importInfo:SetText(BG.T("data_not_imported"))
+	end
+	local total, withProf, withSpec, withSpec2 = 0, 0, 0, 0
+	for name, info in pairs(BG.roster) do
+		total = total + 1
+		local p = info.parsed
+		if p and (table.getn(p.profs) > 0 or p.noprof) then withProf = withProf + 1 end
+		if p and p.spec then withSpec = withSpec + 1 end
+		if info.ckey and BG.Data.Spec2(name, info.ckey) then withSpec2 = withSpec2 + 1 end
+	end
+	dp.stats:SetText(BG.T("data_stats", total, withProf, withSpec, withSpec2))
 end
 
 local function BuildSettings(root)
@@ -1728,15 +1793,20 @@ local function BuildSettings(root)
 	qp:SetAllPoints(root)
 	local pp = CreateFrame("Frame", NextName("SetPromo"), root)
 	pp:SetAllPoints(root)
-	root.pages = { general = p, quiet = qp, promo = pp }
+	local dp = CreateFrame("Frame", NextName("SetData"), root)
+	dp:SetAllPoints(root)
+	root.pages = { general = p, quiet = qp, promo = pp, data = dp }
 	root.btnPromo = MakeButton(root, NextName("Btn"), "btn_set_promo", 110, 20, function() UI.SettingsPage("promo") end)
 	root.btnPromo:SetPoint("TOPRIGHT", root, "TOPRIGHT", 0, 2)
 	root.btnQuiet = MakeButton(root, NextName("Btn"), "btn_set_quiet", 130, 20, function() UI.SettingsPage("quiet") end)
 	root.btnQuiet:SetPoint("RIGHT", root.btnPromo, "LEFT", -4, 0)
 	root.btnGeneral = MakeButton(root, NextName("Btn"), "btn_set_general", 100, 20, function() UI.SettingsPage("general") end)
 	root.btnGeneral:SetPoint("RIGHT", root.btnQuiet, "LEFT", -4, 0)
+	root.btnData = MakeButton(root, NextName("Btn"), "btn_set_data", 80, 20, function() UI.SettingsPage("data") end)
+	root.btnData:SetPoint("RIGHT", root.btnGeneral, "LEFT", -4, 0)
 	BuildQuietPage(root, qp)
 	BuildPromoPage(root, pp)
+	BuildDataPage(root, dp)
 	Label(p, "settings_header", 0, -2, "GameFontNormal", 240)
 
 	-- one feature checkbox by key (label / tooltip keys come from FEATURES)
@@ -1832,6 +1902,7 @@ local function BuildSettings(root)
 	Tooltip(st, "tip_selftest")
 	root.refresh = function()
 		UI.UpdateGuildStatus()
+		UI.UpdateDataPage()
 		local last = BG.db.sync.last
 		if last then
 			p.syncStatus:SetText(BG.T("sync_status", BG.Stamp(last), BG.db.sync.lastApplied or 0))

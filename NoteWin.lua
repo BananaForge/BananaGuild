@@ -1,15 +1,16 @@
 --[[
   BananaGuild - NoteWin
-  Window to enter / edit the guild note of a member: main or twink (+ main name), professions, spec.
+  Window to enter / edit the data of a member: main or twink (+ main name), professions, spec and second spec.
+  The data is stored in the addon (Data.lua), nothing is written into the guild note.
   Opens automatically for the inviter / recruiter and the officers when somebody joins ("join" mode), or from the members tab ("edit" mode).
-  Has buttons to ask the player for professions / spec / twinks by whisper; the whisper replies are read and turned into a proposal.
+  Has buttons to ask the player for professions / spec / twinks by whisper; the whisper replies are shown (typed in by hand).
 ]]
 
 local BG = BananaGuild
 local NW = {}
 BG.NoteWin = NW
 
-local W, H = 460, 594
+local W, H = 460, 524
 local GOLD, WHITE, GRAY, GREEN, RED = "|cffffd100", "|cffffffff", "|cff999999", "|cff40ff40", "|cffff5555"
 local win
 local counter = 0
@@ -40,15 +41,6 @@ local function Text(parent, x, y, font, width)
 end
 
 --------------------------------------------------------------------- state
-
-local function CurrentNote()
-	if not win then return "", 0 end
-	local profs = {}
-	if not win.noprof then
-		for i = 1, table.getn(win.profs) do table.insert(profs, win.profs[i]) end
-	end
-	return BG.Notes.Build(win.kind, win.main or "", profs, win.spec)
-end
 
 function NW.Redraw()
 	if not win or not win:IsShown() then return end
@@ -128,29 +120,34 @@ function NW.Redraw()
 		end
 	end
 
-	-- note preview + counter
-	local note, len = CurrentNote()
-	win.note = note
-	win.preview.locked = true
-	if win.preview:GetText() ~= note then win.preview:SetText(note) end
-	win.preview.locked = false
+	-- status line: what is entered, what is missing
 	local problem
-	if win.kind == "twink" and (not win.main or win.main == "") then
-		problem = BG.T("nwin_needmain")
-	elseif len > BG.Notes.MAXLEN then
-		problem = BG.T("nwin_toolong", len)
-	end
-	local pct = len / BG.Notes.MAXLEN
-	if pct > 1 then pct = 1 end
-	win.bar:SetWidth(math.max(1, (W - 40) * pct))
-	if len > BG.Notes.MAXLEN then win.bar:SetTexture(1, 0.3, 0.3, 1) else win.bar:SetTexture(0.3, 0.9, 0.45, 1) end
-	local can = BG.Notes.CanEdit()
+	if win.kind == "twink" and (not win.main or win.main == "") then problem = BG.T("nwin_needmain") end
+	local can = BG.Data.CanEdit()
 	if problem then
 		win.info:SetText(RED .. problem .. "|r")
 	elseif not can then
 		win.info:SetText(GOLD .. BG.T("nwin_noright") .. "|r")
 	else
-		win.info:SetText(GRAY .. BG.T("nwin_count", len) .. "|r")
+		local parts = {}
+		if win.kind == "twink" then table.insert(parts, BG.T("nwin_sug_twink", win.main or "?")) else table.insert(parts, BG.T("nwin_sug_main")) end
+		if win.noprof then
+			table.insert(parts, BG.T("data_noprof"))
+		elseif table.getn(win.profs) > 0 then
+			local names = {}
+			for i = 1, table.getn(win.profs) do table.insert(names, BG.Notes.ProfName(win.profs[i])) end
+			table.insert(parts, table.concat(names, " + "))
+		end
+		if win.spec then table.insert(parts, win.spec .. (win.spec2 and (" / " .. win.spec2) or "")) end
+		local missing = {}
+		if table.getn(win.profs) == 0 and not win.noprof then table.insert(missing, BG.T("data_miss_profs")) end
+		if not win.spec then table.insert(missing, BG.T("data_miss_spec")) end
+		local line = table.concat(parts, " - ")
+		if table.getn(missing) == 0 then
+			win.info:SetText(GREEN .. BG.T("data_complete") .. "|r  " .. line)
+		else
+			win.info:SetText(GOLD .. BG.T("data_missing", table.concat(missing, ", ")) .. "|r  " .. line)
+		end
 	end
 	local ok = (not problem) and can
 	if ok then
@@ -186,45 +183,6 @@ function NW.RedrawAsk()
 		win.reply:SetText(GRAY .. BG.T("nwin_ask_offline") .. "|r")
 	else
 		win.reply:SetText(GRAY .. BG.T("nwin_noreply") .. "|r")
-	end
-	local sug = NW.Suggestion(name)
-	-- nothing to propose when the form already shows exactly that
-	if sug and sug.any then
-		local same = true
-		if sug.kind and sug.kind ~= win.kind then same = false end
-		if sug.kind == "twink" and sug.main and sug.main ~= win.main then same = false end
-		if sug.spec and sug.spec[1] ~= win.spec then same = false end
-		if sug.spec2 and sug.spec2[1] ~= win.spec2 then same = false end
-		if table.getn(sug.profs) > 0 then
-			if win.noprof or table.getn(win.profs) ~= table.getn(sug.profs) then same = false end
-			for i = 1, table.getn(sug.profs) do
-				local found = false
-				for j = 1, table.getn(win.profs) do if win.profs[j] == sug.profs[i] then found = true end end
-				if not found then same = false end
-			end
-		end
-		if same then sug = nil end
-	end
-	win.suggestion = sug
-	if sug and sug.any then
-		local parts = {}
-		if sug.kind == "twink" then
-			table.insert(parts, sug.main and BG.T("nwin_sug_twink", sug.main) or BG.T("nwin_sug_twink0"))
-		elseif sug.kind == "main" then
-			table.insert(parts, BG.T("nwin_sug_main"))
-		end
-		if table.getn(sug.profs) > 0 then
-			local names = {}
-			for i = 1, table.getn(sug.profs) do table.insert(names, BG.Notes.ProfName(sug.profs[i])) end
-			table.insert(parts, BG.T("nwin_sug_profs", table.concat(names, ", ")))
-		end
-		if sug.spec then table.insert(parts, BG.T("nwin_sug_spec", sug.spec[1])) end
-		if sug.spec2 then table.insert(parts, BG.T("nwin_sug_spec2", sug.spec2[1])) end
-		win.sugText:SetText(GOLD .. BG.T("nwin_suggest") .. "|r " .. table.concat(parts, " - "))
-		win.sugBtn:Show()
-	else
-		win.sugText:SetText("")
-		win.sugBtn:Hide()
 	end
 end
 
@@ -393,40 +351,16 @@ local function Build()
 	end
 
 	-- note preview (an edit box so it can be selected and copied, but not changed)
-	win.noteLbl = Text(win, 16, -318, "GameFontNormalSmall", W - 32)
-	win.preview = CreateFrame("EditBox", Name("Preview"), win, "InputBoxTemplate")
-	win.preview:SetWidth(W - 44)
-	win.preview:SetHeight(20)
-	win.preview:SetPoint("TOPLEFT", win, "TOPLEFT", 20, -334)
-	win.preview:SetAutoFocus(false)
-	win.preview:SetScript("OnTextChanged", function()
-		if this.locked then return end
-		this.locked = true
-		this:SetText(win.note or "")
-		this.locked = false
-	end)
-	win.preview:SetScript("OnEscapePressed", function() this:ClearFocus() end)
-	win.preview:SetScript("OnEnterPressed", function() this:ClearFocus() end)
-	local back = win:CreateTexture(nil, "ARTWORK")
-	back:SetTexture(0, 0, 0, 0.6)
-	back:SetWidth(W - 40)
-	back:SetHeight(5)
-	back:SetPoint("TOPLEFT", win, "TOPLEFT", 20, -358)
-	win.bar = win:CreateTexture(nil, "OVERLAY")
-	win.bar:SetTexture(0.3, 0.9, 0.45, 1)
-	win.bar:SetWidth(10)
-	win.bar:SetHeight(5)
-	win.bar:SetPoint("TOPLEFT", win, "TOPLEFT", 20, -358)
-	win.info = Text(win, 16, -368, "GameFontHighlightSmall", W - 32)
-	win.info:SetHeight(26)
+	win.info = Text(win, 16, -318, "GameFontHighlightSmall", W - 32)
+	win.info:SetHeight(30)
 	win.info:SetJustifyV("TOP")
 
 	-- own note (stays in the addon, synced to other BananaGuild users): saved when the window closes
-	win.intLbl = Text(win, 16, -398, "GameFontNormalSmall", W - 32)
+	win.intLbl = Text(win, 16, -356, "GameFontNormalSmall", W - 32)
 	win.intEdit = CreateFrame("EditBox", Name("IntEdit"), win, "InputBoxTemplate")
 	win.intEdit:SetWidth(W - 44)
 	win.intEdit:SetHeight(20)
-	win.intEdit:SetPoint("TOPLEFT", win, "TOPLEFT", 20, -412)
+	win.intEdit:SetPoint("TOPLEFT", win, "TOPLEFT", 20, -370)
 	win.intEdit:SetAutoFocus(false)
 	win.intEdit:SetMaxLetters(80)
 	win.intEdit:SetScript("OnEscapePressed", function() this:ClearFocus() end)
@@ -434,14 +368,14 @@ local function Build()
 	win:SetScript("OnHide", function() NW.SaveInternal() end)
 
 	-- ask the player by whisper (professions / spec / twinks / everything) and read the reply
-	win.askLbl = Text(win, 16, -440, "GameFontNormalSmall", W - 32)
+	win.askLbl = Text(win, 16, -402, "GameFontNormalSmall", W - 32)
 	win.askBtns = {}
 	local askKinds = { "askAll", "askProf", "askSpec", "askTwink" }
 	local askKeys = { "nwin_ask_all", "nwin_ask_prof", "nwin_ask_spec", "nwin_ask_twink" }
 	for i = 1, 4 do
 		local kind, key = askKinds[i], askKeys[i] -- local per iteration (Lua 5.0 closures share the loop variable)
 		local b = BG.MakeButton(win, Name("Btn"), 104, 22, "")
-		b:SetPoint("TOPLEFT", win, "TOPLEFT", 16 + (i - 1) * 108, -454)
+		b:SetPoint("TOPLEFT", win, "TOPLEFT", 16 + (i - 1) * 108, -416)
 		b:SetScript("OnClick", function() NW.Ask(win.target, kind) end)
 		b:SetScript("OnEnter", function()
 			GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
@@ -452,16 +386,9 @@ local function Build()
 		b:SetScript("OnLeave", function() GameTooltip:Hide() end)
 		win.askBtns[i] = b
 	end
-	win.reply = Text(win, 16, -482, "GameFontHighlightSmall", W - 32)
+	win.reply = Text(win, 16, -446, "GameFontHighlightSmall", W - 32)
 	win.reply:SetHeight(28)
 	win.reply:SetJustifyV("TOP")
-	win.sugText = Text(win, 16, -516, "GameFontHighlightSmall", W - 190)
-	win.sugText:SetHeight(28)
-	win.sugText:SetJustifyV("TOP")
-	win.sugBtn = BG.MakeButton(win, Name("Btn"), 150, 22, "")
-	win.sugBtn:SetPoint("TOPRIGHT", win, "TOPRIGHT", -16, -518)
-	win.sugBtn:SetScript("OnClick", function() NW.ApplySuggestion() end)
-	win.sugBtn:Hide()
 
 	-- actions
 	win.btnGo = BG.MakeButton(win, Name("Btn"), 186, 24, "")
@@ -512,12 +439,13 @@ end
 function NW.Apply(greet)
 	if not win or not win.target then return end
 	local name = win.target
-	if not BG.Notes.CanEdit() then return end
-	local note = win.note or ""
-	if note == "" or string.len(note) > BG.Notes.MAXLEN then return end
+	if not BG.Data.CanEdit() then return end
 	if win.kind == "twink" and (not win.main or win.main == "") then return end
-	BG.Notes.Set(name, note)
-	if BG.Dual then BG.Dual.Set(name, win.spec2) end
+	local profs = {}
+	if not win.noprof then
+		for i = 1, table.getn(win.profs) do table.insert(profs, win.profs[i]) end
+	end
+	BG.Data.Save(name, { kind = win.kind, main = win.main, profs = profs, noprof = win.noprof, spec = win.spec, spec2 = win.spec2 })
 	if greet and BG.Recruit then BG.Recruit.Welcome(name) end
 	win:Hide()
 end
@@ -557,15 +485,6 @@ function NW.LastReply(name)
 	return r[table.getn(r)]
 end
 
-function NW.Suggestion(name)
-	local r = Recent(name)
-	if table.getn(r) == 0 then return nil end
-	local texts = {}
-	for i = 1, table.getn(r) do table.insert(texts, r[i].text) end
-	local info = BG.roster[name]
-	return BG.Notes.Suggest(table.concat(texts, " "), info and info.ckey, name)
-end
-
 function NW.Ask(name, kind)
 	local info = name and BG.roster[name]
 	if not info or name == BG.me then return end
@@ -574,24 +493,6 @@ function NW.Ask(name, kind)
 	if not line then return end
 	BG.SendChat(BG.Fill(line, { name = name }), "WHISPER", name)
 	BG.Print(BG.T("menu_sent", name))
-end
-
--- takes over only what the reply contained; the person confirms with the normal buttons afterwards
-function NW.ApplySuggestion()
-	local sug = win and win.suggestion
-	if not sug or not sug.any then return end
-	if sug.kind then
-		win.kind = sug.kind
-		if sug.kind == "twink" and sug.main then win.main = sug.main end
-	end
-	if table.getn(sug.profs) > 0 then
-		win.profs = {}
-		for i = 1, table.getn(sug.profs) do table.insert(win.profs, sug.profs[i]) end
-		win.noprof = false
-	end
-	if sug.spec then win.spec = sug.spec[1] end
-	if sug.spec2 then win.spec2 = sug.spec2[1] end
-	NW.Redraw()
 end
 
 BG.On("CHAT_MSG_WHISPER", function(msg, sender) NW.OnWhisper(msg, sender) end)
@@ -612,21 +513,19 @@ function NW.Open(name, mode, opts)
 	local info = BG.roster[name]
 	win.ckey = info and info.ckey or nil
 	do
-		local s2 = BG.Dual and win.ckey and BG.Dual.Spec2(name, win.ckey)
+		local s2 = win.ckey and BG.Data.Spec2(name, win.ckey)
 		if s2 then win.spec2 = s2[1] end
 	end
 	local p = info and info.parsed
 	win.main = nil
-	if p and p.kind then
-		win.kind = p.kind
-		if p.main then win.main = p.main end
+	if p then
+		if p.kind then
+			win.kind = p.kind
+			if p.main then win.main = p.main end
+		end
 		for i = 1, table.getn(p.profs) do table.insert(win.profs, p.profs[i]) end
 		if p.spec then win.spec = p.spec[1] end
-		if table.getn(p.profs) == 0 then
-			-- an existing note without professions: keep it that way
-			local _, _, g2 = string.find(info.note or "", "%[[^%]]*%]%s*%[([^%]]*)%]")
-			if g2 then win.noprof = true end
-		end
+		if p.noprof then win.noprof = true end
 	end
 	local c0 = BG.db.chars[name]
 	win.intEdit:SetText((c0 and c0.note) or "")
@@ -640,13 +539,11 @@ function NW.Open(name, mode, opts)
 	win.noprofText:SetText(BG.T("nwin_noprof"))
 	win.specLbl:SetText(GOLD .. BG.T("nwin_spec") .. "|r")
 	win.spec2Lbl:SetText(GOLD .. BG.T("nwin_spec2") .. "|r")
-	win.noteLbl:SetText(GOLD .. BG.T("nwin_note") .. "|r")
 	win.askLbl:SetText(GOLD .. BG.T("nwin_ask") .. "|r")
 	win.askBtns[1]:SetText(BG.T("nwin_ask_all"))
 	win.askBtns[2]:SetText(BG.T("nwin_ask_prof"))
 	win.askBtns[3]:SetText(BG.T("nwin_ask_spec"))
 	win.askBtns[4]:SetText(BG.T("nwin_ask_twink"))
-	win.sugBtn:SetText(BG.T("nwin_suggest_btn"))
 	SyncMainItems(true)
 	win:Show()
 	win:Raise()
