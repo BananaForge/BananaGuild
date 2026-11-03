@@ -151,6 +151,23 @@ function Promo.Soon(soonDays)
 	return out
 end
 
+-- who is due, split in two: members that can be promoted and members that were offline for more than
+-- promo.inactiveDays days (suggested for the inactive rank). inactiveDays = 0 switches the second list off.
+function Promo.Split(includeSnoozed)
+	local due = Promo.Due(includeSnoozed)
+	local lim = tonumber(BG.db.promo.inactiveDays) or 0
+	local promo, inact = {}, {}
+	for i = 1, table.getn(due) do
+		local it = due[i]
+		if lim > 0 and not it.online and it.off and it.off > lim then
+			table.insert(inact, it)
+		else
+			table.insert(promo, it)
+		end
+	end
+	return promo, inact
+end
+
 function Promo.Snooze(name)
 	BG.db.promo.snooze[name] = BG.Today()
 	Promo.Refresh()
@@ -185,6 +202,19 @@ end
 local function BatchAdd()
 	if not Promo.batch or (not Promo.cur and table.getn(Promo.queue) == 0) then Promo.batch = { ok = 0, fail = 0, total = 0 } end
 	Promo.batch.total = Promo.batch.total + 1
+end
+
+-- set members of the list to the inactive rank (rank name from the inactive window settings), one rank per step like a promotion
+function Promo.EnqueueInactive(names)
+	local pr = BG.db.promo
+	local target = BG.db.inactive.rank
+	if not Promo.RankIndex(target) then BG.Print(BG.T("promo_bad_inactive", tostring(target))) return 0 end
+	local added = 0
+	for i = 1, table.getn(names) do
+		local info = BG.roster[names[i]]
+		if info and info.rank == pr.from and Promo.EnqueueTo(names[i], target) then added = added + 1 end
+	end
+	return added
 end
 
 -- the members of the list that are online right now
@@ -491,6 +521,13 @@ local function Build()
 
 	win.title = win:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
 	win.title:SetPoint("TOPLEFT", win, "TOPLEFT", 16, -14)
+	win.view = "promote"
+	win.tabPromote = BG.MakeButton(win, Name("Tab"), 190, 22, "")
+	win.tabPromote:SetPoint("TOPLEFT", win, "TOPLEFT", 190, -12)
+	win.tabPromote:SetScript("OnClick", function() Promo.SetView("promote") end)
+	win.tabInactive = BG.MakeButton(win, Name("Tab"), 210, 22, "")
+	win.tabInactive:SetPoint("LEFT", win.tabPromote, "RIGHT", 4, 0)
+	win.tabInactive:SetScript("OnClick", function() Promo.SetView("inactive") end)
 	win.body = win:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	win.body:SetPoint("TOPLEFT", win, "TOPLEFT", 16, -40)
 	win.body:SetWidth(W - 32)
@@ -533,7 +570,8 @@ local function Build()
 		row.go:SetPoint("RIGHT", row.later, "LEFT", -4, 0)
 		row.go:SetScript("OnClick", function()
 			local item = this:GetParent().item
-			if item then Promo.Enqueue({ item.name }) end
+			if not item then return end
+			if win.view == "inactive" then Promo.EnqueueInactive({ item.name }) else Promo.Enqueue({ item.name }) end
 		end)
 		row:Hide()
 		win.rows[i] = row
@@ -585,7 +623,7 @@ local function Build()
 	win.allOnline:SetScript("OnLeave", function() GameTooltip:Hide() end)
 	win.all = BG.MakeButton(win, Name("Btn"), 140, 24, "")
 	win.all:SetPoint("BOTTOMRIGHT", win, "BOTTOMRIGHT", -108, 14)
-	win.all:SetScript("OnClick", function() Promo.Arm("all") end)
+	win.all:SetScript("OnClick", function() Promo.Arm((win.view == "inactive") and "inactive" or "all") end)
 	win.all:SetScript("OnEnter", function()
 		GameTooltip:SetOwner(this, "ANCHOR_TOP")
 		GameTooltip:SetText(BG.T("btn_promote_all"), 1, 1, 1)
@@ -618,6 +656,10 @@ function Promo.Arm(which)
 		win.armed = nil
 		if which == "online" then
 			Promo.EnqueueOnline()
+		elseif which == "inactive" then
+			local names = {}
+			for i = 1, table.getn(win.shown or {}) do table.insert(names, win.shown[i].name) end
+			Promo.EnqueueInactive(names)
 		else
 			local names = {}
 			for i = 1, table.getn(win.shown or {}) do table.insert(names, win.shown[i].name) end
@@ -627,6 +669,14 @@ function Promo.Arm(which)
 		win.armed = which
 		win.armedAt = GetTime()
 	end
+	Promo.Refresh()
+end
+
+function Promo.SetView(v)
+	if not win then return end
+	win.view = v
+	win.armed = nil
+	win.offset = 0
 	Promo.Refresh()
 end
 
@@ -642,9 +692,30 @@ function Promo.Refresh()
 	local pr = BG.db.promo
 	local steps = Promo.Steps()
 	win.title:SetText(GOLD .. BG.T("promo_title") .. "|r")
-	win.body:SetText(BG.T("promo_body", pr.weeks, pr.from))
-	win.hint:SetText(steps and BG.T("promo_steps_hint", steps, Promo.Path()) or (RED .. BG.T("promo_bad_ranks") .. "|r"))
-	local list = Promo.Due(false)
+	local promoList, inactList = Promo.Split(false)
+	local inactMode = (win.view == "inactive")
+	local inactLimit = tonumber(pr.inactiveDays) or 0
+	if inactLimit <= 0 then inactMode = false win.view = "promote" end
+	win.tabPromote:SetText(BG.T("promo_tab_promote", table.getn(promoList)))
+	if inactLimit > 0 then
+		win.tabInactive:SetText(BG.T("promo_tab_inactive", table.getn(inactList)))
+		win.tabInactive:Show()
+	else
+		win.tabInactive:Hide()
+	end
+	do
+		local f1, f2 = win.tabPromote:GetFontString(), win.tabInactive:GetFontString()
+		if f1 then if inactMode then f1:SetTextColor(1, 1, 1) else f1:SetTextColor(1, 0.82, 0) end end
+		if f2 then if inactMode then f2:SetTextColor(1, 0.82, 0) else f2:SetTextColor(1, 1, 1) end end
+	end
+	if inactMode then
+		win.body:SetText(BG.T("promo_body_inactive", pr.from, inactLimit))
+		win.hint:SetText(BG.T("promo_inactive_hint", BG.db.inactive.rank))
+	else
+		win.body:SetText(BG.T("promo_body", pr.weeks, pr.from))
+		win.hint:SetText(steps and BG.T("promo_steps_hint", steps, Promo.Path()) or (RED .. BG.T("promo_bad_ranks") .. "|r"))
+	end
+	local list = inactMode and inactList or promoList
 	-- members that are being promoted stay visible until they are done
 	local shown = {}
 	for i = 1, table.getn(list) do shown[i] = list[i] end
@@ -664,7 +735,7 @@ function Promo.Refresh()
 			local last = item.online and BG.T("promo_online_now") or (c and BG.Inactive.Ago(item.off) or "?")
 			row.note:SetText(item.noteOk and (GREEN .. BG.T("promo_note_ok") .. "|r") or (RED .. BG.T("promo_note_missing") .. "|r"))
 			row.info:SetText(BG.T(item.approx and "promo_row2_approx" or "promo_row2", item.level or "?", item.joined, item.days, last))
-			row.go:SetText(BG.T("btn_promote_to", pr.to))
+			row.go:SetText(inactMode and BG.T("btn_to_inactive") or BG.T("btn_promote_to", pr.to))
 			row.later:SetText(BG.T("btn_later"))
 			if steps and Promo.CanPromote() then row.go:Enable() else row.go:Disable() end
 			row:Show()
@@ -672,9 +743,11 @@ function Promo.Refresh()
 			row:Hide()
 		end
 	end
-	-- "soon due": who reaches the time in the next days
-	local soon = Promo.Soon()
-	if table.getn(soon) > 0 then
+	-- "soon due": who reaches the time in the next days (only in the promote view)
+	local soon = inactMode and {} or Promo.Soon()
+	if inactMode then
+		win.soon:SetText("")
+	elseif table.getn(soon) > 0 then
 		-- only the next day: everybody who is due on the earliest day, one wrapped line of names
 		local first = soon[1].left
 		local names = {}
@@ -687,7 +760,9 @@ function Promo.Refresh()
 		win.soon:SetText(GOLD .. BG.T("promo_soon", Promo.SOON_DAYS) .. "|r\n" .. GRAY .. BG.T("promo_soon_none") .. "|r")
 	end
 	-- "nobody due" sits in the empty list area at the top, not at the bottom over the "due soon" block
-	win.none:SetText(table.getn(shown) == 0 and (GRAY .. BG.T("promo_none") .. "|r") or "")
+	win.none:SetText(table.getn(shown) == 0 and (GRAY .. BG.T(inactMode and "promo_inactive_none" or "promo_none") .. "|r") or "")
+	local nOnline = 0
+	for i = 1, table.getn(shown) do if shown[i].online then nOnline = nOnline + 1 end end
 	local cur = Promo.cur
 	if win.armed then
 		-- first click of a bulk button: say clearly what the second click does
@@ -702,20 +777,24 @@ function Promo.Refresh()
 	else
 		win.status:SetText(Promo.lastMsg ~= "" and (GRAY .. Promo.lastMsg .. "|r") or "")
 	end
-	local nOnline = 0
-	for i = 1, table.getn(shown) do if shown[i].online then nOnline = nOnline + 1 end end
 	if win.armed and GetTime() - (win.armedAt or 0) >= 10 then win.armed = nil end
-	if win.armed == "all" then
-		win.all:SetText(RED .. BG.T("btn_promote_sure", table.getn(shown)) .. "|r")
+	local bulkKey = inactMode and "inactive" or "all"
+	if win.armed == bulkKey then
+		win.all:SetText(RED .. BG.T(inactMode and "btn_inactive_sure" or "btn_promote_sure", table.getn(shown)) .. "|r")
 	else
-		win.all:SetText(BG.T("btn_promote_all"))
+		win.all:SetText(BG.T(inactMode and "btn_inactive_all" or "btn_promote_all"))
 	end
-	if win.armed == "online" then
-		win.allOnline:SetText(RED .. BG.T("btn_promote_sure", nOnline) .. "|r")
+	if inactMode then
+		win.allOnline:Hide()
 	else
-		win.allOnline:SetText(BG.T("btn_promote_online", nOnline))
+		win.allOnline:Show()
+		if win.armed == "online" then
+			win.allOnline:SetText(RED .. BG.T("btn_promote_sure", nOnline) .. "|r")
+		else
+			win.allOnline:SetText(BG.T("btn_promote_online", nOnline))
+		end
+		if nOnline > 0 and steps and Promo.CanPromote() then win.allOnline:Enable() else win.allOnline:Disable() end
 	end
-	if nOnline > 0 and steps and Promo.CanPromote() then win.allOnline:Enable() else win.allOnline:Disable() end
 	win.closeBtn:SetText(BG.T("btn_close"))
 	win.twiceHint:SetText(BG.T("promo_twice_hint"))
 	if table.getn(shown) > 0 and steps and Promo.CanPromote() then win.all:Enable() else win.all:Disable() end
@@ -723,6 +802,11 @@ end
 
 function Promo.Open()
 	if not win then Build() end
+	-- open on the list that has something in it
+	if not win:IsShown() then
+		local promoList, inactList = Promo.Split(false)
+		if table.getn(promoList) == 0 and table.getn(inactList) > 0 then win.view = "inactive" else win.view = "promote" end
+	end
 	win:Show()
 	win:Raise()
 	Promo.Refresh()
