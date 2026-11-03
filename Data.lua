@@ -5,8 +5,9 @@
     * main / twink: db.chars[name].main / .isMain (Roster.lua, synced with the "S" records as before)
     * professions, spec, second spec: db.data[name] = { profs = "BB+JC" | "-" (none on purpose), spec = code, spec2 = code, ts, by }
     * info.parsed (what the rest of the addon reads: kind, main, profs, spec, role) is built from these two
-    * synced between the officers: "M" (one record, accepted from officer ranks), "MQ" (a client that just logged in
-      asks), "MS" (an officer answers with everything newer)
+    * the shared note of a member (db.data[name].note, every officer sees and edits it) has its own timestamp .nts
+    * synced between the officers: "M" (one record, accepted from officer ranks), "N" (a note), "MQ" (a client that just
+      logged in asks), "MS" (an officer answers with everything newer)
 ]]
 
 local BG = BananaGuild
@@ -142,6 +143,14 @@ end
 
 local function Un(x) if x == nil or x == "_" or x == "" then return nil end return x end
 
+-- notes travel in a field of the message: ';' ':' '%' and '|' are written as %XX
+local function Esc(s)
+	return (string.gsub(tostring(s or ""), "[%%:;|]", function(c) return string.format("%%%02X", string.byte(c)) end))
+end
+local function Unesc(s)
+	return (string.gsub(s or "", "%%(%x%x)", function(h) return string.char(tonumber(h, 16)) end))
+end
+
 local function CleanProfs(s)
 	s = Un(s)
 	if not s then return nil end
@@ -175,9 +184,50 @@ local function Apply(name, profs, spec, spec2, ts, by)
 	if old and (old.ts or 0) >= ts then return false end
 	local info = BG.roster and BG.roster[name]
 	local ck = info and info.ckey
-	Store()[name] = { profs = CleanProfs(profs), spec = ValidSpec(ck, spec), spec2 = ValidSpec(ck, spec2), ts = ts, by = by }
+	Store()[name] = { profs = CleanProfs(profs), spec = ValidSpec(ck, spec), spec2 = ValidSpec(ck, spec2), ts = ts, by = by,
+		note = old and old.note, nts = old and old.nts }
 	return true
 end
+
+-- the shared note: newest wins, independent of the rest of the record
+local function ApplyNote(name, nts, text)
+	name = BG.NormName(name or "")
+	nts = tonumber(nts) or 0
+	if name == "" or nts <= 0 then return false end
+	local d = Data.Get(name)
+	if d and (d.nts or 0) >= nts then return false end
+	if not d then d = { ts = 0 } Store()[name] = d end
+	text = BG.Trim(Unesc(text))
+	d.note = (text ~= "") and text or nil
+	d.nts = nts
+	return true
+end
+
+-- the note field of the new member window (every officer may change it)
+function Data.SetNote(name, text)
+	name = BG.NormName(name or "")
+	if name == "" or not Data.CanEdit() then return false end
+	text = BG.Trim(text or "")
+	if string.len(text) > 60 then text = string.sub(text, 1, 60) end
+	local d = Data.Get(name)
+	if (d and d.note or "") == text then return false end
+	if not d then d = { ts = 0 } Store()[name] = d end
+	d.note = (text ~= "") and text or nil
+	d.nts = time()
+	BG.Send("N", name, d.nts, Esc(text))
+	Changed()
+	return true
+end
+
+function Data.Note(name)
+	local d = Data.Get(name)
+	return d and d.note or nil
+end
+
+BG.OnComm("N", function(sender, p)
+	if not OfficerRank(sender) or not BG.db.sync.accept then return end
+	if ApplyNote(p[1], p[2], p[3]) then Changed() end
+end)
 
 -- an officer entered something
 BG.OnComm("M", function(sender, p)
@@ -189,6 +239,7 @@ local function Newest()
 	local t = 0
 	for _, rec in pairs(BG.db.data or {}) do
 		if (rec.ts or 0) > t then t = rec.ts end
+		if (rec.nts or 0) > t then t = rec.nts end
 	end
 	return t
 end
@@ -196,6 +247,7 @@ end
 -- records: name:profs:spec:spec2:ts
 local function Encode(name, rec)
 	return name .. ":" .. (rec.profs or "_") .. ":" .. (rec.spec or "_") .. ":" .. (rec.spec2 or "_") .. ":" .. tostring(rec.ts or 0)
+		.. ":" .. tostring(rec.nts or 0) .. ":" .. (rec.note and Esc(rec.note) or "_")
 end
 
 -- a client that just logged in asks for everything newer than what it has; officers answer (the first answer wins)
@@ -204,7 +256,7 @@ BG.OnComm("MQ", function(sender, p)
 	local since = tonumber(p[1]) or 0
 	local recs = {}
 	for name, rec in pairs(BG.db.data or {}) do
-		if (rec.ts or 0) > since and (rec.ts or 0) > 1 then table.insert(recs, Encode(name, rec)) end
+		if ((rec.ts or 0) > since and (rec.ts or 0) > 1) or (rec.nts or 0) > since then table.insert(recs, Encode(name, rec)) end
 	end
 	if table.getn(recs) == 0 then return end
 	Data.answered = false
@@ -232,7 +284,10 @@ BG.OnComm("MS", function(sender, p)
 	local changed = false
 	for i = 1, table.getn(p) do
 		local f = BG.SplitBy(p[i], ":")
-		if f[1] and Apply(f[1], f[2], f[3], f[4], f[5], sender) then changed = true end
+		if f[1] then
+			if (tonumber(f[5]) or 0) > 0 and Apply(f[1], f[2], f[3], f[4], f[5], sender) then changed = true end
+			if (tonumber(f[6]) or 0) > 0 and ApplyNote(f[1], f[6], (f[7] ~= "_") and f[7] or "") then changed = true end
+		end
 	end
 	if changed then Changed() end
 end)
@@ -310,6 +365,15 @@ end
 
 -- 1.24 stored the second spec in db.dual: move it over
 BG.OnInit(function()
+	-- the old private note ("own note") is shared with the officers from now on
+	for name, c in pairs(BG.db.chars) do
+		if c.note and c.note ~= "" then
+			local d = Data.Get(name)
+			if not d then d = { ts = 0 } Store()[name] = d end
+			if not d.note then d.note = string.sub(c.note, 1, 60) d.nts = 1 end
+			c.note = nil
+		end
+	end
 	local old = BG.db.dual
 	if not old then return end
 	for name, rec in pairs(old) do
@@ -354,7 +418,8 @@ function Data.Export()
 		local c = BG.db.chars[name]
 		local d = Data.Get(name) or {}
 		local flag = (c and c.main) and "t" or ((c and c.isMain) and "m" or "n")
-		table.insert(out, name .. ":" .. flag .. ":" .. ((c and c.main) or "_") .. ":" .. (d.profs or "_") .. ":" .. (d.spec or "_") .. ":" .. (d.spec2 or "_") .. ":" .. tostring(d.ts or 1))
+		table.insert(out, name .. ":" .. flag .. ":" .. ((c and c.main) or "_") .. ":" .. (d.profs or "_") .. ":" .. (d.spec or "_") .. ":" .. (d.spec2 or "_") .. ":" .. tostring(d.ts or 1)
+			.. ":" .. tostring(d.nts or 0) .. ":" .. (d.note and Esc(d.note) or "_"))
 	end
 	return "BG2;" .. table.concat(out, ";"), table.getn(list)
 end
@@ -378,6 +443,7 @@ function Data.Import(text)
 				BG.Roster.MarkMain(name, true) took = true
 			end
 			if Apply(name, f[4], f[5], f[6], ts, "import") then took = true end
+			if (tonumber(f[8]) or 0) > 0 and ApplyNote(name, f[8], (f[9] and f[9] ~= "_") and f[9] or "") then took = true end
 			if took then n = n + 1 end
 		end
 	end

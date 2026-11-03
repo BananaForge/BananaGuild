@@ -3,14 +3,15 @@
   Window to enter / edit the data of a member: main or twink (+ main name), professions, spec and second spec.
   The data is stored in the addon (Data.lua), nothing is written into the guild note.
   Opens automatically for the inviter / recruiter and the officers when somebody joins ("join" mode), or from the members tab ("edit" mode).
-  Has buttons to ask the player for professions / spec / twinks by whisper; the whisper replies are shown (typed in by hand).
+  Has buttons to ask the player for professions / spec / twinks by whisper (the reply comes in the normal chat).
+  Spec: up to two specs can be ticked in one row (the first one is the spec, the second one the second spec).
 ]]
 
 local BG = BananaGuild
 local NW = {}
 BG.NoteWin = NW
 
-local W, H = 460, 524
+local W, H = 460, 472
 local GOLD, WHITE, GRAY, GREEN, RED = "|cffffd100", "|cffffffff", "|cff999999", "|cff40ff40", "|cffff5555"
 local win
 local counter = 0
@@ -73,52 +74,32 @@ function NW.Redraw()
 	end
 	win.noprofChk:SetChecked(win.noprof and 1 or nil)
 
-	-- specs of the class
+	-- specs of the class: up to two can be ticked, the first is the spec, the second one the second spec
 	local specs = BG.Notes.Specs(win.ckey)
+	if win.spec2 and win.spec2 == win.spec then win.spec2 = nil end
 	for i = 1, 5 do
 		local b = win.specBtns[i]
 		local s = specs[i]
 		if i <= table.getn(specs) then
 			b.spec = s[1]
 			b.specInfo = s
-			b:SetText(s[1])
+			local mark = ""
+			if win.spec == s[1] then mark = "" elseif win.spec2 == s[1] then mark = " (2)" end
+			b:SetText(s[1] .. mark)
 			b:Show()
-			Mark(b, win.spec == s[1])
+			Mark(b, win.spec == s[1] or win.spec2 == s[1])
 		elseif i == table.getn(specs) + 1 then
 			b.spec = ""
 			b.specInfo = nil
 			b:SetText(BG.T("nwin_spec_none"))
 			b:Show()
-			Mark(b, not win.spec or win.spec == "")
+			Mark(b, not win.spec)
 		else
 			b.spec = nil
 			b:Hide()
 		end
 	end
 	win.specHint:SetText(win.ckey and "" or (GRAY .. BG.T("nwin_spec_noclass") .. "|r"))
-	-- second spec (cannot be the same as the first one)
-	if win.spec2 and win.spec2 == win.spec then win.spec2 = nil end
-	for i = 1, 5 do
-		local b = win.spec2Btns[i]
-		local s = specs[i]
-		if i <= table.getn(specs) then
-			b.spec = s[1]
-			b.specInfo = s
-			b:SetText(s[1])
-			b:Show()
-			Mark(b, win.spec2 == s[1])
-			if win.spec == s[1] then b:Disable() end
-		elseif i == table.getn(specs) + 1 then
-			b.spec = ""
-			b.specInfo = nil
-			b:SetText(BG.T("nwin_spec_none"))
-			b:Show()
-			Mark(b, not win.spec2)
-		else
-			b.spec = nil
-			b:Hide()
-		end
-	end
 
 	-- status line: what is entered, what is missing
 	local problem
@@ -172,18 +153,6 @@ function NW.RedrawAsk()
 	for i = 1, table.getn(win.askBtns) do
 		if online then win.askBtns[i]:Enable() else win.askBtns[i]:Disable() end
 	end
-	local last = NW.LastReply(name)
-	if last then
-		-- all replies of the last 30 minutes (the proposal is read from all of them), newest last
-		local recent = NW.RecentReplies(name)
-		local texts = {}
-		for i = math.max(1, table.getn(recent) - 2), table.getn(recent) do table.insert(texts, recent[i].text) end
-		win.reply:SetText(WHITE .. BG.T("nwin_reply", BG.Stamp(last.at)) .. "|r " .. table.concat(texts, " | "))
-	elseif not online then
-		win.reply:SetText(GRAY .. BG.T("nwin_ask_offline") .. "|r")
-	else
-		win.reply:SetText(GRAY .. BG.T("nwin_noreply") .. "|r")
-	end
 end
 
 --------------------------------------------------------------------- build
@@ -230,13 +199,13 @@ local function Build()
 	win.profBtns = {}
 	for i = 1, table.getn(BG.Notes.PROFS) do
 		local code = BG.Notes.PROFS[i][1] -- local copy: Lua 5.0 closures share the loop variable
-		local b = BG.MakeButton(win, Name("Btn"), 82, 20, "")
+		local b = BG.MakeButton(win, Name("Btn"), 106, 20, "")
 		local fs = b:GetFontString()
-		if fs then fs:SetFont("Fonts\\FRIZQT__.TTF", 8) end
+		if fs then fs:SetFont("Fonts\\FRIZQT__.TTF", 10) end
 		b.code = code
-		local row = math.floor((i - 1) / 5)
-		local col = (i - 1) - row * 5
-		b:SetPoint("TOPLEFT", win, "TOPLEFT", 16 + col * 86, -126 - row * 24)
+		local row = math.floor((i - 1) / 4)
+		local col = (i - 1) - row * 4
+		b:SetPoint("TOPLEFT", win, "TOPLEFT", 16 + col * 110, -126 - row * 24)
 		b:SetScript("OnClick", function()
 			win.noprof = false
 			local at
@@ -276,7 +245,7 @@ local function Build()
 	win.noprofChk = CreateFrame("CheckButton", Name("Check"), win, "UICheckButtonTemplate")
 	win.noprofChk:SetWidth(24)
 	win.noprofChk:SetHeight(24)
-	win.noprofChk:SetPoint("TOPLEFT", win, "TOPLEFT", 12, -198)
+	win.noprofChk:SetPoint("TOPLEFT", win, "TOPLEFT", 12, -222)
 	win.noprofText = getglobal(win.noprofChk:GetName() .. "Text")
 	win.noprofText:SetJustifyH("LEFT")
 	win.noprofText:SetWidth(300)
@@ -287,14 +256,25 @@ local function Build()
 	end)
 
 	-- spec
-	win.specLbl = Text(win, 16, -228, "GameFontNormalSmall", W - 32)
+	win.specLbl = Text(win, 16, -254, "GameFontNormalSmall", W - 32)
 	win.specBtns = {}
 	for i = 1, 5 do
 		local b = BG.MakeButton(win, Name("Btn"), 80, 20, "")
-		b:SetPoint("TOPLEFT", win, "TOPLEFT", 16 + (i - 1) * 84, -244)
+		b:SetPoint("TOPLEFT", win, "TOPLEFT", 16 + (i - 1) * 84, -270)
 		b:SetScript("OnClick", function()
 			if this.spec == nil then return end
-			win.spec = (this.spec ~= "") and this.spec or nil
+			local code = this.spec
+			if code == "" then
+				win.spec, win.spec2 = nil, nil          -- "empty": nothing ticked
+			elseif code == win.spec then
+				win.spec, win.spec2 = win.spec2, nil    -- untick the first: the second one moves up
+			elseif code == win.spec2 then
+				win.spec2 = nil
+			elseif not win.spec then
+				win.spec = code
+			else
+				win.spec2 = code                        -- the second one (a third click replaces it)
+			end
 			NW.Redraw()
 		end)
 		b:SetScript("OnEnter", function()
@@ -317,65 +297,33 @@ local function Build()
 		b:Hide()
 		win.specBtns[i] = b
 	end
-	win.specHint = Text(win, 150, -229, "GameFontHighlightSmall", W - 170)
-	-- second spec: stays in the addon (not in the note), synced to the other officers
-	win.spec2Lbl = Text(win, 16, -272, "GameFontNormalSmall", W - 32)
-	win.spec2Btns = {}
-	for i = 1, 5 do
-		local b = BG.MakeButton(win, Name("Btn"), 80, 20, "")
-		b:SetPoint("TOPLEFT", win, "TOPLEFT", 16 + (i - 1) * 84, -288)
-		b:SetScript("OnClick", function()
-			if this.spec == nil then return end
-			win.spec2 = (this.spec ~= "") and this.spec or nil
-			NW.Redraw()
-		end)
-		b:SetScript("OnEnter", function()
-			GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
-			local sp = this.specInfo
-			if not sp then
-				GameTooltip:SetText(BG.T("tip_spec_none"), 1, 1, 1)
-			else
-				GameTooltip:SetText(sp[1], 1, 0.82, 0)
-				GameTooltip:AddLine("DE: " .. BG.Notes.SpecName(sp, "de"), 1, 1, 1)
-				GameTooltip:AddLine("EN: " .. BG.Notes.SpecName(sp, "en"), 1, 1, 1)
-				local col = (sp[4] == "T") and { 0.42, 0.65, 1 } or ((sp[4] == "H") and { 0.48, 0.88, 0.61 } or { 1, 0.56, 0.52 })
-				GameTooltip:AddLine(BG.T("rolefull_de_" .. sp[4]), col[1], col[2], col[3], 1)
-				GameTooltip:AddLine(BG.T("rolefull_en_" .. sp[4]), col[1], col[2], col[3], 1)
-			end
-			GameTooltip:AddLine(BG.T("tip_spec2"), 0.7, 0.7, 0.7, 1)
-			GameTooltip:Show()
-		end)
-		b:SetScript("OnLeave", function() GameTooltip:Hide() end)
-		b:Hide()
-		win.spec2Btns[i] = b
-	end
-
+	win.specHint = Text(win, 150, -255, "GameFontHighlightSmall", W - 170)
 	-- note preview (an edit box so it can be selected and copied, but not changed)
-	win.info = Text(win, 16, -318, "GameFontHighlightSmall", W - 32)
+	win.info = Text(win, 16, -302, "GameFontHighlightSmall", W - 32)
 	win.info:SetHeight(30)
 	win.info:SetJustifyV("TOP")
 
 	-- own note (stays in the addon, synced to other BananaGuild users): saved when the window closes
-	win.intLbl = Text(win, 16, -356, "GameFontNormalSmall", W - 32)
+	win.intLbl = Text(win, 16, -340, "GameFontNormalSmall", W - 32)
 	win.intEdit = CreateFrame("EditBox", Name("IntEdit"), win, "InputBoxTemplate")
 	win.intEdit:SetWidth(W - 44)
 	win.intEdit:SetHeight(20)
-	win.intEdit:SetPoint("TOPLEFT", win, "TOPLEFT", 20, -370)
+	win.intEdit:SetPoint("TOPLEFT", win, "TOPLEFT", 20, -354)
 	win.intEdit:SetAutoFocus(false)
-	win.intEdit:SetMaxLetters(80)
+	win.intEdit:SetMaxLetters(60)
 	win.intEdit:SetScript("OnEscapePressed", function() this:ClearFocus() end)
 	win.intEdit:SetScript("OnEnterPressed", function() this:ClearFocus() end)
 	win:SetScript("OnHide", function() NW.SaveInternal() end)
 
 	-- ask the player by whisper (professions / spec / twinks / everything) and read the reply
-	win.askLbl = Text(win, 16, -402, "GameFontNormalSmall", W - 32)
+	win.askLbl = Text(win, 16, -386, "GameFontNormalSmall", W - 32)
 	win.askBtns = {}
 	local askKinds = { "askAll", "askProf", "askSpec", "askTwink" }
 	local askKeys = { "nwin_ask_all", "nwin_ask_prof", "nwin_ask_spec", "nwin_ask_twink" }
 	for i = 1, 4 do
 		local kind, key = askKinds[i], askKeys[i] -- local per iteration (Lua 5.0 closures share the loop variable)
 		local b = BG.MakeButton(win, Name("Btn"), 104, 22, "")
-		b:SetPoint("TOPLEFT", win, "TOPLEFT", 16 + (i - 1) * 108, -416)
+		b:SetPoint("TOPLEFT", win, "TOPLEFT", 16 + (i - 1) * 108, -400)
 		b:SetScript("OnClick", function() NW.Ask(win.target, kind) end)
 		b:SetScript("OnEnter", function()
 			GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
@@ -386,10 +334,6 @@ local function Build()
 		b:SetScript("OnLeave", function() GameTooltip:Hide() end)
 		win.askBtns[i] = b
 	end
-	win.reply = Text(win, 16, -446, "GameFontHighlightSmall", W - 32)
-	win.reply:SetHeight(28)
-	win.reply:SetJustifyV("TOP")
-
 	-- actions
 	win.btnGo = BG.MakeButton(win, Name("Btn"), 186, 24, "")
 	win.btnGo:SetPoint("BOTTOMLEFT", win, "BOTTOMLEFT", 16, 14)
@@ -425,14 +369,11 @@ function NW.MainItems()
 	return items
 end
 
+-- the shared note: saved when the window closes (only officers can change it)
 function NW.SaveInternal()
 	if not win or not win.target or not win.intLoaded then return end
 	local txt = win.intEdit:GetText() or ""
-	local c = BG.db.chars[win.target]
-	local old = (c and c.note) or ""
-	if txt ~= old and BG.Roster then
-		BG.Roster.SetDetails(win.target, nil, nil, txt)
-	end
+	if BG.Data.CanEdit() then BG.Data.SetNote(win.target, txt) end
 	win.intLoaded = false
 end
 
@@ -452,39 +393,6 @@ end
 
 --------------------------------------------------------------------- ask + replies
 
-NW.replies = {}   -- name -> { { at, text }, ... } (whispers of guild members, newest last)
-local REPLY_TTL = 30 * 60
-
-function NW.OnWhisper(msg, sender)
-	if not msg or not sender then return end
-	local name = BG.NormName(sender)
-	if name == BG.me or not BG.roster[name] then return end
-	local list = NW.replies[name] or {}
-	NW.replies[name] = list
-	table.insert(list, { at = time(), text = msg })
-	while table.getn(list) > 6 do table.remove(list, 1) end
-	if win and win:IsShown() and win.target == name then NW.RedrawAsk() end
-end
-
--- the replies of the last 30 minutes
-local function Recent(name)
-	local out = {}
-	local list = NW.replies[name]
-	if not list then return out end
-	local now = time()
-	for i = 1, table.getn(list) do
-		if now - list[i].at <= REPLY_TTL then table.insert(out, list[i]) end
-	end
-	return out
-end
-
-function NW.RecentReplies(name) return Recent(name) end
-
-function NW.LastReply(name)
-	local r = Recent(name)
-	return r[table.getn(r)]
-end
-
 function NW.Ask(name, kind)
 	local info = name and BG.roster[name]
 	if not info or name == BG.me then return end
@@ -495,7 +403,6 @@ function NW.Ask(name, kind)
 	BG.Print(BG.T("menu_sent", name))
 end
 
-BG.On("CHAT_MSG_WHISPER", function(msg, sender) NW.OnWhisper(msg, sender) end)
 
 -- name: guild member; mode: "join" (new member, recruiter) or "edit"; opts.greet = offer the guild-chat greeting
 function NW.Open(name, mode, opts)
@@ -527,8 +434,7 @@ function NW.Open(name, mode, opts)
 		if p.spec then win.spec = p.spec[1] end
 		if p.noprof then win.noprof = true end
 	end
-	local c0 = BG.db.chars[name]
-	win.intEdit:SetText((c0 and c0.note) or "")
+	win.intEdit:SetText(BG.Data.Note(name) or "")
 	win.intLoaded = true
 	win.intLbl:SetText(GOLD .. BG.T("nwin_intnote") .. "|r")
 	win.who:SetText(BG.T("nwin_who"))
@@ -538,7 +444,6 @@ function NW.Open(name, mode, opts)
 	win.profLbl:SetText(GOLD .. BG.T("nwin_profs") .. "|r")
 	win.noprofText:SetText(BG.T("nwin_noprof"))
 	win.specLbl:SetText(GOLD .. BG.T("nwin_spec") .. "|r")
-	win.spec2Lbl:SetText(GOLD .. BG.T("nwin_spec2") .. "|r")
 	win.askLbl:SetText(GOLD .. BG.T("nwin_ask") .. "|r")
 	win.askBtns[1]:SetText(BG.T("nwin_ask_all"))
 	win.askBtns[2]:SetText(BG.T("nwin_ask_prof"))

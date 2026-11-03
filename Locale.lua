@@ -1969,3 +1969,10 @@ en.data_bad_chat = "List in chat"
 de.data_bad_chat_tip = "Schreibt jeden Charakter mit seiner Notiz in deinen Chat, damit du ihn anschreiben oder die Daten selbst eintragen kannst."
 en.data_bad_chat_tip = "Writes every character with its note into your chat so you can contact them or enter the data yourself."
 
+---------------------------------------------------------------- 2.1: one row for both specs, shared note
+de.nwin_spec = "Spec (optional, bis zu 2 anklicken: Spec und Zweit-Spec)"
+en.nwin_spec = "Spec (optional, tick up to 2: spec and second spec)"
+de.nwin_intnote = "Notiz (alle Offiziere sehen und bearbeiten sie)"
+en.nwin_intnote = "Note (all officers see and edit it)"
+de.detail_note = "Notiz:"
+en.detail_note = "Note:"

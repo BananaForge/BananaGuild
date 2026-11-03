@@ -3,6 +3,12 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 2.1.0
+- Daten-Fenster: Die **Berufe** sind größer geschrieben (Schriftgröße 10 statt 8, vier Knöpfe pro Reihe).
+- **Spec und Zweit-Spec in einer Reihe**: Es gibt nur noch eine Spec-Reihe. Der erste Klick wählt den Spec, der zweite den Zweit-Spec (am Knopf steht „(2)"), ein dritter ersetzt den Zweit-Spec. Wer den ersten abwählt, schiebt den zweiten nach oben, „leer" löscht beide. Die Reihe „Zweit-Spec" ist entfernt.
+- **Die Notiz ist jetzt eine gemeinsame Notiz**: Jeder Offizier sieht und bearbeitet sie (bis 60 Zeichen), sie wird wie die anderen Daten unter den Offizieren abgeglichen (Nachricht `N`, eigener Zeitstempel, nur von Offiziersrängen angenommen, Sonderzeichen werden maskiert) und steht im Mitglieder-Reiter im Detailbereich. Alte private Notizen werden beim Start automatisch in die gemeinsame Notiz übernommen. Export/Import und der Abgleich für neu angemeldete Offiziere enthalten die Notizen.
+- Die angezeigte Flüster-Antwort im Fenster ist entfernt (die Antwort kommt im Chat), das Fenster ist dadurch deutlich niedriger.
+
 ## 2.0.0
 - **Mitgliederdaten nur noch im Addon, keine Gildennotiz mehr.** Main/Twink, Berufe, Spec und Zweit-Spec werden im Fenster „Daten bearbeiten" (Neuzugang-Fenster) eingetragen und im Addon gespeichert. Es gibt keine 31-Zeichen-Grenze, keine Notiz-Vorschau und keinen Zeichenzähler mehr, statt dessen eine Statuszeile („✓ Daten vollständig" bzw. „Es fehlt noch: ..."). Bearbeiten dürfen Offiziere (Rang wie beim Begrüßungs-Popup) und alles darüber, das Notiz-Recht ist nicht mehr nötig.
 - **Sync unter den Offizieren:** Jeder Eintrag geht an alle Offiziere mit dem Addon (Nachricht `M`, nur von Offiziersrängen angenommen, neuere Daten gewinnen). Wer neu online kommt, fragt (`MQ`) und ein Offizier schickt ihm alles Bekannte (`MS`). Main/Twink läuft weiter über den bisherigen Abgleich.
