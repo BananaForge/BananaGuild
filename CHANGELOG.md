@@ -3,6 +3,9 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 1.22.1
+- Einstellungen > Beförderung: Die Zeilen „Neulinge prüfen nach ... Wochen", „Auf Inaktiv setzen nach ... Tagen offline" und Start-/Zielrang überlagerten sich. Neu angeordnet, jede Zeile hat ihren eigenen Platz.
+
 ## 1.22.0
 - Neuling Check: Zwei Ansichten oben im Fenster, **Befördern (N)** und **Auf Inaktiv setzen (M)**. In „Auf Inaktiv setzen" stehen alle Mitglieder des Startrangs (Initiant), die länger als N Tage (Standard 20) nicht mehr online waren. Pro Zeile „-> Inaktiv", unten „Alle auf Inaktiv" (zweimal klicken zum Bestätigen). Es wird der Rang aus dem Inaktiv-Fenster verwendet, die Beförderung läuft Schritt für Schritt wie sonst, die Bank-Info-Whisper gibt es dabei nicht.
 - „Befördern" zeigt nur noch die, die nicht zu lange offline waren; „Alle befördern" und „Alle Online befördern" gelten nur für diese Liste. Wer lange offline war und wieder online kommt, steht sofort wieder bei „Befördern" (das Popup aus 1.20.0 meldet ihn).
