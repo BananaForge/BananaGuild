@@ -189,7 +189,7 @@ local DEFAULTS = {
 	sync = { accept = true, trustRank = 2 },
 	minimap = { angle = 200 },
 	texts = {},
-	statsRange = { min = 40, max = 60 },   -- level range of the roles statistics
+	statsRange = { min = 40, max = 60, days = 0, by = "role" },   -- level range of the roles statistics
 	variantsOff = {},   -- kind -> { [i] = true } variants that are switched off (skipped by the random pick)
 	-- wanted classes / roles of the guild search (synced between the officers): classes = { WARRIOR = true ... }, roles = { T, H, D }
 	wanted = { classes = {}, roles = {}, ts = 0, by = "" },

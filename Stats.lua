@@ -15,7 +15,7 @@ local BG = BananaGuild
 local Stats = {}
 BG.Stats = Stats
 
-local W, H = 800, 524
+local W, H = 800, 600
 local R = 165                       -- radius of the chart
 local HOLE = 0.56                   -- hole of the donut (matches the overlay texture)
 local MARGIN = 4                    -- overlay texture is a bit bigger than the circle
@@ -57,30 +57,81 @@ function Stats.Collect()
 	return list, total
 end
 
--- roles inside a level range: { T, H, D, ? } counts, the number of characters in the range, and per role the
--- "class / spec" breakdown for the tooltip
-function Stats.CollectRoles(lo, hi)
-	local out = { T = 0, H = 0, D = 0, ["?"] = 0, inRange = 0, total = 0, detail = { T = {}, H = {}, D = {}, ["?"] = {} },
-		members = { T = {}, H = {}, D = {}, ["?"] = {} } }
+-- roles inside a level range (and, when days > 0, only characters that were online within that many days):
+-- { T, H, D, ? } counts, the number of characters in the selection, per role the "class / spec" breakdown for the
+-- tooltip, the names per role and the same numbers per class
+function Stats.CollectRoles(lo, hi, days)
+	days = tonumber(days) or 0
+	local out = { T = 0, H = 0, D = 0, ["?"] = 0, inRange = 0, total = 0, inLevel = 0, noInfo = 0,
+		detail = { T = {}, H = {}, D = {}, ["?"] = {} }, members = { T = {}, H = {}, D = {}, ["?"] = {} }, byClass = {} }
 	for name, info in pairs(BG.roster) do
 		out.total = out.total + 1
 		local lvl = info.level or 0
 		if lvl >= lo and lvl <= hi then
-			out.inRange = out.inRange + 1
-			local pn = info.parsed
-			local role = (pn and pn.spec and pn.role) or "?"
-			out[role] = out[role] + 1
-			local label
-			if role == "?" then
-				label = info.ckey and BG.Notes.ClassName(info.ckey) or BG.T("stats_unknown_class")
-			else
-				label = BG.Notes.ClassName(info.ckey) .. " (" .. BG.Notes.SpecName(pn.spec) .. ")"
+			out.inLevel = out.inLevel + 1
+			local active = true
+			if days > 0 then
+				local off = info.online and 0 or info.offlineDays
+				if off == nil then
+					active = false
+					out.noInfo = out.noInfo + 1
+				elseif off > days then
+					active = false
+				end
 			end
-			out.detail[role][label] = (out.detail[role][label] or 0) + 1
-			table.insert(out.members[role], { name = name, key = info.ckey or "?", spec = (role ~= "?") and pn.spec[1] or nil })
+			if active then
+				out.inRange = out.inRange + 1
+				local pn = info.parsed
+				local role = (pn and pn.spec and pn.role) or "?"
+				out[role] = out[role] + 1
+				local key = info.ckey or "?"
+				local label
+				if role == "?" then
+					label = info.ckey and BG.Notes.ClassName(info.ckey) or BG.T("stats_unknown_class")
+				else
+					label = BG.Notes.ClassName(info.ckey) .. " (" .. BG.Notes.SpecName(pn.spec) .. ")"
+				end
+				out.detail[role][label] = (out.detail[role][label] or 0) + 1
+				table.insert(out.members[role], { name = name, key = key, spec = (role ~= "?") and pn.spec[1] or nil })
+				local c = out.byClass[key]
+				if not c then c = { key = key, n = 0, T = 0, H = 0, D = 0, ["?"] = 0, names = { T = {}, H = {}, D = {}, ["?"] = {} } } out.byClass[key] = c end
+				c.n = c.n + 1
+				c[role] = c[role] + 1
+				table.insert(c.names[role], name)
+			end
 		end
 	end
+	-- classes, biggest first
+	out.classList = {}
+	for _, c in pairs(out.byClass) do table.insert(out.classList, c) end
+	table.sort(out.classList, function(a, b)
+		if a.n ~= b.n then return a.n > b.n end
+		return a.key < b.key
+	end)
 	return out
+end
+
+-- activity steps of the slider: days offline at most (0 = everybody)
+local ACT_STEPS = { 1, 2, 3, 5, 7, 10, 14, 21, 30, 60, 0 }
+Stats.ACT_STEPS = ACT_STEPS
+
+function Stats.Activity()
+	return tonumber(BG.db.statsRange.days) or 0
+end
+
+function Stats.SetActivity(days)
+	BG.db.statsRange.days = tonumber(days) or 0
+	Stats.Refresh(true)
+end
+
+-- "role" (Tank / Heal / DD) or "class"
+function Stats.Group()
+	return (BG.db.statsRange.by == "class") and "class" or "role"
+end
+
+function Stats.SetGroup(by)
+	BG.db.statsRange.by = (by == "class") and "class" or "role"
+	Stats.Refresh(true)
 end
 
 -- level range from the settings (saved): lo <= hi, 1..60
@@ -100,7 +151,7 @@ function Stats.SetRange(lo, hi)
 	if lo < 1 then lo = 1 end
 	if hi > 60 then hi = 60 end
 	if lo > hi then lo = hi end
-	BG.db.statsRange = { min = lo, max = hi }
+	BG.db.statsRange.min, BG.db.statsRange.max = lo, hi
 	Stats.Refresh(true)
 end
 
@@ -325,12 +376,14 @@ local function BuildRow(i)
 end
 
 -- entries: { r, g, b, label, n, pct (text), share (0..1 for the bar), tip, onClick }
-local function ShowRows(entries, y0)
+local function ShowRows(entries, y0, step)
+	step = step or ROW_H
 	for i = 1, table.getn(entries) do
 		local e = entries[i]
 		local r = rows[i] or BuildRow(i)
 		r:ClearAllPoints()
-		r:SetPoint("TOPLEFT", win, "TOPLEFT", RX, y0 - (i - 1) * ROW_H)
+		r:SetPoint("TOPLEFT", win, "TOPLEFT", RX, y0 - (i - 1) * step)
+		r:SetHeight(step - 3)
 		r.icon:SetTexture(e.r, e.g, e.b, 1)
 		r.fill:SetTexture(e.r, e.g, e.b, 1)
 		r.fill:SetWidth(math.max(2, math.floor(120 * e.share + 0.5)))
@@ -378,7 +431,7 @@ end
 
 -- the names behind the chart: per role (Tank, Heal, DD, unknown) a heading, below it one entry per class with the
 -- characters in class colours, wrapped to the width of the right hand side. Too many for the space: the rest is counted.
-local LIST_VIEW = 17            -- lines visible at once, the rest scrolls
+local LIST_VIEW = 17            -- lines visible at once (adjusted to the free space), the rest scrolls
 local LIST_LINE_CHARS = 58
 function Stats.RoleListLines(rd)
 	local lines, order = {}, { "T", "H", "D", "?" }
@@ -429,10 +482,11 @@ end
 function Stats.ShowList()
 	if not win or not win.listLines then return end
 	local n = table.getn(win.listLines)
-	local maxOff = math.max(0, n - LIST_VIEW)
+	local view = win.listView or LIST_VIEW
+	local maxOff = math.max(0, n - view)
 	if win.listOff > maxOff then win.listOff = maxOff end
 	local out = {}
-	for i = win.listOff + 1, math.min(n, win.listOff + LIST_VIEW) do table.insert(out, win.listLines[i]) end
+	for i = win.listOff + 1, math.min(n, win.listOff + view) do table.insert(out, win.listLines[i]) end
 	win.roleList:SetText(table.concat(out, "\n"))
 	win.listSlider:SetMinMaxValues(0, maxOff)
 	if win.listSlider:GetValue() ~= win.listOff then
@@ -441,6 +495,57 @@ function Stats.ShowList()
 		win.listBusy = false
 	end
 	if maxOff > 0 then win.listSlider:Show() else win.listSlider:Hide() end
+end
+
+-- the names for the class view: per class a heading (class colour) and below one line per role with the characters
+function Stats.ClassListLines(rd)
+	local lines, order = {}, { "T", "H", "D", "?" }
+	for ci = 1, table.getn(rd.classList) do
+		local c = rd.classList[ci]
+		local r, g, b = BG.Notes.ClassColor(c.key)
+		local cc = Hex(r, g, b)
+		table.insert(lines, cc .. ClassLabel(c.key) .. " (" .. c.n .. ")|r")
+		for oi = 1, 4 do
+			local role = order[oi]
+			local names = c.names[role]
+			if table.getn(names) > 0 then
+				table.sort(names)
+				local rc = ROLE_COL[role] or { 0.55, 0.58, 0.66 }
+				local label = (role == "?") and BG.T("stats_unknown") or BG.Notes.RoleName(role)
+				local head = "  " .. Hex(rc[1], rc[2], rc[3]) .. label .. "|r" .. GRAY .. ":|r "
+				local cur, curLen, fresh = head, 2 + string.len(label) + 2, true
+				for i = 1, table.getn(names) do
+					local nm = names[i]
+					if not fresh and curLen + string.len(nm) + 2 > LIST_LINE_CHARS then
+						table.insert(lines, cur .. ",")
+						cur, curLen, fresh = "    ", 4, true
+					end
+					cur = cur .. (fresh and "" or ", ") .. cc .. nm .. "|r"
+					curLen = curLen + string.len(nm) + (fresh and 0 or 2)
+					fresh = false
+				end
+				table.insert(lines, cur)
+			end
+		end
+	end
+	return lines
+end
+
+-- hover text of a class slice in the selection: members and how they split into roles
+local function ClassSelTip(c, inRange)
+	local r, g, b = BG.Notes.ClassColor(c.key)
+	local lines = { { ClassLabel(c.key), r, g, b } }
+	table.insert(lines, { BG.T("stats_members", c.n, Pct(c.n, inRange)), 1, 1, 1 })
+	local order = { "T", "H", "D", "?" }
+	for i = 1, 4 do
+		local role = order[i]
+		if c[role] > 0 then
+			local rc = ROLE_COL[role] or { 0.55, 0.58, 0.66 }
+			local label = (role == "?") and BG.T("stats_unknown") or BG.Notes.RoleName(role)
+			table.insert(lines, { "  " .. label .. ":  " .. c[role], rc[1], rc[2], rc[3] })
+		end
+	end
+	return lines
 end
 
 -- hover text of a role slice: which classes / specs make it up
@@ -489,6 +594,12 @@ local function Mark(b, on)
 		if b.UnlockHighlight then b:UnlockHighlight() end
 		if fs then fs:SetTextColor(1, 1, 1) end
 	end
+end
+
+function Stats.ActText(days)
+	if not days or days <= 0 then return BG.T("stats_act_all") end
+	if days == 1 then return BG.T("stats_act_day1") end
+	return BG.T("stats_act_days", days)
 end
 
 local function Build()
@@ -645,29 +756,74 @@ local function Build()
 	end)
 	win.listSlider:Hide()
 	win.listFrame:Hide()
+	-- activity: slider with the steps of ACT_STEPS (offline for at most N days; the last step = everybody)
+	win.actLbl = win:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	win.actLbl:SetPoint("TOPLEFT", win, "TOPLEFT", RX, -142)
+	win.actSlider = CreateFrame("Slider", Name("Act"), win)
+	win.actSlider:SetWidth(170)
+	win.actSlider:SetHeight(16)
+	win.actSlider:SetPoint("TOPLEFT", win, "TOPLEFT", RX + 150, -140)
+	win.actSlider:EnableMouse(true)
+	win.actSlider:SetOrientation("HORIZONTAL")
+	win.actSlider:SetMinMaxValues(1, table.getn(ACT_STEPS))
+	win.actSlider:SetValueStep(1)
+	win.actSlider:SetValue(table.getn(ACT_STEPS))
+	win.actSlider:SetThumbTexture("Interface\\Buttons\\UI-SliderBar-Button-Horizontal")
+	local trackBg = win.actSlider:CreateTexture(nil, "BACKGROUND")
+	trackBg:SetTexture(0.10, 0.12, 0.20, 1)
+	trackBg:SetHeight(5)
+	trackBg:SetPoint("LEFT", win.actSlider, "LEFT", 0, 0)
+	trackBg:SetPoint("RIGHT", win.actSlider, "RIGHT", 0, 0)
+	win.actVal = win:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+	win.actVal:SetPoint("TOPLEFT", win, "TOPLEFT", RX + 328, -142)
+	win.actVal:SetWidth(40)
+	win.actVal:SetJustifyH("LEFT")
+	win.actSlider:SetScript("OnValueChanged", function()
+		local idx = math.floor((this:GetValue() or 1) + 0.5)
+		local days = ACT_STEPS[idx] or 0
+		win.actVal:SetText(Stats.ActText(days))
+		if win.actBusy then return end
+		Stats.actPending, Stats.actPendingT = days, GetTime()
+	end)
+	win.actSlider:Hide()
+	-- group by role / by class
+	win.btnByRole = BG.MakeButton(win, Name("Grp"), 120, 22, "")
+	win.btnByRole:SetPoint("TOPLEFT", win, "TOPLEFT", RX, -166)
+	win.btnByRole:SetScript("OnClick", function() Stats.SetGroup("role") end)
+	win.btnByClass = BG.MakeButton(win, Name("Grp"), 120, 22, "")
+	win.btnByClass:SetPoint("LEFT", win.btnByRole, "RIGHT", 6, 0)
+	win.btnByClass:SetScript("OnClick", function() Stats.SetGroup("class") end)
+	win.btnByRole:Hide()
+	win.btnByClass:Hide()
 	win.rngInfo = win:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-	win.rngInfo:SetPoint("TOPLEFT", win, "TOPLEFT", RX, -138)
+	win.rngInfo:SetPoint("TOPLEFT", win, "TOPLEFT", RX, -194)
 	win.rngInfo:SetWidth(RW)
 	win.rngInfo:SetJustifyH("LEFT")
 
 	-- hover over the chart: which slice?
 	win.chart.t = 0
 	win.chart:SetScript("OnUpdate", function()
+		local chart, dt = this, arg1   -- scripts called below (slider, refresh) may change "this" / "arg1"
 		if job then PaintStep() end
-		this.t = this.t + arg1
-		if this.t < 0.04 then return end
-		this.t = 0
-		if not Stats.cur or not (MouseIsOver and MouseIsOver(this)) then
+		if Stats.actPending and GetTime() - (Stats.actPendingT or 0) > 0.25 then
+			local d = Stats.actPending
+			Stats.actPending = nil
+			Stats.SetActivity(d)
+		end
+		chart.t = chart.t + dt
+		if chart.t < 0.04 then return end
+		chart.t = 0
+		if not Stats.cur or not (MouseIsOver and MouseIsOver(chart)) then
 			if Stats.hover then Stats.hover = nil GameTooltip:Hide() end
 			return
 		end
 		local x, y = GetCursorPosition()
-		local s = this:GetEffectiveScale()
+		local s = chart:GetEffectiveScale()
 		x, y = x / s, y / s
-		local idx = Stats.HitTest(x - (this:GetLeft() + R + MARGIN), y - (this:GetTop() - R - MARGIN))
+		local idx = Stats.HitTest(x - (chart:GetLeft() + R + MARGIN), y - (chart:GetTop() - R - MARGIN))
 		if idx ~= Stats.hover then
 			Stats.hover = idx
-			if idx then Stats.ShowTip(this, Stats.tips[idx]) else GameTooltip:Hide() end
+			if idx then Stats.ShowTip(chart, Stats.tips[idx]) else GameTooltip:Hide() end
 		end
 	end)
 end
@@ -694,11 +850,12 @@ function Stats.Refresh(force)
 
 	local rangeLo, rangeHi = Stats.Range()
 	local rd
-	if Stats.mode == "roles" then rd = Stats.CollectRoles(rangeLo, rangeHi) end
+	local actDays, group = Stats.Activity(), Stats.Group()
+	if Stats.mode == "roles" then rd = Stats.CollectRoles(rangeLo, rangeHi, actDays) end
 
 	-- signature: only repaint when something visible changed
 	local sig = Stats.mode .. ":" .. tostring(Stats.class) .. ":" .. total
-	if rd then sig = sig .. ":" .. rangeLo .. "-" .. rangeHi .. ":" .. rd.T .. "," .. rd.H .. "," .. rd.D .. "," .. rd["?"] end
+	if rd then sig = sig .. ":" .. rangeLo .. "-" .. rangeHi .. ":" .. actDays .. group .. ":" .. rd.T .. "," .. rd.H .. "," .. rd.D .. "," .. rd["?"] .. "/" .. rd.inRange end
 	for i = 1, table.getn(list) do
 		local c = list[i]
 		sig = sig .. "," .. c.key .. c.total .. "/" .. c.unknown
@@ -726,6 +883,24 @@ function Stats.Refresh(force)
 	win.listOff = 0
 	win.roleList:SetText("")
 	win.listFrame:Hide()
+	win.actLbl:SetText(rolesMode and BG.T("stats_act_label") or "")
+	if rolesMode then
+		win.actSlider:Show()
+		local idx = table.getn(ACT_STEPS)
+		for i = 1, table.getn(ACT_STEPS) do if ACT_STEPS[i] == actDays then idx = i end end
+		win.actBusy = true
+		win.actSlider:SetValue(idx)
+		win.actBusy = false
+		win.actVal:SetText(Stats.ActText(actDays))
+		win.btnByRole:SetText(BG.T("stats_by_role"))
+		win.btnByClass:SetText(BG.T("stats_by_class"))
+		Mark(win.btnByRole, group == "role")
+		Mark(win.btnByClass, group == "class")
+		win.btnByRole:Show() win.btnByClass:Show()
+	else
+		win.actSlider:Hide() win.actVal:SetText("")
+		win.btnByRole:Hide() win.btnByClass:Hide()
+	end
 	win.rngLbl1:SetText(rolesMode and BG.T("stats_range_from") or "")
 	win.rngLbl2:SetText(rolesMode and BG.T("stats_range_to") or "")
 	win.rngInfo:SetText("")
@@ -746,22 +921,32 @@ function Stats.Refresh(force)
 		end
 	end
 	if rolesMode then
-		-- donut of Tank / Heal / DD / unknown for the level range
-		local segs = {}
-		local order = { "T", "H", "D", "?" }
+		-- donut for the selection (level range + activity): by role (Tank / Heal / DD / unknown) or by class
+		local segs, entries = {}, {}
 		Stats.tips = {}
-		local entries = {}
-		local max = 0
-		for i = 1, 4 do if rd[order[i]] > max then max = rd[order[i]] end end
-		for i = 1, 4 do
-			local role = order[i]
-			local n = rd[role]
-			if n > 0 then
-				local col = ROLE_COL[role] or { 0.30, 0.33, 0.42 }
-				local label = (role == "?") and BG.T("stats_unknown") or BG.Notes.RoleName(role)
-				table.insert(segs, { n = n, r = col[1], g = col[2], b = col[3], label = label, role = role })
+		local step, top
+		if group == "role" then
+			local order = { "T", "H", "D", "?" }
+			for i = 1, 4 do
+				local role = order[i]
+				local n = rd[role]
+				if n > 0 then
+					local col = ROLE_COL[role] or { 0.30, 0.33, 0.42 }
+					local label = (role == "?") and BG.T("stats_unknown") or BG.Notes.RoleName(role)
+					table.insert(segs, { n = n, r = col[1], g = col[2], b = col[3], label = label, role = role })
+				end
 			end
+			step = ROW_H
+		else
+			for i = 1, table.getn(rd.classList) do
+				local c = rd.classList[i]
+				local r, g, b = BG.Notes.ClassColor(c.key)
+				table.insert(segs, { n = c.n, r = r, g = g, b = b, label = ClassLabel(c.key), class = c })
+			end
+			step = 22
 		end
+		local hdr = BG.T(group == "role" and "stats_hdr_roles" or "stats_hdr_sel_classes")
+		Header(hdr)
 		if rd.inRange == 0 then
 			for i = 1, table.getn(pool) do pool[i].tex:Hide() end
 			used = 0
@@ -770,27 +955,40 @@ function Stats.Refresh(force)
 			win.cBig:SetText("")
 			win.cSmall:SetText("")
 			win.empty:SetText(BG.T("stats_range_empty", rangeLo, rangeHi))
+			win.rngInfo:SetText(GRAY .. BG.T("stats_sel_info", rd.inRange, rd.inLevel, rd.total, Stats.ActText(actDays)) .. "|r")
 			ShowRows({}, 0)
-			Header(BG.T("stats_hdr_roles"))
 			return
 		end
 		StartPaint(segs)
 		win.cBig:SetText(GOLD .. rd.inRange .. "|r")
-		win.cSmall:SetText(BG.T("stats_range_center", rangeLo, rangeHi))
-		Header(BG.T("stats_hdr_roles"))
-		win.rngInfo:SetText(GRAY .. BG.T("stats_range_info", rd.inRange, rd.total) .. "|r")
+		win.cSmall:SetText(BG.T("stats_range_center", rangeLo, rangeHi) .. ((actDays > 0) and ("\n" .. GRAY .. BG.T("stats_act_short", actDays) .. "|r") or ""))
+		local info = BG.T("stats_sel_info", rd.inRange, rd.inLevel, rd.total, Stats.ActText(actDays))
+		if actDays > 0 and rd.noInfo > 0 then info = info .. " " .. BG.T("stats_noinfo", rd.noInfo) end
+		win.rngInfo:SetText(GRAY .. info .. "|r")
+		local max = 0
+		for i = 1, table.getn(segs) do if segs[i].n > max then max = segs[i].n end end
 		for i = 1, table.getn(segs) do
 			local sg = segs[i]
-			local tip = RoleTip(sg.role, sg.n, rd, rd.inRange)
+			local tip
+			if group == "role" then tip = RoleTip(sg.role, sg.n, rd, rd.inRange) else tip = ClassSelTip(sg.class, rd.inRange) end
 			Stats.tips[i] = tip
 			table.insert(entries, { r = sg.r, g = sg.g, b = sg.b, label = sg.label, n = sg.n, pct = GRAY .. Pct(sg.n, rd.inRange) .. "|r",
 				share = sg.n / math.max(max, 1), tip = tip })
 		end
-		ShowRows(entries, -168)
+		local rowsTop = -218
+		ShowRows(entries, rowsTop, step)
+		local listTop = rowsTop - table.getn(entries) * step - 8
 		win.listFrame:ClearAllPoints()
-		win.listFrame:SetPoint("TOPLEFT", win, "TOPLEFT", RX, -168 - table.getn(entries) * ROW_H - 10)
+		win.listFrame:SetPoint("TOPLEFT", win, "TOPLEFT", RX, listTop)
+		-- as many lines as fit between the rows and the bottom of the window
+		local view = math.floor((H + listTop - 24) / 12)
+		if view < 3 then view = 3 end
+		win.listView = view
+		win.listFrame:SetHeight(view * 12 + 4)
+		win.roleList:SetHeight(view * 12 + 4)
+		win.listSlider:SetHeight(view * 12)
 		win.listFrame:Show()
-		win.listLines = Stats.RoleListLines(rd)
+		if group == "role" then win.listLines = Stats.RoleListLines(rd) else win.listLines = Stats.ClassListLines(rd) end
 		win.listOff = 0
 		Stats.ShowList()
 		return

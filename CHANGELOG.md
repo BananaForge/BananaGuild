@@ -3,6 +3,11 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 1.21.0
+- Statistik > Rollen: Neuer Aktivitäts-Regler („Offline höchstens: ..."). Stufen 1, 2, 3, 5, 7, 10, 14, 21, 30, 60 Tage oder „alle". Es zählen nur Charaktere, die online sind oder höchstens so lange offline waren, zusammen mit dem Level-Bereich. So siehst du, wie die wirklich aktiven Leute aufgestellt sind. Charaktere ohne Offline-Angabe werden bei aktivem Filter nicht mitgezählt (die Info-Zeile sagt, wie viele).
+- Umschaltbar „Nach Rolle" (Tank / Heal / DD / unbekannt) oder „Nach Klasse": Das Kuchendiagramm, die Zeilen und die Namensliste zeigen dann die Klassen der Auswahl in Klassenfarben. Mouse-over auf einer Klasse zeigt, wie sie sich auf Tank / Heal / DD aufteilt; die Namensliste gruppiert Klasse, dann Rolle, dann Namen.
+- Das Statistik-Fenster ist etwas höher (600 statt 524), damit Zeilen und Namensliste Platz haben. Auch die Einstellungen werden gespeichert (Bereich, Aktivität, Ansicht).
+
 ## 1.20.0
 - Neuling Check: Automatisches Popup, sobald jemand aus der Liste online ist (kommt online oder ist beim Login schon online, ca. 35 Sekunden nach dem Login). Oben groß „Neuling Check", darunter Name in Klassenfarbe, Stufe, Klasse und Tage in der Gilde, dazu der Knopf „Zu Member befördern" (befördert genau diese Person, danach geht wie gewohnt die Bank-Info per Flüstern raus), „Neuling Check öffnen" und „Später" (heute nicht mehr melden). Pro Person höchstens alle 2 Stunden; sind mehr als drei gleichzeitig online, gibt es ein Sammel-Popup mit „Neuling Check öffnen". Nur für Spieler mit Beförderungsrecht, im Instanzmodus wie die anderen Beförderungs-Meldungen unterdrückt.
 - Abschaltbar unter Einstellungen > Beförderung („Popup, wenn ein Neuling online ist").
