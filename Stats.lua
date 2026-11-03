@@ -916,12 +916,12 @@ function Stats.Refresh(force)
 	local rangeLo, rangeHi = Stats.Range()
 	local rd
 	local actDays, group = Stats.Activity(), Stats.Group()
-	local pool = Stats.Pool()
-	if Stats.mode == "roles" then rd = Stats.CollectRoles(rangeLo, rangeHi, actDays, pool) end
+	local bothSpecs = Stats.Pool()
+	if Stats.mode == "roles" then rd = Stats.CollectRoles(rangeLo, rangeHi, actDays, bothSpecs) end
 
 	-- signature: only repaint when something visible changed
 	local sig = Stats.mode .. ":" .. tostring(Stats.class) .. ":" .. total .. (BG.db.statsHideInactive and "h" or "")
-	if rd then sig = sig .. ":" .. rangeLo .. "-" .. rangeHi .. ":" .. actDays .. group .. (pool and "p" or "") .. ":" .. rd.T .. "," .. rd.H .. "," .. rd.D .. "," .. rd["?"] .. "/" .. rd.inRange end
+	if rd then sig = sig .. ":" .. rangeLo .. "-" .. rangeHi .. ":" .. actDays .. group .. (bothSpecs and "p" or "") .. ":" .. rd.T .. "," .. rd.H .. "," .. rd.D .. "," .. rd["?"] .. "/" .. rd.inRange end
 	for i = 1, table.getn(list) do
 		local c = list[i]
 		sig = sig .. "," .. c.key .. c.total .. "/" .. c.unknown
@@ -970,7 +970,7 @@ function Stats.Refresh(force)
 		Mark(win.btnByClass, group == "class")
 		win.btnByRole:Show() win.btnByClass:Show()
 		win.chkPool:Show()
-		win.chkPool:SetChecked(pool and 1 or nil)
+		win.chkPool:SetChecked(bothSpecs and 1 or nil)
 		win.chkPoolText:SetText(BG.T("stats_pool"))
 	else
 		win.chkPool:Hide()
@@ -1040,7 +1040,7 @@ function Stats.Refresh(force)
 		win.cSmall:SetText(BG.T("stats_range_center", rangeLo, rangeHi) .. ((actDays > 0) and ("\n" .. GRAY .. BG.T("stats_act_short", actDays) .. "|r") or ""))
 		local info = BG.T("stats_sel_info", rd.inRange, rd.inLevel, rd.total, Stats.ActText(actDays))
 		if actDays > 0 and rd.noInfo > 0 then info = info .. " " .. BG.T("stats_noinfo", rd.noInfo) end
-		if pool then info = info .. " " .. BG.T("stats_pool_note") end
+		if bothSpecs then info = info .. " " .. BG.T("stats_pool_note") end
 		win.rngInfo:SetText(GRAY .. info .. "|r")
 		local max = 0
 		for i = 1, table.getn(segs) do if segs[i].n > max then max = segs[i].n end end
