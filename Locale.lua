@@ -1843,3 +1843,8 @@ de.stats_sel_info = "Auswahl: %s von %s im Level-Bereich (Gilde: %s). Aktivität
 en.stats_sel_info = "Selection: %s of %s in the level range (guild: %s). Activity: %s."
 de.stats_noinfo = "%s ohne Offline-Angabe nicht mitgezählt."
 en.stats_noinfo = "%s without offline info not counted."
+
+de.stats_hide_inactive = "Rang „%s“ ausblenden"
+en.stats_hide_inactive = "Hide rank \"%s\""
+de.stats_total_hidden = "%s Chars in der Gilde (%s auf Rang „%s“ ausgeblendet)"
+en.stats_total_hidden = "%s chars in the guild (%s on rank \"%s\" hidden)"

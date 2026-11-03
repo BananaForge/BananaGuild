@@ -3,6 +3,9 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 1.21.1
+- Statistik: Neuer Haken „Rang „Inaktiv" ausblenden" oben links im Statistik-Fenster. Ist er gesetzt, zählen die Mitglieder auf dem Inaktiv-Rang (Name aus den Einstellungen des Inaktiv-Fensters, Standard „Inaktiv") in keiner Statistik mit (Klassen, Specs pro Klasse, Rollen). Unter dem Titel steht dann, wie viele ausgeblendet sind. Die Einstellung wird gespeichert.
+
 ## 1.21.0
 - Statistik > Rollen: Neuer Aktivitäts-Regler („Offline höchstens: ..."). Stufen 1, 2, 3, 5, 7, 10, 14, 21, 30, 60 Tage oder „alle". Es zählen nur Charaktere, die online sind oder höchstens so lange offline waren, zusammen mit dem Level-Bereich. So siehst du, wie die wirklich aktiven Leute aufgestellt sind. Charaktere ohne Offline-Angabe werden bei aktivem Filter nicht mitgezählt (die Info-Zeile sagt, wie viele).
 - Umschaltbar „Nach Rolle" (Tank / Heal / DD / unbekannt) oder „Nach Klasse": Das Kuchendiagramm, die Zeilen und die Namensliste zeigen dann die Klassen der Auswahl in Klassenfarben. Mouse-over auf einer Klasse zeigt, wie sie sich auf Tank / Heal / DD aufteilt; die Namensliste gruppiert Klasse, dann Rolle, dann Namen.

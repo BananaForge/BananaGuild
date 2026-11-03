@@ -32,9 +32,18 @@ local BGC = { r = 0.03, g = 0.05, b = 0.13 }          -- window background (gaps
 ---------------------------------------------------------------- data
 
 -- list of classes (biggest first): { key, total, specs = { code -> n }, unknown, roles = { T, H, D } }, and the guild total
+-- members on the guild rank for inactive players can be left out of every statistic (setting of the window)
+function Stats.Skip(info)
+	return BG.db.statsHideInactive and info.rank == BG.db.inactive.rank
+end
+
 function Stats.Collect()
 	local byClass, total = {}, 0
+	Stats.hidden = 0
 	for name, info in pairs(BG.roster) do
+		if Stats.Skip(info) then
+			Stats.hidden = Stats.hidden + 1
+		else
 		local key = info.ckey or "UNKNOWN"
 		local c = byClass[key]
 		if not c then c = { key = key, total = 0, specs = {}, unknown = 0, roles = { T = 0, H = 0, D = 0 } } byClass[key] = c end
@@ -46,6 +55,7 @@ function Stats.Collect()
 			if pn.role then c.roles[pn.role] = c.roles[pn.role] + 1 end
 		else
 			c.unknown = c.unknown + 1
+		end
 		end
 	end
 	local list = {}
@@ -65,6 +75,7 @@ function Stats.CollectRoles(lo, hi, days)
 	local out = { T = 0, H = 0, D = 0, ["?"] = 0, inRange = 0, total = 0, inLevel = 0, noInfo = 0,
 		detail = { T = {}, H = {}, D = {}, ["?"] = {} }, members = { T = {}, H = {}, D = {}, ["?"] = {} }, byClass = {} }
 	for name, info in pairs(BG.roster) do
+		if not Stats.Skip(info) then
 		out.total = out.total + 1
 		local lvl = info.level or 0
 		if lvl >= lo and lvl <= hi then
@@ -99,6 +110,7 @@ function Stats.CollectRoles(lo, hi, days)
 				c[role] = c[role] + 1
 				table.insert(c.names[role], name)
 			end
+		end
 		end
 	end
 	-- classes, biggest first
@@ -631,6 +643,18 @@ local function Build()
 	win.sub = win:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 	win.sub:SetPoint("TOPLEFT", win, "TOPLEFT", 66, -38)
 
+	-- leave out the members on the "inactive" guild rank
+	win.chkInactive = CreateFrame("CheckButton", Name("Inact"), win, "UICheckButtonTemplate")
+	win.chkInactive:SetWidth(22)
+	win.chkInactive:SetHeight(22)
+	win.chkInactive:SetPoint("TOPLEFT", win, "TOPLEFT", 66, -56)
+	win.chkInactiveText = getglobal(win.chkInactive:GetName() .. "Text")
+	win.chkInactiveText:SetJustifyH("LEFT")
+	win.chkInactiveText:SetWidth(300)
+	win.chkInactive:SetScript("OnClick", function()
+		BG.db.statsHideInactive = this:GetChecked() and true or false
+		Stats.Refresh(true)
+	end)
 	win.btnClasses = BG.MakeButton(win, Name("Btn"), 92, 24, "")
 	win.btnClasses:SetPoint("TOPLEFT", win, "TOPLEFT", RX, -18)
 	win.btnClasses:SetScript("OnClick", function() Stats.mode = "classes" Stats.Refresh(true) end)
@@ -854,7 +878,7 @@ function Stats.Refresh(force)
 	if Stats.mode == "roles" then rd = Stats.CollectRoles(rangeLo, rangeHi, actDays) end
 
 	-- signature: only repaint when something visible changed
-	local sig = Stats.mode .. ":" .. tostring(Stats.class) .. ":" .. total
+	local sig = Stats.mode .. ":" .. tostring(Stats.class) .. ":" .. total .. (BG.db.statsHideInactive and "h" or "")
 	if rd then sig = sig .. ":" .. rangeLo .. "-" .. rangeHi .. ":" .. actDays .. group .. ":" .. rd.T .. "," .. rd.H .. "," .. rd.D .. "," .. rd["?"] .. "/" .. rd.inRange end
 	for i = 1, table.getn(list) do
 		local c = list[i]
@@ -863,7 +887,13 @@ function Stats.Refresh(force)
 	end
 
 	win.title:SetText(GOLD .. BG.T("stats_title") .. "|r")
-	win.sub:SetText(BG.T("stats_total", total))
+	if Stats.hidden and Stats.hidden > 0 then
+		win.sub:SetText(BG.T("stats_total_hidden", total, Stats.hidden, BG.db.inactive.rank))
+	else
+		win.sub:SetText(BG.T("stats_total", total))
+	end
+	win.chkInactive:SetChecked(BG.db.statsHideInactive and 1 or nil)
+	win.chkInactiveText:SetText(BG.T("stats_hide_inactive", BG.db.inactive.rank))
 	win.btnClasses:SetText(BG.T("stats_classes"))
 	win.btnSpecs:SetText(BG.T("stats_specs"))
 	win.btnRoles:SetText(BG.T("stats_roles_btn"))
