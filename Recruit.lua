@@ -260,6 +260,8 @@ local function OfficerRank(sender)
 	return (info.rankIndex or 99) <= lim
 end
 
+Recruit.OfficerRank = OfficerRank
+
 function Recruit.CanEditWanted()
 	return OfficerRank(BG.me)
 end

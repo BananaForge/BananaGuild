@@ -1117,6 +1117,11 @@ local function BuildMembers(p)
 	d.gnote:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -104)
 	d.gnote:SetWidth(222)
 	d.gnote:SetJustifyH("LEFT")
+	d.dual = d:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	d.dual:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -88)
+	d.dual:SetWidth(222)
+	d.dual:SetHeight(14)
+	d.dual:SetJustifyH("LEFT")
 	d.parse = d:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	d.parse:SetPoint("TOPLEFT", d, "TOPLEFT", 12, -122)
 	d.parse:SetWidth(222)
@@ -1443,6 +1448,7 @@ function UI.LoadDetail()
 		d.info:SetText("")
 		d.twinks:SetText("")
 		d.gnote:SetText("")
+		d.dual:SetText("")
 		d.parse:SetText("")
 		d.since:SetText("")
 		d.by:SetText("")
@@ -1471,6 +1477,20 @@ function UI.LoadDetail()
 	end
 	local note = info and info.note or ""
 	d.gnote:SetText(note ~= "" and note or (GRAY .. BG.T("note_none") .. "|r"))
+	-- specs reported by the character's own addon (dual spec)
+	local dualText = ""
+	local drec = BG.Dual and BG.Dual.Get(name)
+	if drec and info and info.ckey then
+		local sp = BG.Dual.SpecsOf(name, info.ckey)
+		local names = {}
+		for i = 1, table.getn(sp) do
+			local nm = BG.Notes.SpecName(sp[i])
+			if drec.active == sp[i][1] and table.getn(sp) > 1 then nm = GOLD .. nm .. "|r" end
+			table.insert(names, nm)
+		end
+		if table.getn(names) > 0 then dualText = GRAY .. BG.T("dual_line") .. "|r " .. table.concat(names, " / ") end
+	end
+	d.dual:SetText(dualText)
 	local pn = info and info.parsed
 	local lines = {}
 	if pn and pn.kind then

@@ -1872,3 +1872,13 @@ de.promo_inactive_days = "Auf Inaktiv setzen nach"
 en.promo_inactive_days = "Set to inactive after"
 de.promo_inactive_unit = "Tagen offline"
 en.promo_inactive_unit = "days offline"
+
+---------------------------------------------------------------- 1.23: dual spec
+de.dual_line = "Specs (Addon):"
+en.dual_line = "Specs (addon):"
+de.stats_pool = "Beide Specs zählen"
+en.stats_pool = "Count both specs"
+de.stats_pool_tip = "Wer zwei Specs mit verschiedenen Rollen hat (z. B. Prot und Holy), zählt bei beiden Rollen mit. So siehst du, wie viele Tanks, Heiler und DDs ihr wirklich habt. Die Prozente beziehen sich auf die Zahl der Charaktere und ergeben zusammen mehr als 100."
+en.stats_pool_tip = "Characters with two specs of different roles (e.g. prot and holy) count for both roles. That shows how many tanks, healers and DDs you really have. The percentages refer to the number of characters and add up to more than 100."
+de.stats_pool_note = "Mehrfachzählung: wer zwei Rollen spielen kann, steht bei beiden."
+en.stats_pool_note = "Multiple counting: whoever can play two roles is in both."

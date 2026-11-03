@@ -70,7 +70,7 @@ end
 -- roles inside a level range (and, when days > 0, only characters that were online within that many days):
 -- { T, H, D, ? } counts, the number of characters in the selection, per role the "class / spec" breakdown for the
 -- tooltip, the names per role and the same numbers per class
-function Stats.CollectRoles(lo, hi, days)
+function Stats.CollectRoles(lo, hi, days, pool)
 	days = tonumber(days) or 0
 	local out = { T = 0, H = 0, D = 0, ["?"] = 0, inRange = 0, total = 0, inLevel = 0, noInfo = 0,
 		detail = { T = {}, H = {}, D = {}, ["?"] = {} }, members = { T = {}, H = {}, D = {}, ["?"] = {} }, byClass = {} }
@@ -93,22 +93,39 @@ function Stats.CollectRoles(lo, hi, days)
 			if active then
 				out.inRange = out.inRange + 1
 				local pn = info.parsed
-				local role = (pn and pn.spec and pn.role) or "?"
-				out[role] = out[role] + 1
 				local key = info.ckey or "?"
-				local label
-				if role == "?" then
-					label = info.ckey and BG.Notes.ClassName(info.ckey) or BG.T("stats_unknown_class")
-				else
-					label = BG.Notes.ClassName(info.ckey) .. " (" .. BG.Notes.SpecName(pn.spec) .. ")"
+				-- the roles this character counts for: its main role; with "both specs" every role it can play
+				local main = (pn and pn.spec and pn.role) or (BG.Dual and BG.Dual.MainRole(name, info)) or "?"
+				local roles = { main }
+				if pool and BG.Dual and main ~= "?" then
+					local set = BG.Dual.Roles(name, info)
+					for _, r in ipairs({ "T", "H", "D" }) do
+						if set[r] and r ~= main then table.insert(roles, r) end
+					end
 				end
-				out.detail[role][label] = (out.detail[role][label] or 0) + 1
-				table.insert(out.members[role], { name = name, key = key, spec = (role ~= "?") and pn.spec[1] or nil })
 				local c = out.byClass[key]
 				if not c then c = { key = key, n = 0, T = 0, H = 0, D = 0, ["?"] = 0, names = { T = {}, H = {}, D = {}, ["?"] = {} } } out.byClass[key] = c end
 				c.n = c.n + 1
-				c[role] = c[role] + 1
-				table.insert(c.names[role], name)
+				for _, role in ipairs(roles) do
+					out[role] = out[role] + 1
+					-- the spec behind this role: the one in the note, else one from the dual spec data
+					local spec
+					if pn and pn.spec and pn.spec[4] == role then spec = pn.spec
+					elseif BG.Dual and info.ckey then
+						local sp = BG.Dual.SpecsOf(name, info.ckey)
+						for i = 1, table.getn(sp) do if sp[i][4] == role and not spec then spec = sp[i] end end
+					end
+					local label
+					if role == "?" or not spec then
+						label = info.ckey and BG.Notes.ClassName(info.ckey) or BG.T("stats_unknown_class")
+					else
+						label = BG.Notes.ClassName(info.ckey) .. " (" .. BG.Notes.SpecName(spec) .. ")"
+					end
+					out.detail[role][label] = (out.detail[role][label] or 0) + 1
+					table.insert(out.members[role], { name = name, key = key, spec = spec and spec[1] or nil })
+					c[role] = c[role] + 1
+					table.insert(c.names[role], name)
+				end
 			end
 		end
 		end
@@ -137,6 +154,15 @@ function Stats.SetActivity(days)
 end
 
 -- "role" (Tank / Heal / DD) or "class"
+function Stats.Pool()
+	return BG.db.statsRange.pool and true or false
+end
+
+function Stats.SetPool(on)
+	BG.db.statsRange.pool = on and true or false
+	Stats.Refresh(true)
+end
+
 function Stats.Group()
 	return (BG.db.statsRange.by == "class") and "class" or "role"
 end
@@ -817,6 +843,21 @@ local function Build()
 	win.btnByClass = BG.MakeButton(win, Name("Grp"), 120, 22, "")
 	win.btnByClass:SetPoint("LEFT", win.btnByRole, "RIGHT", 6, 0)
 	win.btnByClass:SetScript("OnClick", function() Stats.SetGroup("class") end)
+	win.chkPool = CreateFrame("CheckButton", Name("Pool"), win, "UICheckButtonTemplate")
+	win.chkPool:SetWidth(22)
+	win.chkPool:SetHeight(22)
+	win.chkPool:SetPoint("TOPLEFT", win, "TOPLEFT", RX + 250, -165)
+	win.chkPoolText = getglobal(win.chkPool:GetName() .. "Text")
+	win.chkPoolText:SetJustifyH("LEFT")
+	win.chkPoolText:SetWidth(112)
+	win.chkPool:SetScript("OnClick", function() Stats.SetPool(this:GetChecked() and true or false) end)
+	win.chkPool:SetScript("OnEnter", function()
+		GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
+		GameTooltip:SetText(BG.T("stats_pool_tip"), 1, 1, 1, 1, 1)
+		GameTooltip:Show()
+	end)
+	win.chkPool:SetScript("OnLeave", function() GameTooltip:Hide() end)
+	win.chkPool:Hide()
 	win.btnByRole:Hide()
 	win.btnByClass:Hide()
 	win.rngInfo = win:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
@@ -875,11 +916,12 @@ function Stats.Refresh(force)
 	local rangeLo, rangeHi = Stats.Range()
 	local rd
 	local actDays, group = Stats.Activity(), Stats.Group()
-	if Stats.mode == "roles" then rd = Stats.CollectRoles(rangeLo, rangeHi, actDays) end
+	local pool = Stats.Pool()
+	if Stats.mode == "roles" then rd = Stats.CollectRoles(rangeLo, rangeHi, actDays, pool) end
 
 	-- signature: only repaint when something visible changed
 	local sig = Stats.mode .. ":" .. tostring(Stats.class) .. ":" .. total .. (BG.db.statsHideInactive and "h" or "")
-	if rd then sig = sig .. ":" .. rangeLo .. "-" .. rangeHi .. ":" .. actDays .. group .. ":" .. rd.T .. "," .. rd.H .. "," .. rd.D .. "," .. rd["?"] .. "/" .. rd.inRange end
+	if rd then sig = sig .. ":" .. rangeLo .. "-" .. rangeHi .. ":" .. actDays .. group .. (pool and "p" or "") .. ":" .. rd.T .. "," .. rd.H .. "," .. rd.D .. "," .. rd["?"] .. "/" .. rd.inRange end
 	for i = 1, table.getn(list) do
 		local c = list[i]
 		sig = sig .. "," .. c.key .. c.total .. "/" .. c.unknown
@@ -927,7 +969,11 @@ function Stats.Refresh(force)
 		Mark(win.btnByRole, group == "role")
 		Mark(win.btnByClass, group == "class")
 		win.btnByRole:Show() win.btnByClass:Show()
+		win.chkPool:Show()
+		win.chkPool:SetChecked(pool and 1 or nil)
+		win.chkPoolText:SetText(BG.T("stats_pool"))
 	else
+		win.chkPool:Hide()
 		win.actSlider:Hide() win.actVal:SetText("")
 		win.btnByRole:Hide() win.btnByClass:Hide()
 	end
@@ -994,6 +1040,7 @@ function Stats.Refresh(force)
 		win.cSmall:SetText(BG.T("stats_range_center", rangeLo, rangeHi) .. ((actDays > 0) and ("\n" .. GRAY .. BG.T("stats_act_short", actDays) .. "|r") or ""))
 		local info = BG.T("stats_sel_info", rd.inRange, rd.inLevel, rd.total, Stats.ActText(actDays))
 		if actDays > 0 and rd.noInfo > 0 then info = info .. " " .. BG.T("stats_noinfo", rd.noInfo) end
+		if pool then info = info .. " " .. BG.T("stats_pool_note") end
 		win.rngInfo:SetText(GRAY .. info .. "|r")
 		local max = 0
 		for i = 1, table.getn(segs) do if segs[i].n > max then max = segs[i].n end end

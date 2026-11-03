@@ -3,6 +3,12 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 1.23.0
+- Dual-Spec: Das Addon erfasst die Specs eines Charakters, ohne etwas in die Gildennotiz zu schreiben. Jeder Client liest die Talente seines eigenen Charakters (WoW 1.12 liefert nur die eigenen) und merkt sich die zwei zuletzt gespielten Specs. Sobald jemand beide einmal gespielt hat, kennt das Addon beide. Die Daten gehen automatisch an alle, die BananaGuild nutzen (Nachricht `D`, beim Login und bei jedem Wechsel, zusätzlich alle 30 Minuten). Wer neu online kommt, fragt (`DQ`), und ein Offizier schickt ihm die bekannten Daten aller anderen (`DS`, nur von Offiziersrängen angenommen).
+- Mitglieder-Reiter: Im Detailbereich steht „Specs (Addon): Schutz / Heilig", der gerade aktive Spec in Gold.
+- Statistik > Rollen: Neuer Haken „Beide Specs zählen". Wer zwei Rollen spielen kann (z. B. Tank und Heal), zählt bei beiden mit; so siehst du, wie viele Tanks, Heiler und DDs ihr wirklich habt. Die Prozente beziehen sich dann auf die Zahl der Charaktere (Summe über 100). Ohne Spec in der Notiz nutzt die Statistik jetzt den vom Addon gemeldeten aktiven Spec, dadurch sinkt die Zahl „unbekannt".
+- Hinweis: Beim Druiden wählt das Addon bei Wildheit-Talenten „Katze", außer die Notiz nennt „Bär". Neue Datei `Dual.lua`.
+
 ## 1.22.1
 - Einstellungen > Beförderung: Die Zeilen „Neulinge prüfen nach ... Wochen", „Auf Inaktiv setzen nach ... Tagen offline" und Start-/Zielrang überlagerten sich. Neu angeordnet, jede Zeile hat ihren eigenen Platz.
 
