@@ -9,7 +9,7 @@ local BG = BananaGuild
 local NW = {}
 BG.NoteWin = NW
 
-local W, H = 460, 562
+local W, H = 460, 594
 local GOLD, WHITE, GRAY, GREEN, RED = "|cffffd100", "|cffffffff", "|cff999999", "|cff40ff40", "|cffff5555"
 local win
 local counter = 0
@@ -104,6 +104,29 @@ function NW.Redraw()
 		end
 	end
 	win.specHint:SetText(win.ckey and "" or (GRAY .. BG.T("nwin_spec_noclass") .. "|r"))
+	-- second spec (cannot be the same as the first one)
+	if win.spec2 and win.spec2 == win.spec then win.spec2 = nil end
+	for i = 1, 5 do
+		local b = win.spec2Btns[i]
+		local s = specs[i]
+		if i <= table.getn(specs) then
+			b.spec = s[1]
+			b.specInfo = s
+			b:SetText(s[1])
+			b:Show()
+			Mark(b, win.spec2 == s[1])
+			if win.spec == s[1] then b:Disable() end
+		elseif i == table.getn(specs) + 1 then
+			b.spec = ""
+			b.specInfo = nil
+			b:SetText(BG.T("nwin_spec_none"))
+			b:Show()
+			Mark(b, not win.spec2)
+		else
+			b.spec = nil
+			b:Hide()
+		end
+	end
 
 	-- note preview + counter
 	local note, len = CurrentNote()
@@ -171,6 +194,7 @@ function NW.RedrawAsk()
 		if sug.kind and sug.kind ~= win.kind then same = false end
 		if sug.kind == "twink" and sug.main and sug.main ~= win.main then same = false end
 		if sug.spec and sug.spec[1] ~= win.spec then same = false end
+		if sug.spec2 and sug.spec2[1] ~= win.spec2 then same = false end
 		if table.getn(sug.profs) > 0 then
 			if win.noprof or table.getn(win.profs) ~= table.getn(sug.profs) then same = false end
 			for i = 1, table.getn(sug.profs) do
@@ -195,6 +219,7 @@ function NW.RedrawAsk()
 			table.insert(parts, BG.T("nwin_sug_profs", table.concat(names, ", ")))
 		end
 		if sug.spec then table.insert(parts, BG.T("nwin_sug_spec", sug.spec[1])) end
+		if sug.spec2 then table.insert(parts, BG.T("nwin_sug_spec2", sug.spec2[1])) end
 		win.sugText:SetText(GOLD .. BG.T("nwin_suggest") .. "|r " .. table.concat(parts, " - "))
 		win.sugBtn:Show()
 	else
@@ -334,14 +359,45 @@ local function Build()
 		b:Hide()
 		win.specBtns[i] = b
 	end
-	win.specHint = Text(win, 16, -268, "GameFontHighlightSmall", W - 32)
+	win.specHint = Text(win, 150, -229, "GameFontHighlightSmall", W - 170)
+	-- second spec: stays in the addon (not in the note), synced to the other officers
+	win.spec2Lbl = Text(win, 16, -272, "GameFontNormalSmall", W - 32)
+	win.spec2Btns = {}
+	for i = 1, 5 do
+		local b = BG.MakeButton(win, Name("Btn"), 80, 20, "")
+		b:SetPoint("TOPLEFT", win, "TOPLEFT", 16 + (i - 1) * 84, -288)
+		b:SetScript("OnClick", function()
+			if this.spec == nil then return end
+			win.spec2 = (this.spec ~= "") and this.spec or nil
+			NW.Redraw()
+		end)
+		b:SetScript("OnEnter", function()
+			GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
+			local sp = this.specInfo
+			if not sp then
+				GameTooltip:SetText(BG.T("tip_spec_none"), 1, 1, 1)
+			else
+				GameTooltip:SetText(sp[1], 1, 0.82, 0)
+				GameTooltip:AddLine("DE: " .. BG.Notes.SpecName(sp, "de"), 1, 1, 1)
+				GameTooltip:AddLine("EN: " .. BG.Notes.SpecName(sp, "en"), 1, 1, 1)
+				local col = (sp[4] == "T") and { 0.42, 0.65, 1 } or ((sp[4] == "H") and { 0.48, 0.88, 0.61 } or { 1, 0.56, 0.52 })
+				GameTooltip:AddLine(BG.T("rolefull_de_" .. sp[4]), col[1], col[2], col[3], 1)
+				GameTooltip:AddLine(BG.T("rolefull_en_" .. sp[4]), col[1], col[2], col[3], 1)
+			end
+			GameTooltip:AddLine(BG.T("tip_spec2"), 0.7, 0.7, 0.7, 1)
+			GameTooltip:Show()
+		end)
+		b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+		b:Hide()
+		win.spec2Btns[i] = b
+	end
 
 	-- note preview (an edit box so it can be selected and copied, but not changed)
-	win.noteLbl = Text(win, 16, -286, "GameFontNormalSmall", W - 32)
+	win.noteLbl = Text(win, 16, -318, "GameFontNormalSmall", W - 32)
 	win.preview = CreateFrame("EditBox", Name("Preview"), win, "InputBoxTemplate")
 	win.preview:SetWidth(W - 44)
 	win.preview:SetHeight(20)
-	win.preview:SetPoint("TOPLEFT", win, "TOPLEFT", 20, -302)
+	win.preview:SetPoint("TOPLEFT", win, "TOPLEFT", 20, -334)
 	win.preview:SetAutoFocus(false)
 	win.preview:SetScript("OnTextChanged", function()
 		if this.locked then return end
@@ -355,22 +411,22 @@ local function Build()
 	back:SetTexture(0, 0, 0, 0.6)
 	back:SetWidth(W - 40)
 	back:SetHeight(5)
-	back:SetPoint("TOPLEFT", win, "TOPLEFT", 20, -326)
+	back:SetPoint("TOPLEFT", win, "TOPLEFT", 20, -358)
 	win.bar = win:CreateTexture(nil, "OVERLAY")
 	win.bar:SetTexture(0.3, 0.9, 0.45, 1)
 	win.bar:SetWidth(10)
 	win.bar:SetHeight(5)
-	win.bar:SetPoint("TOPLEFT", win, "TOPLEFT", 20, -326)
-	win.info = Text(win, 16, -336, "GameFontHighlightSmall", W - 32)
+	win.bar:SetPoint("TOPLEFT", win, "TOPLEFT", 20, -358)
+	win.info = Text(win, 16, -368, "GameFontHighlightSmall", W - 32)
 	win.info:SetHeight(26)
 	win.info:SetJustifyV("TOP")
 
 	-- own note (stays in the addon, synced to other BananaGuild users): saved when the window closes
-	win.intLbl = Text(win, 16, -366, "GameFontNormalSmall", W - 32)
+	win.intLbl = Text(win, 16, -398, "GameFontNormalSmall", W - 32)
 	win.intEdit = CreateFrame("EditBox", Name("IntEdit"), win, "InputBoxTemplate")
 	win.intEdit:SetWidth(W - 44)
 	win.intEdit:SetHeight(20)
-	win.intEdit:SetPoint("TOPLEFT", win, "TOPLEFT", 20, -380)
+	win.intEdit:SetPoint("TOPLEFT", win, "TOPLEFT", 20, -412)
 	win.intEdit:SetAutoFocus(false)
 	win.intEdit:SetMaxLetters(80)
 	win.intEdit:SetScript("OnEscapePressed", function() this:ClearFocus() end)
@@ -378,14 +434,14 @@ local function Build()
 	win:SetScript("OnHide", function() NW.SaveInternal() end)
 
 	-- ask the player by whisper (professions / spec / twinks / everything) and read the reply
-	win.askLbl = Text(win, 16, -408, "GameFontNormalSmall", W - 32)
+	win.askLbl = Text(win, 16, -440, "GameFontNormalSmall", W - 32)
 	win.askBtns = {}
 	local askKinds = { "askAll", "askProf", "askSpec", "askTwink" }
 	local askKeys = { "nwin_ask_all", "nwin_ask_prof", "nwin_ask_spec", "nwin_ask_twink" }
 	for i = 1, 4 do
 		local kind, key = askKinds[i], askKeys[i] -- local per iteration (Lua 5.0 closures share the loop variable)
 		local b = BG.MakeButton(win, Name("Btn"), 104, 22, "")
-		b:SetPoint("TOPLEFT", win, "TOPLEFT", 16 + (i - 1) * 108, -422)
+		b:SetPoint("TOPLEFT", win, "TOPLEFT", 16 + (i - 1) * 108, -454)
 		b:SetScript("OnClick", function() NW.Ask(win.target, kind) end)
 		b:SetScript("OnEnter", function()
 			GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
@@ -396,14 +452,14 @@ local function Build()
 		b:SetScript("OnLeave", function() GameTooltip:Hide() end)
 		win.askBtns[i] = b
 	end
-	win.reply = Text(win, 16, -450, "GameFontHighlightSmall", W - 32)
+	win.reply = Text(win, 16, -482, "GameFontHighlightSmall", W - 32)
 	win.reply:SetHeight(28)
 	win.reply:SetJustifyV("TOP")
-	win.sugText = Text(win, 16, -484, "GameFontHighlightSmall", W - 190)
+	win.sugText = Text(win, 16, -516, "GameFontHighlightSmall", W - 190)
 	win.sugText:SetHeight(28)
 	win.sugText:SetJustifyV("TOP")
 	win.sugBtn = BG.MakeButton(win, Name("Btn"), 150, 22, "")
-	win.sugBtn:SetPoint("TOPRIGHT", win, "TOPRIGHT", -16, -486)
+	win.sugBtn:SetPoint("TOPRIGHT", win, "TOPRIGHT", -16, -518)
 	win.sugBtn:SetScript("OnClick", function() NW.ApplySuggestion() end)
 	win.sugBtn:Hide()
 
@@ -461,6 +517,7 @@ function NW.Apply(greet)
 	if note == "" or string.len(note) > BG.Notes.MAXLEN then return end
 	if win.kind == "twink" and (not win.main or win.main == "") then return end
 	BG.Notes.Set(name, note)
+	if BG.Dual then BG.Dual.Set(name, win.spec2) end
 	if greet and BG.Recruit then BG.Recruit.Welcome(name) end
 	win:Hide()
 end
@@ -533,6 +590,7 @@ function NW.ApplySuggestion()
 		win.noprof = false
 	end
 	if sug.spec then win.spec = sug.spec[1] end
+	if sug.spec2 then win.spec2 = sug.spec2[1] end
 	NW.Redraw()
 end
 
@@ -549,9 +607,14 @@ function NW.Open(name, mode, opts)
 	win.noprof = false
 	win.profs = {}
 	win.spec = nil
+	win.spec2 = nil
 	win.kind = "main"
 	local info = BG.roster[name]
 	win.ckey = info and info.ckey or nil
+	do
+		local s2 = BG.Dual and win.ckey and BG.Dual.Spec2(name, win.ckey)
+		if s2 then win.spec2 = s2[1] end
+	end
 	local p = info and info.parsed
 	win.main = nil
 	if p and p.kind then
@@ -576,6 +639,7 @@ function NW.Open(name, mode, opts)
 	win.profLbl:SetText(GOLD .. BG.T("nwin_profs") .. "|r")
 	win.noprofText:SetText(BG.T("nwin_noprof"))
 	win.specLbl:SetText(GOLD .. BG.T("nwin_spec") .. "|r")
+	win.spec2Lbl:SetText(GOLD .. BG.T("nwin_spec2") .. "|r")
 	win.noteLbl:SetText(GOLD .. BG.T("nwin_note") .. "|r")
 	win.askLbl:SetText(GOLD .. BG.T("nwin_ask") .. "|r")
 	win.askBtns[1]:SetText(BG.T("nwin_ask_all"))

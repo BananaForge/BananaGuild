@@ -1477,19 +1477,10 @@ function UI.LoadDetail()
 	end
 	local note = info and info.note or ""
 	d.gnote:SetText(note ~= "" and note or (GRAY .. BG.T("note_none") .. "|r"))
-	-- specs reported by the character's own addon (dual spec)
+	-- second spec (entered in the new member window, kept in the addon)
 	local dualText = ""
-	local drec = BG.Dual and BG.Dual.Get(name)
-	if drec and info and info.ckey then
-		local sp = BG.Dual.SpecsOf(name, info.ckey)
-		local names = {}
-		for i = 1, table.getn(sp) do
-			local nm = BG.Notes.SpecName(sp[i])
-			if drec.active == sp[i][1] and table.getn(sp) > 1 then nm = GOLD .. nm .. "|r" end
-			table.insert(names, nm)
-		end
-		if table.getn(names) > 0 then dualText = GRAY .. BG.T("dual_line") .. "|r " .. table.concat(names, " / ") end
-	end
+	local s2 = BG.Dual and info and info.ckey and BG.Dual.Spec2(name, info.ckey)
+	if s2 then dualText = GRAY .. BG.T("dual_line") .. "|r " .. BG.Notes.SpecName(s2) end
 	d.dual:SetText(dualText)
 	local pn = info and info.parsed
 	local lines = {}

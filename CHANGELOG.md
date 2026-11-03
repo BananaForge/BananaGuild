@@ -3,6 +3,13 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 1.24.0
+- Dual-Spec umgebaut: Es wird **nichts mehr automatisch ausgelesen** (die Talent-Erkennung aus 1.23 ist entfernt). Stattdessen fragt der Einlader / Rekrutierer / Offizier den Spieler wie gewohnt nach den Specs und trägt den **Zweit-Spec** im Neuzugang-Fenster (auch über „Notiz bearbeiten ...") von Hand ein: neue Zeile „Zweit-Spec" mit denselben Knöpfen wie beim Spec, darunter „keiner". Der Zweit-Spec kommt **nicht** in die Gildennotiz, sondern bleibt im Addon, es gibt also kein Zeilenlängen-Problem.
+- Der Eintrag wird an alle Offiziere mit dem Addon weitergegeben (Nachricht `D`, nur von Offiziersrängen angenommen, Entfernen wird mitgeschickt). Wer neu online kommt, fragt (`DQ`) und ein Offizier schickt ihm alles Bekannte (`DS`).
+- Antworten-Auswertung: Nennt ein Spieler zwei Specs („Prot und Waffen"), schlägt das Fenster den ersten als Spec und den zweiten als Zweit-Spec vor.
+- Mitglieder-Reiter zeigt „Zweit-Spec: ..." im Detailbereich; Statistik > Rollen hat weiter den Haken „Beide Specs zählen".
+- Entfernt: automatisches Auslesen der Talente, die Ticker und die Nachrichten der automatischen Meldung.
+
 ## 1.23.1
 - Fix: In 1.23.0 konnte die Statistik beim Wechsel zwischen den Ansichten (Klassen, Specs pro Klasse) mit einem Lua-Fehler abbrechen. Behoben.
 

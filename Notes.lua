@@ -317,6 +317,7 @@ local function SuggestSpec(tokens, classKey)
 	local list = Notes.Specs(classKey)
 	if table.getn(list) == 0 then return nil end
 	local hits, count = {}, 0
+	local exactPos = {}   -- spec index -> position of the first token that is exactly its code or its name
 	local function Hit(i)
 		if not hits[i] then hits[i] = 0 count = count + 1 end
 		hits[i] = hits[i] + 1
@@ -332,13 +333,25 @@ local function SuggestSpec(tokens, classKey)
 		for t = 1, table.getn(tokens) do
 			local tok = tokens[t]
 			for n = 1, 3 do
-				if tok == names[n] then Hit(i) end
+				if tok == names[n] then
+					Hit(i)
+					if not exactPos[i] then exactPos[i] = t end
+				end
 			end
 			for w = 1, table.getn(words) do
 				local word = words[w]
 				if tok == word or (string.len(tok) >= 4 and (Starts(word, tok) or Starts(tok, word))) then Hit(i) end
 			end
 		end
+	end
+	-- two specs named exactly ("Prot und Holy"): the first one in the text is the spec, the second one the second spec
+	local exact = {}
+	for i = 1, table.getn(list) do
+		if exactPos[i] then table.insert(exact, { idx = i, pos = exactPos[i] }) end
+	end
+	if table.getn(exact) >= 2 then
+		table.sort(exact, function(a, b) return a.pos < b.pos end)
+		return list[exact[1].idx], list[exact[2].idx]
 	end
 	-- the spec with the most hits wins; words shared by several specs (druid "Wilder Kampf") and ties are not clear
 	if count > 0 then
@@ -374,7 +387,7 @@ function Notes.Suggest(text, classKey, target)
 	local words = Words(text)
 	local tokens = WordsAndPairs(words)
 	r.profs = SuggestProfs(tokens)
-	r.spec = SuggestSpec(tokens, classKey)
+	r.spec, r.spec2 = SuggestSpec(tokens, classKey)
 
 	-- main / twink: names of guild members that appear as a word
 	local hasTwink, hasMainWord, mineTwink = false, false, false
