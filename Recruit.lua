@@ -251,12 +251,28 @@ function Recruit.WantedLine(key)
 	return "|cffff8844" .. BG.T("wanted_no", name, Recruit.WantedText()) .. "|r"
 end
 
--- officers (rank up to the sync trust rank or the officer rank of the greeting popup) may change and send the list
+-- index of the officer rank (setting "greet.rank"). When the saved name is not a rank of this guild (the default says
+-- "Offiziere", the guild may call it "Offizier"), the first rank with "offizier" / "officer" in its name is taken and saved.
+function Recruit.GreetIndex()
+	if not BG.Promo or not BG.Promo.RankIndex then return nil end
+	local idx = BG.Promo.RankIndex(BG.db.greet.rank)
+	if idx then return idx end
+	local ranks, n = BG.Promo.Ranks()
+	for i = 0, n - 1 do
+		local nm = string.lower(ranks[i] or "")
+		if string.find(nm, "offizier", 1, true) or string.find(nm, "officer", 1, true) then
+			BG.db.greet.rank = ranks[i]
+			return i
+		end
+	end
+	return nil
+end
+
+-- officers (rank up to the sync trust rank or the officer rank of the settings) may change and send the data
 local function OfficerRank(sender)
 	local info = BG.roster[sender]
 	if not info then return false end
-	local idx = BG.Promo and BG.Promo.RankIndex and BG.Promo.RankIndex(BG.db.greet.rank)
-	local lim = math.max(BG.db.sync.trustRank or 2, idx or 0)
+	local lim = math.max(BG.db.sync.trustRank or 2, Recruit.GreetIndex() or 0)
 	return (info.rankIndex or 99) <= lim
 end
 
@@ -714,7 +730,7 @@ end
 function Recruit.IsOfficer()
 	local me = BG.roster and BG.roster[BG.me]
 	if not me or not me.rankIndex then return false end
-	local idx = BG.Promo and BG.Promo.RankIndex and BG.Promo.RankIndex(BG.db.greet.rank)
+	local idx = Recruit.GreetIndex()
 	if idx == nil then idx = BG.db.sync.trustRank or 2 end
 	return me.rankIndex <= idx
 end

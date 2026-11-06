@@ -1976,3 +1976,11 @@ de.nwin_intnote = "Notiz (alle Offiziere sehen und bearbeiten sie)"
 en.nwin_intnote = "Note (all officers see and edit it)"
 de.detail_note = "Notiz:"
 en.detail_note = "Note:"
+
+---------------------------------------------------------------- 2.1.1: officer rank also for the data window
+de.nwin_noright = "Nur ab dem Rang %s darf man die Daten ändern (dein Rang: %s). Einstellbar unter Einstellungen > Beförderung."
+en.nwin_noright = "Only rank %s and above may change the data (your rank: %s). Can be set under Settings > Promotion."
+de.greet_rank = "Offiziersrang (Begrüßungs-Popup, Daten ändern) ab:"
+en.greet_rank = "Officer rank (greeting popup, change data) from:"
+de.tip_greet_rank = "Alle ab diesem Rang bekommen bei neuen Mitgliedern das Begrüßungs-Popup und dürfen die Mitgliederdaten (Main/Twink, Berufe, Spec, Notiz) ändern, Wunschliste der Gildensuche und Daten werden nur von diesen Rängen angenommen. Klick wechselt zum nächsten Rang."
+en.tip_greet_rank = "Everybody from this rank up gets the greeting popup for new members and may change the member data (main/twink, professions, spec, note); the wanted list and the data are only accepted from these ranks. Click to switch to the next rank."

@@ -3,6 +3,10 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 2.1.1
+- **Fix: Offiziere konnten die Daten nicht speichern** („Nur Offiziere dürfen die Daten ändern", Speichern-Knopf grau). Ursache: Die Einstellung für den Offiziersrang hieß standardmäßig „Offiziere", der Rang in der Gilde aber „Offizier". Der Name passte nicht, also galt nur die Sync-Grenze (Rang 0–2). Jetzt wird bei einem unbekannten Namen der erste Rang mit „Offizier"/„Officer" im Namen erkannt und in der Einstellung gespeichert. Das betraf auch das Begrüßungs-Popup für Offiziere.
+- Die Meldung im Daten-Fenster nennt jetzt den nötigen Rang und deinen eigenen Rang. Einstellbar unter Einstellungen > Beförderung.
+
 ## 2.1.0
 - Daten-Fenster: Die **Berufe** sind größer geschrieben (Schriftgröße 10 statt 8, vier Knöpfe pro Reihe).
 - **Spec und Zweit-Spec in einer Reihe**: Es gibt nur noch eine Spec-Reihe. Der erste Klick wählt den Spec, der zweite den Zweit-Spec (am Knopf steht „(2)"), ein dritter ersetzt den Zweit-Spec. Wer den ersten abwählt, schiebt den zweiten nach oben, „leer" löscht beide. Die Reihe „Zweit-Spec" ist entfernt.

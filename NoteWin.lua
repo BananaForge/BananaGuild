@@ -108,7 +108,10 @@ function NW.Redraw()
 	if problem then
 		win.info:SetText(RED .. problem .. "|r")
 	elseif not can then
-		win.info:SetText(GOLD .. BG.T("nwin_noright") .. "|r")
+		local ri = BG.Recruit and BG.Recruit.GreetIndex and BG.Recruit.GreetIndex()
+		local ranks = BG.Promo and BG.Promo.Ranks and BG.Promo.Ranks() or {}
+		local mine = BG.roster[BG.me]
+		win.info:SetText(GOLD .. BG.T("nwin_noright", (ri and ranks[ri]) or BG.db.greet.rank, (mine and mine.rank) or "?") .. "|r")
 	else
 		local parts = {}
 		if win.kind == "twink" then table.insert(parts, BG.T("nwin_sug_twink", win.main or "?")) else table.insert(parts, BG.T("nwin_sug_main")) end
