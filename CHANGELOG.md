@@ -3,6 +3,11 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 2.2.0
+- **Neuer Reiter „Aktivität"**: Heatmap (Wochentag × Uhrzeit, Serverzeit) mit den Ansichten **Online**, **Beitritte**, **Austritte** und **Inaktivität**. Filter „Nur Level 60" und Zeitraum (2/4/8/12 Wochen), Rahmen um die aktuelle Stunde, Mouseover mit dem genauen Wert, Auswertungstext (Stoßzeit/Flaute, wann die meisten Beitritte und Austritte passieren) und Hinweis auf die Datenbasis.
+- **Inaktivität**: Balken, wie lange die Mitglieder zuletzt online waren (gerade online ... über 30 Tage), dazu die am längsten Abwesenden mit Rang und Tagen.
+- **Messung** in der neuen gemeinsamen Datei `BananaActivity.lua`: alle 10 Minuten wird die Online-Zahl gezählt (Spitze pro Serverstunde, gesamt und nur Level 60). Fertige Stunden werden unsichtbar im Gildenkanal geteilt (`A`), neue Clients fragen beim Login nach den letzten 4 Wochen (`AQ`/`AS`). Die Datei ist auch für BananaBank gedacht, so füllt sich die Heatmap auch durch Leute, die nur BananaBank haben. Beitritte und Austritte kommen aus dem Verlauf.
+
 ## 2.1.1
 - **Fix: Offiziere konnten die Daten nicht speichern** („Nur Offiziere dürfen die Daten ändern", Speichern-Knopf grau). Ursache: Die Einstellung für den Offiziersrang hieß standardmäßig „Offiziere", der Rang in der Gilde aber „Offizier". Der Name passte nicht, also galt nur die Sync-Grenze (Rang 0–2). Jetzt wird bei einem unbekannten Namen der erste Rang mit „Offizier"/„Officer" im Namen erkannt und in der Einstellung gespeichert. Das betraf auch das Begrüßungs-Popup für Offiziere.
 - Die Meldung im Daten-Fenster nennt jetzt den nötigen Rang und deinen eigenen Rang. Einstellbar unter Einstellungen > Beförderung.

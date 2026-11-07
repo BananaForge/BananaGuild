@@ -755,7 +755,7 @@ local function Slash(msg)
 		if not BG.booted then pcall(Boot, nil) end
 		if not BG.loaded then
 			local missing = {}
-			for _, f in ipairs({ "BananaPresence", "Locale", "Core", "Notes", "Presence", "Roster", "Alerts", "NoteWin", "Promote", "Stats", "Inactive", "Recruit", "UI", "SelfTest" }) do
+			for _, f in ipairs({ "BananaPresence", "Locale", "Core", "Notes", "Presence", "Roster", "Alerts", "NoteWin", "Promote", "Stats", "Inactive", "Activity", "Recruit", "UI", "SelfTest" }) do
 				if not (BG.files and BG.files[f]) then table.insert(missing, f) end
 			end
 			DEFAULT_CHAT_FRAME:AddMessage("|cffff5555[BananaGuild] not initialised.|r folder=" .. tostring(BG.folder)

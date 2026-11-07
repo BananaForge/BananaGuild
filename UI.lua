@@ -15,7 +15,7 @@ local locList = {}     -- { widget, key, kind }
 local loaders = {}     -- panelKey -> list of widgets with :Load()
 UI.current = nil
 
-local TABS = { "addons", "recruit", "scanner", "texts", "members", "log", "settings" }
+local TABS = { "addons", "recruit", "scanner", "texts", "members", "activity", "log", "settings" }
 
 --------------------------------------------------------------------- helpers
 
@@ -1941,9 +1941,276 @@ end
 
 --------------------------------------------------------------------- main frame
 
+--------------------------------------------------------------------- panel: activity (heatmap)
+
+local ACT_VIEWS = { "online", "join", "leave", "idle" }
+local ACT_WEEKS = { 2, 4, 8, 12 }
+UI.act = UI.act or { view = "online", weeks = 4, only60 = false }
+
+local function HeatColor(v)
+	local s = { { 0.16, 0.16, 0.19 }, { 0.18, 0.27, 0.47 }, { 0.24, 0.55, 0.63 }, { 0.94, 0.78, 0.24 }, { 0.90, 0.24, 0.16 } }
+	if v < 0 then v = 0 elseif v > 1 then v = 1 end
+	local x = v * 4
+	local i = math.floor(x)
+	if i > 3 then i = 3 end
+	local f = x - i
+	local a, b = s[i + 1], s[i + 2]
+	return a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f, a[3] + (b[3] - a[3]) * f
+end
+
+local CELL_W, CELL_H, PITCH_X, PITCH_Y, GRID_X, GRID_Y = 21, 20, 23, 22, 34, -92
+
+function UI.UpdateActivity()
+	local p = panels.activity
+	if not p or not p.cells then return end
+	local st = UI.act
+	local idle = (st.view == "idle")
+	for _, k in ipairs(ACT_VIEWS) do UI.MarkSelected(p.viewBtn[k], k == st.view) end
+	p.range:SetText(BG.T("act_range", st.weeks))
+	p.only60:SetAlpha(st.view == "online" and 1 or 0.35)
+	if st.view == "online" then p.only60:Enable() else p.only60:Disable() end
+	for _, w in ipairs(p.heatWidgets) do if idle then w:Hide() else w:Show() end end
+	for _, w in ipairs(p.idleWidgets) do if idle then w:Show() else w:Hide() end end
+	if idle then
+		local counts, list, total, unknown = BG.Activity.Inactivity(7)
+		local maxc = 1
+		for i = 1, table.getn(counts) do if counts[i] > maxc then maxc = counts[i] end end
+		for i = 1, table.getn(BG.Activity.BUCKETS) do
+			local r = p.bars[i]
+			r.label:SetText(BG.T(BG.Activity.BUCKETS[i].key))
+			r.count:SetText(counts[i])
+			local w = math.max(1, math.floor(300 * counts[i] / maxc))
+			if counts[i] == 0 then w = 1 end
+			r.bar:SetWidth(w)
+			local f = (i - 1) / (table.getn(counts) - 1)
+			r.bar:SetTexture(HeatColor(1 - f * 0.9))
+			if i == 1 then r.bar:SetTexture(0.25, 0.75, 0.3, 1) end
+		end
+		local away = table.getn(list)
+		local pct = total > 0 and math.floor(away * 100 / total + 0.5) or 0
+		p.idleSum:SetText(BG.T("act_idle_sum", away, total, pct))
+		for i = 1, 9 do
+			local e = list[i]
+			if e then
+				p.idleRows[i]:SetText(string.format("%s%s|r  |cff999999%s|r  -  %s", "|cffffffff", e.name, e.rank or "", BG.T("act_idle_days", math.floor(e.days))))
+			else
+				p.idleRows[i]:SetText("")
+			end
+		end
+		if away > 9 then p.idleMore:SetText(BG.T("act_idle_more", away - 9)) else p.idleMore:SetText("") end
+		p.idleNote:SetText(unknown > 0 and BG.T("act_idle_unknown", unknown) or "")
+		p.basis:SetText("")
+		return
+	end
+	local g = BG.Activity.Grid(st.view, st.weeks, st.only60)
+	p.grid = g
+	local nd, nh = BG.Activity.Now()
+	local hl = p.nowFrame
+	for d = 0, 6 do
+		for h = 0, 23 do
+			local c = p.cells[d][h]
+			local v = 0
+			if g.max > 0 then v = g.v[d][h] / g.max end
+			if st.view == "online" and g.n[d][h] == 0 then c.tex:SetTexture(0.12, 0.12, 0.14, 1)
+			else c.tex:SetTexture(HeatColor(v)) end
+			if d == nd and h == nh then
+				hl:ClearAllPoints()
+				hl:SetPoint("TOPLEFT", p, "TOPLEFT", GRID_X + h * PITCH_X - 2, GRID_Y - d * PITCH_Y + 2)
+				hl:Show()
+			end
+		end
+	end
+	local lines = BG.Activity.Lines(st.view, g)
+	local txt = ""
+	for i = 1, table.getn(lines) do txt = txt .. "- " .. lines[i] .. "\n" end
+	p.sumText:SetText(txt)
+	p.nowText:SetText(BG.T("act_now", BG.Activity.DayName(nd), nh))
+	p.basis:SetText(GRAY .. BG.Activity.Basis(st.view, g) .. "|r")
+	p.title2:SetText(BG.T("act_title_" .. st.view))
+end
+
+local function BuildActivity(p)
+	local st = UI.act
+	Label(p, "act_title", 0, -2, "GameFontNormal")
+	p.viewBtn = {}
+	for i = 1, table.getn(ACT_VIEWS) do
+		local k = ACT_VIEWS[i]
+		local b = MakeButton(p, NextName("Btn"), "act_view_" .. k, 100, 22, function()
+			st.view = k
+			UI.UpdateActivity()
+		end)
+		b:SetPoint("TOPLEFT", p, "TOPLEFT", (i - 1) * 104, -22)
+		p.viewBtn[k] = b
+	end
+	p.only60 = MakeCheck("activity", p, 0, -46, "act_only60", function() return st.only60 end,
+		function(v) st.only60 = v UI.UpdateActivity() end, "tip_act_only60")
+	p.range = BG.MakeButton(p, NextName("Btn"), 150, 22, "")
+	p.range:SetScript("OnClick", function()
+		local nxt = 1
+		for i = 1, table.getn(ACT_WEEKS) do if ACT_WEEKS[i] == st.weeks then nxt = i + 1 end end
+		if nxt > table.getn(ACT_WEEKS) then nxt = 1 end
+		st.weeks = ACT_WEEKS[nxt]
+		UI.UpdateActivity()
+	end)
+	p.range:SetPoint("TOPLEFT", p, "TOPLEFT", 160, -46)
+	p.title2 = p:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	p.title2:SetPoint("TOPLEFT", p, "TOPLEFT", 330, -50)
+	p.title2:SetJustifyH("LEFT")
+	p.title2:SetWidth(266)
+
+	p.heatWidgets, p.idleWidgets = {}, {}
+	-- heatmap
+	p.nowFrame = p:CreateTexture(nil, "BACKGROUND")
+	p.nowFrame:SetWidth(CELL_W + 4)
+	p.nowFrame:SetHeight(CELL_H + 4)
+	p.nowFrame:SetTexture(1, 1, 1, 1)
+	table.insert(p.heatWidgets, p.nowFrame)
+	for h = 0, 23 do
+		local fs = p:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+		fs:SetPoint("TOPLEFT", p, "TOPLEFT", GRID_X + h * PITCH_X, -78)
+		fs:SetWidth(CELL_W)
+		fs:SetJustifyH("CENTER")
+		fs:SetText(h)
+		table.insert(p.heatWidgets, fs)
+	end
+	p.dayLabels = {}
+	p.cells = {}
+	for d = 0, 6 do
+		local fs = p:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+		fs:SetPoint("TOPLEFT", p, "TOPLEFT", 0, GRID_Y - d * PITCH_Y - 4)
+		fs:SetJustifyH("LEFT")
+		p.dayLabels[d] = fs
+		table.insert(p.heatWidgets, fs)
+		p.cells[d] = {}
+		for h = 0, 23 do
+			local c = CreateFrame("Frame", nil, p)
+			c:SetWidth(CELL_W)
+			c:SetHeight(CELL_H)
+			c:SetPoint("TOPLEFT", p, "TOPLEFT", GRID_X + h * PITCH_X, GRID_Y - d * PITCH_Y)
+			c:EnableMouse(true)
+			c.tex = c:CreateTexture(nil, "ARTWORK")
+			c.tex:SetAllPoints(c)
+			c.tex:SetTexture(0.16, 0.16, 0.19, 1)
+			local dd, hh = d, h
+			c:SetScript("OnEnter", function()
+				local g = p.grid
+				if not g then return end
+				GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
+				local day = BG.Activity.DayName(dd)
+				if UI.act.view == "online" then
+					GameTooltip:SetText(BG.T("act_tip_online", day, hh, string.format("%.1f", g.v[dd][hh]), g.n[dd][hh]), 1, 1, 1, 1, 1)
+				else
+					GameTooltip:SetText(BG.T("act_tip_event", day, hh, g.v[dd][hh]), 1, 1, 1, 1, 1)
+				end
+				GameTooltip:Show()
+			end)
+			c:SetScript("OnLeave", function() GameTooltip:Hide() end)
+			p.cells[d][h] = c
+			table.insert(p.heatWidgets, c)
+		end
+	end
+	-- legend
+	local lg = p:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+	lg:SetPoint("TOPLEFT", p, "TOPLEFT", 0, -254)
+	Reg(lg, "act_less")
+	table.insert(p.heatWidgets, lg)
+	for i = 0, 10 do
+		local t = p:CreateTexture(nil, "ARTWORK")
+		t:SetWidth(16)
+		t:SetHeight(10)
+		t:SetPoint("TOPLEFT", p, "TOPLEFT", 52 + i * 17, -256)
+		t:SetTexture(HeatColor(i / 10))
+		table.insert(p.heatWidgets, t)
+	end
+	local lg2 = p:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+	lg2:SetPoint("TOPLEFT", p, "TOPLEFT", 244, -254)
+	Reg(lg2, "act_more")
+	table.insert(p.heatWidgets, lg2)
+	p.nowText = p:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+	p.nowText:SetPoint("TOPLEFT", p, "TOPLEFT", 300, -254)
+	table.insert(p.heatWidgets, p.nowText)
+	-- evaluation box
+	local box = CreateFrame("Frame", nil, p)
+	box:SetWidth(596)
+	box:SetHeight(96)
+	box:SetPoint("TOPLEFT", p, "TOPLEFT", 0, -280)
+	box:SetBackdrop({ bgFile = "Interface\\Tooltips\\UI-Tooltip-Background", edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+		tile = true, tileSize = 16, edgeSize = 12, insets = { left = 3, right = 3, top = 3, bottom = 3 } })
+	box:SetBackdropColor(0.05, 0.05, 0.08, 0.9)
+	local bh = box:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	bh:SetPoint("TOPLEFT", box, "TOPLEFT", 10, -8)
+	Reg(bh, "act_sum_head")
+	p.sumText = box:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	p.sumText:SetPoint("TOPLEFT", box, "TOPLEFT", 10, -26)
+	p.sumText:SetWidth(576)
+	p.sumText:SetJustifyH("LEFT")
+	p.sumText:SetJustifyV("TOP")
+	table.insert(p.heatWidgets, box)
+	-- basis
+	p.basis = p:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	p.basis:SetPoint("TOPLEFT", p, "TOPLEFT", 0, -386)
+	p.basis:SetWidth(596)
+	p.basis:SetJustifyH("LEFT")
+
+	-- inactivity view
+	local ih = p:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	ih:SetPoint("TOPLEFT", p, "TOPLEFT", 0, -80)
+	Reg(ih, "act_idle_head")
+	table.insert(p.idleWidgets, ih)
+	p.bars = {}
+	for i = 1, table.getn(BG.Activity.BUCKETS) do
+		local r = {}
+		r.label = p:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+		r.label:SetPoint("TOPLEFT", p, "TOPLEFT", 0, -100 - (i - 1) * 18)
+		r.label:SetWidth(110)
+		r.label:SetJustifyH("LEFT")
+		r.bar = p:CreateTexture(nil, "ARTWORK")
+		r.bar:SetHeight(12)
+		r.bar:SetPoint("TOPLEFT", p, "TOPLEFT", 116, -102 - (i - 1) * 18)
+		r.count = p:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+		r.count:SetPoint("TOPLEFT", p, "TOPLEFT", 424, -100 - (i - 1) * 18)
+		p.bars[i] = r
+		table.insert(p.idleWidgets, r.label)
+		table.insert(p.idleWidgets, r.bar)
+		table.insert(p.idleWidgets, r.count)
+	end
+	p.idleSum = p:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	p.idleSum:SetPoint("TOPLEFT", p, "TOPLEFT", 0, -232)
+	p.idleSum:SetWidth(596)
+	p.idleSum:SetJustifyH("LEFT")
+	table.insert(p.idleWidgets, p.idleSum)
+	p.idleRows = {}
+	for i = 1, 9 do
+		local fs = p:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+		fs:SetPoint("TOPLEFT", p, "TOPLEFT", 10, -254 - (i - 1) * 15)
+		fs:SetWidth(580)
+		fs:SetJustifyH("LEFT")
+		p.idleRows[i] = fs
+		table.insert(p.idleWidgets, fs)
+	end
+	p.idleMore = p:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+	p.idleMore:SetPoint("TOPLEFT", p, "TOPLEFT", 10, -392)
+	table.insert(p.idleWidgets, p.idleMore)
+	p.idleNote = p:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+	p.idleNote:SetPoint("TOPLEFT", p, "TOPLEFT", 10, -408)
+	table.insert(p.idleWidgets, p.idleNote)
+	local hint = p:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+	hint:SetPoint("TOPLEFT", p, "TOPLEFT", 0, -424)
+	hint:SetWidth(596)
+	hint:SetJustifyH("LEFT")
+	Reg(hint, "act_idle_hint")
+	table.insert(p.idleWidgets, hint)
+
+	p.relabel = function()
+		for d = 0, 6 do p.dayLabels[d]:SetText(BG.Activity.DayName(d)) end
+	end
+	p.relabel()
+	p.refresh = function() p.relabel() UI.UpdateActivity() end
+end
+
 local BUILDERS = {
 	addons = BuildAddons, recruit = BuildRecruit, scanner = BuildScanner, texts = BuildTexts,
-	members = BuildMembers, log = BuildLog, settings = BuildSettings, selftest = BuildSelfTest,
+	members = BuildMembers, activity = BuildActivity, log = BuildLog, settings = BuildSettings, selftest = BuildSelfTest,
 }
 
 function UI.Refresh(kind)
