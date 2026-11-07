@@ -138,6 +138,7 @@ function Data.Save(name, d)
 	Store()[name] = rec
 	BG.Send("M", name, rec.profs or "_", rec.spec or "_", rec.spec2 or "_", rec.ts)
 	Changed()
+	if BG.Notes and BG.Notes.AutoWrite then BG.Notes.AutoWrite(name) end
 	return true
 end
 

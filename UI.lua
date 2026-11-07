@@ -1770,6 +1770,23 @@ local function BuildDataPage(root, dp)
 	dp.note = Label(dp, "data_note", 0, -362, "GameFontDisableSmall", 590)
 	dp.note:SetHeight(40)
 	dp.note:SetJustifyV("TOP")
+	MakeCheck("settings", dp, 0, -402, "feat_writenote", function() return db.features.writeNote end,
+		function(v) db.features.writeNote = v end, "tip_writenote")
+	dp.writeAll = BG.MakeButton(dp, NextName("Btn"), 270, 24, "")
+	dp.writeAll:SetPoint("TOPLEFT", dp, "TOPLEFT", 320, -404)
+	dp.writeAll:SetScript("OnClick", function()
+		local n = table.getn(BG.Notes.Pending())
+		if n == 0 then return end
+		if not dp.writeSure then
+			dp.writeSure = true
+			BG.After(8, function() dp.writeSure = false UI.UpdateDataPage() end)
+			UI.UpdateDataPage()
+			return
+		end
+		dp.writeSure = false
+		BG.Notes.WriteAll()
+		UI.UpdateDataPage()
+	end)
 	root.dataPage = dp
 end
 
@@ -1792,6 +1809,10 @@ function UI.UpdateDataPage()
 		if info.ckey and BG.Data.Spec2(name, info.ckey) then withSpec2 = withSpec2 + 1 end
 	end
 	dp.stats:SetText(BG.T("data_stats", total, withProf, withSpec, withSpec2))
+	local pend = table.getn(BG.Notes.Pending())
+	if dp.writeSure and pend > 0 then dp.writeAll:SetText(BG.T("btn_note_all_sure", pend))
+	else dp.writeAll:SetText(BG.T("btn_note_all", pend)) end
+	if pend > 0 and BG.Notes.CanEdit() then dp.writeAll:Enable() else dp.writeAll:Disable() end
 end
 
 local function BuildSettings(root)

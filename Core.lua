@@ -162,6 +162,7 @@ local DEFAULTS = {
 		worldPing        = false,  -- hidden world-chat presence ping (see README)
 		minimap          = true,
 		sound            = true,
+		writeNote        = true,   -- also write the data into the public guild note when an officer saves it
 	},
 	recruit = {
 		interval  = 10,   -- minutes

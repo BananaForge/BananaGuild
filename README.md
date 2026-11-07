@@ -37,7 +37,7 @@ Alle Texte sind im Reiter „Texte" editierbar (Liste der Varianten, Editor mit 
 
 ### Mitgliederdaten (ab 2.0)
 
-Main/Twink, Berufe, Spec und Zweit-Spec stehen **im Addon**, nicht mehr in der Gildennotiz. Offiziere tragen sie im Fenster „Daten bearbeiten" ein (auch beim Neuzugang), alle Offiziere mit dem Addon bekommen sie automatisch. Die alten Notizen (`[MAIN] [AL+VZ] [Retri]`) werden einmalig gelesen und übernommen (Einstellungen > Daten, dort auch Export/Import als Text als Sicherung), danach aber nie wieder angefasst. Notizen, die sich nicht lesen lassen, erscheinen in einem Popup.
+Main/Twink, Berufe, Spec und Zweit-Spec stehen **im Addon**, nicht mehr in der Gildennotiz. Offiziere tragen sie im Fenster „Daten bearbeiten" ein (auch beim Neuzugang), alle Offiziere mit dem Addon bekommen sie automatisch. Die alten Notizen (`[MAIN] [AL+VZ] [Retri]`) werden einmalig gelesen und übernommen (Einstellungen > Daten, dort auch Export/Import als Text als Sicherung), danach nur noch beim Speichern im Fenster „Daten bearbeiten" mitgeschrieben (Einstellungen > Daten, abschaltbar, mit Knopf „Notizen angleichen"). Notizen, die sich nicht lesen lassen, erscheinen in einem Popup.
 
 ### Slash-Befehle
 

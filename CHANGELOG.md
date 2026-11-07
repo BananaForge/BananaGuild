@@ -3,6 +3,10 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 2.2.1
+- **Die Gildennotiz wird wieder mitgeschrieben**, zusätzlich zu den Addon-Daten: Wenn ein Offizier im Fenster „Daten bearbeiten" speichert, schreibt das Addon die öffentliche Notiz im alten Format (`[MAIN] [AL+VZ] [Retri]` bzw. `[T Main] [KO] [Destro]`, max. 31 Zeichen, bei Platzmangel zuerst ohne Leerzeichen, dann ohne Spec). Es wird nur geschrieben, wenn sich die Notiz ändert und das Gilden-Recht „Notizen bearbeiten" vorhanden ist. Der Zweit-Spec bleibt nur im Addon.
+- Einstellungen > Daten: Schalter „Gildennotiz beim Speichern mitschreiben" (Standard an) und Knopf **„Notizen angleichen (n)"**, der alle Notizen, die von den Addon-Daten abweichen (zum Beispiel Reste wie `[`), neu schreibt. Zwei Klicks nötig, da vorhandene Notizen überschrieben werden; geschrieben wird eine Notiz alle 0,7 Sekunden.
+
 ## 2.2.0
 - **Neuer Reiter „Aktivität"**: Heatmap (Wochentag × Uhrzeit, Serverzeit) mit den Ansichten **Online**, **Beitritte**, **Austritte** und **Inaktivität**. Filter „Nur Level 60" und Zeitraum (2/4/8/12 Wochen), Rahmen um die aktuelle Stunde, Mouseover mit dem genauen Wert, Auswertungstext (Stoßzeit/Flaute, wann die meisten Beitritte und Austritte passieren) und Hinweis auf die Datenbasis.
 - **Inaktivität**: Balken, wie lange die Mitglieder zuletzt online waren (gerade online ... über 30 Tage), dazu die am längsten Abwesenden mit Rang und Tagen.

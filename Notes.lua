@@ -255,5 +255,134 @@ function Notes.Parse(note, classKey)
 	return r
 end
 
+
+--------------------------------------------------------------------- writing the guild note (in addition to the addon data)
+-- The data stays in the addon (Data.lua). When an officer saves it, the public guild note is written as well, in the
+-- old format "[MAIN] [AL+VZ] [Retri]" / "[T Main] [KO] [Destro]" (max 31 characters), so it can be read without the addon.
+
+Notes.MAXLEN = 31
+
+function Notes.Build(kind, main, profs, spec)
+	local head = (kind == "twink") and ("[T " .. (main or "?") .. "]") or "[MAIN]"
+	local prof = ""
+	if profs and table.getn(profs) > 0 then
+		prof = "[" .. table.concat(profs, "+") .. "]"
+	elseif spec and spec ~= "" then
+		prof = "[-]"
+	end
+	local sp = (spec and spec ~= "") and ("[" .. spec .. "]") or ""
+	local function Join(sep)
+		local parts = { head }
+		if prof ~= "" then table.insert(parts, prof) end
+		if sp ~= "" then table.insert(parts, sp) end
+		return table.concat(parts, sep)
+	end
+	local a = Join(" ")
+	if string.len(a) <= Notes.MAXLEN then return a end
+	local b = Join("")
+	if string.len(b) <= Notes.MAXLEN then return b end
+	-- still too long: the spec goes first, then the professions
+	sp = ""
+	b = Join("")
+	if string.len(b) <= Notes.MAXLEN then return b end
+	prof = ""
+	return Join("")
+end
+
+-- the note text for a member from the addon data, nil when we do not know whether it is a main or a twink
+function Notes.BuildFor(name)
+	local c = BG.db.chars[name]
+	local kind, main
+	if c and c.main then kind, main = "twink", c.main
+	elseif c and c.isMain then kind = "main"
+	else return nil end
+	local d = BG.Data and BG.Data.Get(name)
+	local profs = {}
+	if d and d.profs and d.profs ~= "-" and d.profs ~= "" then
+		for code in string.gfind(d.profs, "[^%+]+") do table.insert(profs, code) end
+	end
+	return (Notes.Build(kind, main, profs, d and d.spec))
+end
+
+function Notes.CanEdit()
+	if CanEditPublicNote then return CanEditPublicNote() and true or false end
+	return false
+end
+
+local function RosterIndex(name)
+	local n = GetNumGuildMembers and GetNumGuildMembers(true) or 0
+	for i = 1, n do
+		if GetGuildRosterInfo(i) == name then return i end
+	end
+	return nil
+end
+
+-- writes the public note of a guild member; quiet = no chat message on success
+function Notes.Set(name, text, quiet)
+	if not Notes.CanEdit() then return false end
+	if string.len(text) > Notes.MAXLEN then return false end
+	local idx = RosterIndex(name)
+	if not idx or not GuildRosterSetPublicNote then return false end
+	GuildRosterSetPublicNote(idx, text)
+	if GuildRoster then GuildRoster() end
+	BG.After(4, function()
+		if GuildRoster then GuildRoster() end
+		BG.After(2, function()
+			local info = BG.roster[name]
+			if info and info.note == text then
+				if not quiet then BG.Print(BG.T("note_set_ok", name, text)) end
+			else
+				BG.Print(BG.T("note_set_fail", name))
+			end
+		end)
+	end)
+	return true
+end
+
+-- after saving the data of a member: write the note when it differs (needs the setting and the guild right)
+function Notes.AutoWrite(name)
+	if not BG.db.features.writeNote or not Notes.CanEdit() then return false end
+	local text = Notes.BuildFor(name)
+	if not text then return false end
+	local info = BG.roster[name]
+	if info and info.note == text then return false end
+	return Notes.Set(name, text)
+end
+
+-- members whose note differs from the one built from the addon data: list of { name, text }
+function Notes.Pending()
+	local out = {}
+	for name, info in pairs(BG.roster or {}) do
+		if BG.Data.Get(name) then
+			local text = Notes.BuildFor(name)
+			if text and info.note ~= text then table.insert(out, { name = name, text = text }) end
+		end
+	end
+	table.sort(out, function(a, b) return a.name < b.name end)
+	return out
+end
+
+local writing = false
+-- writes all pending notes, one every 0.7 s
+function Notes.WriteAll()
+	if writing or not Notes.CanEdit() then return 0 end
+	local list = Notes.Pending()
+	local i = 0
+	writing = true
+	local function Step()
+		i = i + 1
+		local e = list[i]
+		if not e then
+			writing = false
+			BG.Print(BG.T("note_all_done", table.getn(list)))
+			return
+		end
+		Notes.Set(e.name, e.text, true)
+		BG.After(0.7, Step)
+	end
+	Step()
+	return table.getn(list)
+end
+
 BananaGuild.files = BananaGuild.files or {}
 BananaGuild.files.Notes = true
