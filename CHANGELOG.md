@@ -3,6 +3,9 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 2.2.3
+- `BananaActivity.lua`: läuft noch eine ältere Kopie (Version 1) aus einem nicht aktualisierten Addon, wird deren Frame abgeschaltet, damit nicht zwei Tracker gleichzeitig arbeiten.
+
 ## 2.2.2
 - **Fix Heatmap: falsche Stunden von anderen Clients.** Ursache (aus den gespeicherten Daten): Eine geteilte Stunde kam mit einer um 12 Stunden verschobenen Zahl an (Sonntag 18 Uhr landete bei 6 Uhr). Jetzt gilt: eine fertige Stunde wird nur angenommen, wenn sie höchstens 2 Stunden alt ist **und** die Uhrstunde des Absenders (neues Feld) mit der eigenen übereinstimmt (±1). Die Nachlade-Antwort heißt jetzt `AT` und trägt ebenfalls die Uhrstunde, die alte Antwort `AS` wird ignoriert. Wer eine falsche Uhr hat, kann damit die Daten der anderen nicht mehr verschieben.
 - `/bgd activity` zeigt Serverzeit, UTC-Stunde, Offset und die letzten Messwerte mit Quelle (eigen / empfangen). `/bgd activity reset` löscht alle Messwerte (nötig einmal nach dem Update, um die bereits verschobenen Stunden loszuwerden).
