@@ -784,6 +784,18 @@ local function Slash(msg)
 		if n ~= "" and BG.roster[n] then BG.NoteWin.Open(n, "join", { greet = true }) else BG.Print(BG.T("usage_join")) end
 	elseif cmd == "who" or cmd == "scan" then
 		BG.Presence.Query()
+	elseif cmd == "activity" then
+		-- /bgd activity: raw measurements with their source; /bgd activity reset: delete all of them
+		local st = BG.db.activity
+		if string.lower(rest or "") == "reset" then
+			BG.db.activity.a, BG.db.activity.b, BG.db.activity.src = {}, {}, {}
+			if BananaActivity then BananaActivity.Init(BG.db.activity) end
+			BG.Print("Activity data deleted.")
+			if BG.UI and BG.UI.Refresh then BG.UI.Refresh("activity") end
+		elseif st and BananaActivity and BananaActivity.Dump then
+			local lines = BananaActivity.Dump(st)
+			for i = 1, table.getn(lines) do BG.Print(lines[i]) end
+		end
 	elseif cmd == "lang" then
 		BG.SetLang(string.lower(rest) == "en" and "en" or "de")
 	else

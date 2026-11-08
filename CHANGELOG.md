@@ -3,6 +3,10 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 2.2.2
+- **Fix Heatmap: falsche Stunden von anderen Clients.** Ursache (aus den gespeicherten Daten): Eine geteilte Stunde kam mit einer um 12 Stunden verschobenen Zahl an (Sonntag 18 Uhr landete bei 6 Uhr). Jetzt gilt: eine fertige Stunde wird nur angenommen, wenn sie höchstens 2 Stunden alt ist **und** die Uhrstunde des Absenders (neues Feld) mit der eigenen übereinstimmt (±1). Die Nachlade-Antwort heißt jetzt `AT` und trägt ebenfalls die Uhrstunde, die alte Antwort `AS` wird ignoriert. Wer eine falsche Uhr hat, kann damit die Daten der anderen nicht mehr verschieben.
+- `/bgd activity` zeigt Serverzeit, UTC-Stunde, Offset und die letzten Messwerte mit Quelle (eigen / empfangen). `/bgd activity reset` löscht alle Messwerte (nötig einmal nach dem Update, um die bereits verschobenen Stunden loszuwerden).
+
 ## 2.2.1
 - **Die Gildennotiz wird wieder mitgeschrieben**, zusätzlich zu den Addon-Daten: Wenn ein Offizier im Fenster „Daten bearbeiten" speichert, schreibt das Addon die öffentliche Notiz im alten Format (`[MAIN] [AL+VZ] [Retri]` bzw. `[T Main] [KO] [Destro]`, max. 31 Zeichen, bei Platzmangel zuerst ohne Leerzeichen, dann ohne Spec). Es wird nur geschrieben, wenn sich die Notiz ändert und das Gilden-Recht „Notizen bearbeiten" vorhanden ist. Der Zweit-Spec bleibt nur im Addon.
 - Einstellungen > Daten: Schalter „Gildennotiz beim Speichern mitschreiben" (Standard an) und Knopf **„Notizen angleichen (n)"**, der alle Notizen, die von den Addon-Daten abweichen (zum Beispiel Reste wie `[`), neu schreibt. Zwei Klicks nötig, da vorhandene Notizen überschrieben werden; geschrieben wird eine Notiz alle 0,7 Sekunden.
