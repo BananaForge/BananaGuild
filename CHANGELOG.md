@@ -3,6 +3,9 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 2.2.4
+- **Fix Heatmap: Lücken, wenn man zwischendurch offline war.** Beim Login fragte der Tracker nur nach Stunden, die neuer sind als die neueste eigene Stunde. Die neueste ist aber immer die aktuelle (der erste eigene Messwert), also kam nie etwas zurück und die Stunden zwischen zwei Sitzungen blieben leer. Jetzt werden beim Login die letzten 14 Tage angefragt (28 Tage, wenn noch nichts gespeichert ist). Außerdem bricht eine zweite antwortende Person nicht mehr ab, sobald eine erste angefangen hat: jeder sendet, was der Empfänger noch nicht (oder nur mit niedrigerem Wert) bekommen hat. Geprüft mit einer Simulation mit mehreren Clients, die sich Nachrichten schicken (auch mit einem Client mit falscher Uhr).
+
 ## 2.2.3
 - `BananaActivity.lua`: läuft noch eine ältere Kopie (Version 1) aus einem nicht aktualisierten Addon, wird deren Frame abgeschaltet, damit nicht zwei Tracker gleichzeitig arbeiten.
 
