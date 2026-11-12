@@ -39,7 +39,13 @@ local function Idx(t)
 	return math.floor((t or time()) / 3600)
 end
 
+-- hour index is UTC; weekday / hour are shown in the viewer's local time
+local function Shift()
+	return BananaActivity and BananaActivity.LocalShift and BananaActivity.LocalShift() or 0
+end
+
 local function WeekHour(idx)
+	idx = idx + Shift()
 	return math.mod(math.floor(idx / 24) + 3, 7), math.mod(idx, 24)
 end
 
@@ -178,7 +184,7 @@ end
 function Act.Basis(kind, g)
 	if kind == "online" then
 		if g.count == 0 then return BG.T("act_basis_none") end
-		return BG.T("act_basis", g.count, g.first and date("%d.%m.", (g.first - (BananaActivity and BananaActivity.Offset() or 0)) * 3600) or "?")
+		return BG.T("act_basis", g.count, g.first and date("%d.%m.", g.first * 3600) or "?")
 	end
 	return BG.T("act_basis_log", g.count)
 end

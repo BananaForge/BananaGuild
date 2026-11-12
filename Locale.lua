@@ -1988,8 +1988,8 @@ en.tip_greet_rank = "Everybody from this rank up gets the greeting popup for new
 -- 2.2.0: activity tab (heatmap)
 de.tab_activity = "Aktivität"
 en.tab_activity = "Activity"
-de.act_title = "Aktivität der Gilde (Serverzeit)"
-en.act_title = "Guild activity (server time)"
+de.act_title = "Aktivität der Gilde (deine Ortszeit)"
+en.act_title = "Guild activity (your local time)"
 de.act_view_online = "Online"
 en.act_view_online = "Online"
 de.act_view_join = "Beitritte"

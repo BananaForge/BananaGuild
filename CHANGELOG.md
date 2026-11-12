@@ -3,6 +3,9 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 2.2.6
+- **Fix Heatmap: die markierte aktuelle Stunde war eine Stunde zu früh** (22 statt 23 Uhr). Ursache: `GetGameTime()` liefert auf diesem Realm nicht die Serverzeit, die die Spieler sehen, sondern die UTC-Stunde. Der Tracker zählt die Stunden jetzt ohne `GetGameTime()` in UTC (auf jedem Client dieselbe Zahl) und die Heatmap rechnet für die Anzeige in **deine Ortszeit** um (PC-Zeitzone, Sommerzeit inklusive). Die Überschrift heißt deshalb „deine Ortszeit". `/bgd activity` zeigt weiter UTC-Stunden und die Verschiebung zur Ortszeit.
+
 ## 2.2.5
 - `/bgd activity` zeigt zusätzlich eine Zählerzeile (gesendete/empfangene Nachrichten, neue Stunden, abgelehnte Uhren, Antworten alter Versionen), damit sich Probleme beim Austausch eingrenzen lassen.
 
