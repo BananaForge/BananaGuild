@@ -3,6 +3,9 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 2.4.1
+- **Addons & Analytics: Filter über die Spaltenköpfe statt Filterzeile.** Suchfeld, „Addon: alle" und „Version" sind weg. Ein Klick auf **Craft / Bank / Lootline / Loot / Guild** öffnet eine Liste mit allen gefundenen Versionen (mit Anzahl) sowie „Alle", „Installiert", „deaktiviert" und „nicht installiert". Ein Klick auf **Name** zeigt ein Suchfeld an Stelle der Überschrift. Mehrere Spalten lassen sich kombinieren; gefilterte Spalten sind weiß, unten steht „Filter aufheben: ..." mit den aktiven Filtern. Die Liste ist dafür 2 Zeilen höher geworden (17 Zeilen).
+
 ## 2.4.0
 - **Addons & Analytics: Liste wie bei den Mitgliedern.** Es werden jetzt alle Gildenmitglieder gezeigt, nach Mains gruppiert: Die Zeile des Mains trägt ein **+ / -** und die Zahl seiner Twinks, ein Klick klappt die Twinks (eingerückt, mit eigenen Addon-Versionen) auf und zu. Sortiert wird nach dem letzten Login der Gruppe.
 - **Filter:** Namenssuche, **Addon** (alle / Craft / Bank / Lootline / Loot / Guild, Links- und Rechtsklick wechseln) und **Version** (alle installierten, jede gefundene Version mit Anzahl, deaktiviert, nicht installiert). Bei aktivem Filter klappen sich die Gruppen mit Treffern von selbst auf, ein Main ohne eigenen Treffer wird grau gezeigt. Unten steht die Zahl der Treffer.

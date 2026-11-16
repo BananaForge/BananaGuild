@@ -272,6 +272,75 @@ local function Cell(row, x, w, justify, font)
 	return fs
 end
 
+
+--------------------------------------------------------------------- panel: addons / analytics (filter by a click on the column headers)
+
+local verMenu
+
+-- a click on "Name": the search box appears in place of the header
+function UI.OpenNameFilter()
+	local p = panels.addons
+	if not p then return end
+	p.search:Show()
+	p.search:SetFocus()
+end
+
+-- list of the versions found for one addon: pick one to filter the list (the count is behind it)
+function UI.OpenVersionMenu(key, anchor)
+	if not verMenu then
+		verMenu = CreateFrame("Frame", "BananaGuildVersionMenu", UIParent)
+		verMenu:SetWidth(190)
+		verMenu:SetFrameStrata("FULLSCREEN_DIALOG")
+		verMenu:EnableMouse(true)
+		BG.Backdrop(verMenu, false, true)
+		verMenu.btns = {}
+		for i = 1, 14 do
+			local idx = i -- local per iteration (Lua 5.0 closures share the loop variable)
+			local b = BG.MakeButton(verMenu, "BananaGuildVersionMenuBtn" .. i, 170, 20, "")
+			b:SetPoint("TOPLEFT", verMenu, "TOPLEFT", 10, -10 - (i - 1) * 22)
+			b:SetScript("OnClick", function()
+				local o = verMenu.opts[idx]
+				if o then
+					UI.af.f[verMenu.key] = o.value
+					verMenu:Hide()
+					UI.Refresh("addons")
+				end
+			end)
+			verMenu.btns[i] = b
+		end
+		verMenu.t = 0
+		verMenu:SetScript("OnUpdate", function()
+			if MouseIsOver and MouseIsOver(this) then this.t = 0 return end
+			if this.anchor and MouseIsOver and MouseIsOver(this.anchor) then this.t = 0 return end
+			this.t = this.t + arg1
+			if this.t > 1.0 then this:Hide() end
+		end)
+		verMenu:Hide()
+	end
+	local opts = BG.Presence.VersionOptions(key)
+	-- at most 14 lines: the oldest versions fall off
+	while table.getn(opts) > 14 do table.remove(opts, table.getn(opts) - 2) end
+	verMenu.opts, verMenu.key, verMenu.anchor, verMenu.t = opts, key, anchor, 0
+	local cur = UI.af.f[key]
+	for i = 1, 14 do
+		local o, b = opts[i], verMenu.btns[i]
+		if o then
+			local name = o.value
+			if name == nil then name = BG.T("addons_v_all") elseif name == "any" then name = BG.T("addons_v_any")
+			elseif name == "off" then name = BG.T("addons_v_off") elseif name == "none" then name = BG.T("addons_v_none") end
+			b:SetText(((o.value == cur) and (GOLD .. name .. "|r") or name) .. GRAY .. "  (" .. o.count .. ")|r")
+			b:Show()
+		else
+			b:Hide()
+		end
+	end
+	verMenu:SetHeight(20 + table.getn(opts) * 22)
+	verMenu:ClearAllPoints()
+	verMenu:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", -4, -2)
+	verMenu:Show()
+	verMenu:Raise()
+end
+
 --------------------------------------------------------------------- panel: addons / analytics
 
 local function BuildAddons(p)
@@ -292,53 +361,52 @@ local function BuildAddons(p)
 		end
 	end
 
-	-- filter row: name search, addon, version
-	UI.af = UI.af or { text = "", addon = nil, ver = nil }
+	-- the column headers are the filter: a click on Craft / Bank / ... opens the version list, a click on Name the search
+	UI.af = UI.af or { text = "", f = {} }
 	UI.addonOpen = UI.addonOpen or {}
 	local af = UI.af
-	Label(p, "lbl_search", 0, -126)
-	p.search = MakeEdit(nil, p, 46, -122, 110, function() return af.text end, function(t)
-		af.text = string.lower(BG.Trim(t or ""))
-		UI.Refresh("addons")
-	end, 24)
-	p.fAddon = BG.MakeButton(p, NextName("Btn"), 200, 22, "")
-	p.fAddon:SetPoint("TOPLEFT", p, "TOPLEFT", 164, -122)
-	p.fAddon:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-	p.fAddon:SetScript("OnClick", function()
-		-- left: next addon, right: previous (the order: all, then the tracked addons)
-		local cur = 0
-		for i = 1, table.getn(BG.TRACKED) do if BG.TRACKED[i].key == af.addon then cur = i end end
-		local n = table.getn(BG.TRACKED)
-		if arg1 == "RightButton" then cur = cur - 1 else cur = cur + 1 end
-		if cur > n then cur = 0 elseif cur < 0 then cur = n end
-		af.addon = (cur > 0) and BG.TRACKED[cur].key or nil
-		af.ver = nil
-		UI.Refresh("addons")
-	end)
-	Tooltip(p.fAddon, "tip_f_addon")
-	p.fVer = BG.MakeButton(p, NextName("Btn"), 220, 22, "")
-	p.fVer:SetPoint("LEFT", p.fAddon, "RIGHT", 6, 0)
-	p.fVer:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-	p.fVer:SetScript("OnClick", function()
-		if not af.addon then return end
-		local opts = BG.Presence.VersionOptions(af.addon)
-		local cur = 1
-		for i = 1, table.getn(opts) do if opts[i].value == af.ver then cur = i end end
-		if arg1 == "RightButton" then cur = cur - 1 else cur = cur + 1 end
-		if cur > table.getn(opts) then cur = 1 elseif cur < 1 then cur = table.getn(opts) end
-		af.ver = opts[cur].value
-		UI.Refresh("addons")
-	end)
-	Tooltip(p.fVer, "tip_f_ver")
-
-	-- member table (mains with their twinks, a click on a main opens / closes it)
-	local hdr = { { 6, 100, "col_name" }, { 112, 66, "key_craft" }, { 182, 66, "key_bank" }, { 252, 66, "key_lootline" },
-		{ 322, 66, "key_loot" }, { 392, 66, "key_guild" }, { 460, 100, "col_last" } }
+	local hdr = { { 6, 100, "col_name", nil }, { 112, 66, "key_craft", "craft" }, { 182, 66, "key_bank", "bank" },
+		{ 252, 66, "key_lootline", "lootline" }, { 322, 66, "key_loot", "loot" }, { 392, 66, "key_guild", "guild" },
+		{ 460, 100, "col_last", false } }
+	p.hdr = {}
 	for i = 1, table.getn(hdr) do
-		Label(p, hdr[i][3], hdr[i][1], -152, "GameFontNormalSmall", hdr[i][2])
+		local h = hdr[i]
+		local fs = Label(p, h[3], h[1], -124, "GameFontNormalSmall", h[2])
+		p.hdr[i] = { fs = fs, key = h[4] }
+		if h[4] ~= false then
+			local key = h[4]
+			local b = CreateFrame("Button", NextName("Hdr"), p)
+			b:SetWidth(h[2])
+			b:SetHeight(16)
+			b:SetPoint("TOPLEFT", p, "TOPLEFT", h[1], -122)
+			b:SetScript("OnClick", function()
+				if key then UI.OpenVersionMenu(key, this) else UI.OpenNameFilter() end
+			end)
+			b:SetScript("OnEnter", function()
+				GameTooltip:SetOwner(this, "ANCHOR_TOP")
+				GameTooltip:SetText(BG.T(key and "tip_hdr_version" or "tip_hdr_name"), 1, 1, 1, 1, 1)
+				GameTooltip:Show()
+			end)
+			b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+		end
 	end
+	-- search box in place of the Name header (shown by a click on "Name")
+	p.search = CreateFrame("EditBox", NextName("Edit"), p, "InputBoxTemplate")
+	p.search:SetWidth(100)
+	p.search:SetHeight(18)
+	p.search:SetPoint("TOPLEFT", p, "TOPLEFT", 10, -121)
+	p.search:SetAutoFocus(false)
+	p.search:SetMaxLetters(24)
+	p.search:SetScript("OnTextChanged", function()
+		af.text = string.lower(BG.Trim(this:GetText() or ""))
+		UI.Refresh("addons")
+	end)
+	p.search:SetScript("OnEscapePressed", function() this:ClearFocus() end)
+	p.search:SetScript("OnEnterPressed", function() this:ClearFocus() end)
+	p.search:SetScript("OnEditFocusLost", function() if af.text == "" then this:Hide() end end)
+	p.search:Hide()
 	local keys = { "craft", "bank", "lootline", "loot", "guild" }
-	p.list = MakeList(p, 0, -166, 596, 15, 17,
+	p.list = MakeList(p, 0, -140, 596, 17, 17,
 		function(r)
 			r.sign = Cell(r, 4, 14, "CENTER")
 			r.name = Cell(r, 18, 92)
@@ -373,7 +441,6 @@ local function BuildAddons(p)
 				if v then
 					local ver, running = BG.Presence.Split(v)
 					local txt = running and (GREEN .. ver .. "|r") or (YELLOW .. BG.T("state_disabled") .. "|r")
-					if UI.af.addon == keys[i] then txt = "|cffffffaa>|r" .. txt end
 					r.k[i]:SetText(txt)
 				else
 					r.k[i]:SetText(GRAY .. "-|r")
@@ -399,6 +466,15 @@ local function BuildAddons(p)
 	p.counts = cb:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 	p.counts:SetPoint("LEFT", cb, "LEFT", 0, 0)
 	p.counts:SetJustifyH("LEFT")
+	p.clear = BG.MakeButton(p, NextName("Btn"), 250, 20, "")
+	p.clear:SetPoint("TOPLEFT", p, "TOPLEFT", 236, -434)
+	p.clear:SetScript("OnClick", function()
+		UI.af.text, UI.af.f = "", {}
+		p.search:SetText("")
+		p.search:Hide()
+		UI.Refresh("addons")
+	end)
+	p.clear:Hide()
 	p.hits = p:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	p.hits:SetPoint("TOPRIGHT", p, "TOPRIGHT", -4, -438)
 	p.hits:SetJustifyH("RIGHT")
@@ -429,27 +505,27 @@ local function BuildAddons(p)
 		local rows, hits = BG.Presence.AddonRows(UI.af, UI.addonOpen)
 		p.list.SetData(rows)
 		p.hits:SetText(BG.T("addons_hits", hits))
-		-- filter buttons
-		local addon = UI.af.addon
-		local lbl = BG.T("addons_f_all")
-		for i = 1, table.getn(BG.TRACKED) do if BG.TRACKED[i].key == addon then lbl = BG.TRACKED[i].label end end
-		p.fAddon:SetText(BG.T("addons_f_addon", lbl))
-		if addon then
-			local vl = BG.T("addons_v_any")
-			local opts = BG.Presence.VersionOptions(addon)
-			for i = 1, table.getn(opts) do
-				local o = opts[i]
-				if o.value == UI.af.ver then
-					local name = o.value
-					if name == nil then name = BG.T("addons_v_any") elseif name == "off" then name = BG.T("addons_v_off") elseif name == "none" then name = BG.T("addons_v_none") end
-					vl = name .. " (" .. o.count .. ")"
-				end
+		-- headers of filtered columns are white, a button names the active filters and clears them
+		local parts = {}
+		for i = 1, table.getn(p.hdr) do
+			local h = p.hdr[i]
+			local on
+			if h.key == nil then on = (UI.af.text ~= "")
+			elseif h.key then on = (UI.af.f[h.key] ~= nil) end
+			h.fs:SetTextColor(on and 1 or 1, on and 1 or 0.82, on and 1 or 0)
+			if on and h.key then
+				local v = UI.af.f[h.key]
+				if v == "any" then v = BG.T("addons_v_any") elseif v == "off" then v = BG.T("addons_v_off") elseif v == "none" then v = BG.T("addons_v_none") end
+				table.insert(parts, BG.T("key_" .. h.key) .. " " .. v)
+			elseif on then
+				table.insert(parts, BG.T("col_name") .. " \"" .. UI.af.text .. "\"")
 			end
-			p.fVer:SetText(BG.T("addons_f_ver", vl))
-			p.fVer:Enable()
+		end
+		if table.getn(parts) > 0 then
+			p.clear:SetText(BG.T("addons_clear", table.concat(parts, ", ")))
+			p.clear:Show()
 		else
-			p.fVer:SetText(BG.T("addons_f_ver", "-"))
-			p.fVer:Disable()
+			p.clear:Hide()
 		end
 	end
 end

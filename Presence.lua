@@ -170,30 +170,38 @@ function Presence.VersionOptions(key)
 	local vers = {}
 	for v in pairs(counts) do table.insert(vers, v) end
 	table.sort(vers, VerNewer)
-	local out = { { value = nil, count = total - none } }
+	local out = { { value = nil, count = total }, { value = "any", count = total - none } }
 	for i = 1, table.getn(vers) do table.insert(out, { value = vers[i], count = counts[vers[i]] }) end
 	if off > 0 then table.insert(out, { value = "off", count = off }) end
 	table.insert(out, { value = "none", count = none })
 	return out
 end
 
--- af = { text, addon (key or nil), ver (nil = installed in any version | version | "off" | "none") }
+-- af = { text = "name part", f = { craft = nil | "any" | version | "off" | "none", bank = ..., ... } } (all filters must match)
 local function Matches(name, af)
 	if af.text and af.text ~= "" and not string.find(string.lower(name), af.text, 1, true) then return false end
-	if af.addon then
-		local st = Presence.AddonState(name, af.addon)
-		if af.ver == nil then return st ~= "none" end
-		if af.ver == "none" or af.ver == "off" then return st == af.ver end
-		return st == af.ver
+	for key, want in pairs(af.f or {}) do
+		local st = Presence.AddonState(name, key)
+		if want == "any" then
+			if st == "none" then return false end
+		elseif st ~= want then
+			return false
+		end
 	end
 	return true
+end
+
+function Presence.FilterActive(af)
+	if af.text and af.text ~= "" then return true end
+	for _ in pairs(af.f or {}) do return true end
+	return false
 end
 
 -- Rows grouped by main: { kind = "main" | "twink", name, root, twinks = n, open = bool, dim = bool, p = presence record }
 -- Twinks are listed under an opened main; while a filter is active the matching twinks are listed automatically.
 function Presence.AddonRows(af, open)
 	af = af or {}
-	local filtered = (af.text and af.text ~= "") or af.addon ~= nil
+	local filtered = Presence.FilterActive(af)
 	local groups, order = {}, {}
 	for name in pairs(BG.roster or {}) do
 		local root = BG.Roster.RootOf(name)
