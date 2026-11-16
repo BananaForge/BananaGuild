@@ -14,7 +14,7 @@ Ingame: `/bgd` (oder `/bananaguild`, oder Minimap-Button). **Als Erstes unter Ei
 
 | Bereich | Was es macht |
 |---|---|
-| **Addons & Analytics** | Zeigt, wer in der Gilde BananaCraft / BananaBank / Banana Lootline / Bananaloot / BananaGuild installiert hat und ob es läuft (Version, zuletzt gesehen, Logins, Anteil, 7/30-Tage-Aktivität). |
+| **Addons & Analytics** | Liste nach Mains gruppiert (+ klappt die Twinks auf), filterbar nach Name, Addon und Version. Zeigt, wer in der Gilde BananaCraft / BananaBank / Banana Lootline / Bananaloot / BananaGuild installiert hat und ob es läuft (Version, zuletzt gesehen, Logins, Anteil, 7/30-Tage-Aktivität). |
 | **Stufe 60** | Große Bildschirmanzeige mit BananaGuild-Logo + Spielername. |
 | **Mitglieder & Twinks** | Mains, Twinks, Berufe und Spec stehen im Addon und werden unter den Offizieren synchronisiert (siehe unten) und nichts muss dafür synchronisiert werden. Liste mit Name, Level, Beruf, Spec, Rolle. Beitrittsdatum, wer hat eingeladen und eine eigene Notiz bleiben zusätzlich pflegbar und synchronisierbar. |
 | **Mitglieder-Liste** | Spalten anklicken zum Sortieren, Filter für Suche, Rang, „Nur online" und „Ohne Daten". Rechtsklick auf ein Mitglied: per Flüstern nach Berufen, Spec oder Twinks fragen (Texte im Reiter Texte). |

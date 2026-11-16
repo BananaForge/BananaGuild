@@ -129,6 +129,120 @@ function Presence.Rows(showAll)
 	return rows
 end
 
+--------------------------------------------------------------------- grouped list for the addons tab
+
+-- "none" | "off" (installed, not running) | version string
+function Presence.AddonState(name, key)
+	local rec = BG.db.presence[name]
+	local v = rec and rec.addons and rec.addons[key]
+	if not v then return "none" end
+	local ver, running = Presence.Split(v)
+	if not running then return "off", ver end
+	return ver
+end
+
+local function VerParts(v)
+	local t = {}
+	for n in string.gfind(v or "", "%d+") do table.insert(t, tonumber(n)) end
+	return t
+end
+
+-- true when version a is newer than b
+local function VerNewer(a, b)
+	local x, y = VerParts(a), VerParts(b)
+	for i = 1, math.max(table.getn(x), table.getn(y)) do
+		local p, q = x[i] or 0, y[i] or 0
+		if p ~= q then return p > q end
+	end
+	return false
+end
+
+-- filter options for one addon: { { value = nil | version | "none" | "off", count = n }, ... } newest version first
+function Presence.VersionOptions(key)
+	local counts, none, off, total = {}, 0, 0, 0
+	for name in pairs(BG.roster or {}) do
+		total = total + 1
+		local st, offver = Presence.AddonState(name, key)
+		if st == "none" then none = none + 1
+		elseif st == "off" then off = off + 1
+		else counts[st] = (counts[st] or 0) + 1 end
+	end
+	local vers = {}
+	for v in pairs(counts) do table.insert(vers, v) end
+	table.sort(vers, VerNewer)
+	local out = { { value = nil, count = total - none } }
+	for i = 1, table.getn(vers) do table.insert(out, { value = vers[i], count = counts[vers[i]] }) end
+	if off > 0 then table.insert(out, { value = "off", count = off }) end
+	table.insert(out, { value = "none", count = none })
+	return out
+end
+
+-- af = { text, addon (key or nil), ver (nil = installed in any version | version | "off" | "none") }
+local function Matches(name, af)
+	if af.text and af.text ~= "" and not string.find(string.lower(name), af.text, 1, true) then return false end
+	if af.addon then
+		local st = Presence.AddonState(name, af.addon)
+		if af.ver == nil then return st ~= "none" end
+		if af.ver == "none" or af.ver == "off" then return st == af.ver end
+		return st == af.ver
+	end
+	return true
+end
+
+-- Rows grouped by main: { kind = "main" | "twink", name, root, twinks = n, open = bool, dim = bool, p = presence record }
+-- Twinks are listed under an opened main; while a filter is active the matching twinks are listed automatically.
+function Presence.AddonRows(af, open)
+	af = af or {}
+	local filtered = (af.text and af.text ~= "") or af.addon ~= nil
+	local groups, order = {}, {}
+	for name in pairs(BG.roster or {}) do
+		local root = BG.Roster.RootOf(name)
+		if not groups[root] then groups[root] = { main = root, twinks = {}, last = 0 } table.insert(order, root) end
+		if name ~= root then table.insert(groups[root].twinks, name) end
+		local rec = BG.db.presence[name]
+		if rec and (rec.last or 0) > groups[root].last then groups[root].last = rec.last end
+	end
+	table.sort(order, function(a, b)
+		local la, lb = groups[a].last, groups[b].last
+		if la ~= lb then return la > lb end
+		return a < b
+	end)
+	local rows, hits = {}, 0
+	for i = 1, table.getn(order) do
+		local g = groups[order[i]]
+		table.sort(g.twinks)
+		local mainOk = BG.roster[g.main] ~= nil and Matches(g.main, af)
+		local twOk = {}
+		for j = 1, table.getn(g.twinks) do
+			if Matches(g.twinks[j], af) then table.insert(twOk, g.twinks[j]) end
+		end
+		if mainOk or table.getn(twOk) > 0 then
+			-- explicit choice (true / false) wins, otherwise a filter opens the groups that have matching twinks
+			local choice = open and open[g.main]
+			local expanded = (choice == true) or (choice == nil and filtered and table.getn(twOk) > 0)
+			table.insert(rows, { kind = "main", name = g.main, root = g.main, twinks = table.getn(g.twinks),
+				expanded = expanded, dim = not mainOk, p = BG.db.presence[g.main] })
+			if mainOk then hits = hits + 1 end
+			hits = hits + table.getn(twOk)
+			if expanded then
+				local list = filtered and twOk or g.twinks
+				for j = 1, table.getn(list) do
+					table.insert(rows, { kind = "twink", name = list[j], root = g.main, p = BG.db.presence[list[j]] })
+				end
+			end
+		end
+	end
+	return rows, hits
+end
+
+local lastAutoQuery = -10000
+-- quiet ask "who is there?" when the tab is opened (at most every 15 minutes)
+function Presence.AutoQuery()
+	if GetTime() - lastAutoQuery < 900 then return end
+	lastAutoQuery = GetTime()
+	Presence.Query(true)
+end
+
 function Presence.Query(quiet)
 	if not IsInGuild or not IsInGuild() then if not quiet then BG.Print(BG.T("not_in_guild")) end return end
 	if not SendAddonMessage then if not quiet then BG.Print(BG.T("no_addon_msg")) end return end

@@ -3,6 +3,11 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 2.4.0
+- **Addons & Analytics: Liste wie bei den Mitgliedern.** Es werden jetzt alle Gildenmitglieder gezeigt, nach Mains gruppiert: Die Zeile des Mains trägt ein **+ / -** und die Zahl seiner Twinks, ein Klick klappt die Twinks (eingerückt, mit eigenen Addon-Versionen) auf und zu. Sortiert wird nach dem letzten Login der Gruppe.
+- **Filter:** Namenssuche, **Addon** (alle / Craft / Bank / Lootline / Loot / Guild, Links- und Rechtsklick wechseln) und **Version** (alle installierten, jede gefundene Version mit Anzahl, deaktiviert, nicht installiert). Bei aktivem Filter klappen sich die Gruppen mit Treffern von selbst auf, ein Main ohne eigenen Treffer wird grau gezeigt. Unten steht die Zahl der Treffer.
+- Entfernt: Knopf „Jetzt abfragen" und das Häkchen „Alle Mitglieder anzeigen" (es werden immer alle gezeigt, die Versionen fehlender Addons stehen als „-"). Dafür fragt das Addon beim Öffnen des Reiters still nach, wer gerade online ist (höchstens alle 15 Minuten).
+
 ## 2.3.0
 - **Heatmap: verschobene Altdaten werden gelöscht und können nicht mehr zurückkommen.** Die Messwerte zeigten Donnerstag eine zweite Kopie, 12 Stunden verschoben (Do 4/5/7/8 Uhr = Do 16/17/19/20 Uhr), geschrieben von Clients, deren Stunde über `GetGameTime()` falsch berechnet wurde. Solche Einträge wanderten über die Nachlade-Antworten von Client zu Client. Jetzt: Der Tracker (Version 3) benutzt neue Nachrichtenarten (`AB` / `AR` / `AU`), die alten (`A` / `AQ` / `AS` / `AT`) werden ignoriert. Beim ersten Start werden die gespeicherten Messwerte **einmalig gelöscht** (Datenformat 3). Die Heatmap beginnt neu und füllt sich von den aktualisierten Clients aus (Nachladen beim Login inklusive).
 - `/bgd activity` zählt `old_version`, also Nachrichten von Clients mit einer alten Version. Wer dort viele sieht, weiß, dass noch jemand nicht aktualisiert hat.

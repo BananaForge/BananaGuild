@@ -292,14 +292,46 @@ local function BuildAddons(p)
 		end
 	end
 
-	local q = MakeButton(p, NextName("Btn"), "btn_query", 170, 22, function() BG.Presence.Query() end)
-	q:SetPoint("TOPLEFT", p, "TOPLEFT", 0, -122)
-	Tooltip(q, "tip_query")
-	MakeCheck("addons", p, 190, -122, "chk_show_all",
-		function() return UI.showAllMembers end,
-		function(v) UI.showAllMembers = v UI.Refresh("addons") end)
+	-- filter row: name search, addon, version
+	UI.af = UI.af or { text = "", addon = nil, ver = nil }
+	UI.addonOpen = UI.addonOpen or {}
+	local af = UI.af
+	Label(p, "lbl_search", 0, -126)
+	p.search = MakeEdit(nil, p, 46, -122, 110, function() return af.text end, function(t)
+		af.text = string.lower(BG.Trim(t or ""))
+		UI.Refresh("addons")
+	end, 24)
+	p.fAddon = BG.MakeButton(p, NextName("Btn"), 200, 22, "")
+	p.fAddon:SetPoint("TOPLEFT", p, "TOPLEFT", 164, -122)
+	p.fAddon:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+	p.fAddon:SetScript("OnClick", function()
+		-- left: next addon, right: previous (the order: all, then the tracked addons)
+		local cur = 0
+		for i = 1, table.getn(BG.TRACKED) do if BG.TRACKED[i].key == af.addon then cur = i end end
+		local n = table.getn(BG.TRACKED)
+		if arg1 == "RightButton" then cur = cur - 1 else cur = cur + 1 end
+		if cur > n then cur = 0 elseif cur < 0 then cur = n end
+		af.addon = (cur > 0) and BG.TRACKED[cur].key or nil
+		af.ver = nil
+		UI.Refresh("addons")
+	end)
+	Tooltip(p.fAddon, "tip_f_addon")
+	p.fVer = BG.MakeButton(p, NextName("Btn"), 220, 22, "")
+	p.fVer:SetPoint("LEFT", p.fAddon, "RIGHT", 6, 0)
+	p.fVer:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+	p.fVer:SetScript("OnClick", function()
+		if not af.addon then return end
+		local opts = BG.Presence.VersionOptions(af.addon)
+		local cur = 1
+		for i = 1, table.getn(opts) do if opts[i].value == af.ver then cur = i end end
+		if arg1 == "RightButton" then cur = cur - 1 else cur = cur + 1 end
+		if cur > table.getn(opts) then cur = 1 elseif cur < 1 then cur = table.getn(opts) end
+		af.ver = opts[cur].value
+		UI.Refresh("addons")
+	end)
+	Tooltip(p.fVer, "tip_f_ver")
 
-	-- member table
+	-- member table (mains with their twinks, a click on a main opens / closes it)
 	local hdr = { { 6, 100, "col_name" }, { 112, 66, "key_craft" }, { 182, 66, "key_bank" }, { 252, 66, "key_lootline" },
 		{ 322, 66, "key_loot" }, { 392, 66, "key_guild" }, { 460, 100, "col_last" } }
 	for i = 1, table.getn(hdr) do
@@ -308,7 +340,8 @@ local function BuildAddons(p)
 	local keys = { "craft", "bank", "lootline", "loot", "guild" }
 	p.list = MakeList(p, 0, -166, 596, 15, 17,
 		function(r)
-			r.name = Cell(r, 6, 100)
+			r.sign = Cell(r, 4, 14, "CENTER")
+			r.name = Cell(r, 18, 92)
 			r.k = {}
 			for i = 1, 5 do r.k[i] = Cell(r, 112 + (i - 1) * 70, 66) end
 			r.last = Cell(r, 460, 100)
@@ -316,12 +349,32 @@ local function BuildAddons(p)
 		function(r, item)
 			local info = BG.roster[item.name]
 			local online = info and info.online
-			r.name:SetText((online and GREEN or WHITE) .. item.name .. "|r")
+			local col = online and GREEN or WHITE
+			if item.dim then col = GRAY end
+			local nm = col .. item.name .. "|r"
+			r.name:ClearAllPoints()
+			if item.kind == "twink" then
+				r.sign:SetText("")
+				r.name:SetPoint("LEFT", r, "LEFT", 32, 0)
+				r.name:SetWidth(78)
+			else
+				r.name:SetPoint("LEFT", r, "LEFT", 18, 0)
+				r.name:SetWidth(92)
+				if item.twinks > 0 then
+					r.sign:SetText(GOLD .. (item.expanded and "-" or "+") .. "|r")
+					nm = nm .. GRAY .. " (" .. item.twinks .. ")|r"
+				else
+					r.sign:SetText("")
+				end
+			end
+			r.name:SetText(nm)
 			for i = 1, 5 do
 				local v = item.p and item.p.addons and item.p.addons[keys[i]]
 				if v then
 					local ver, running = BG.Presence.Split(v)
-					if running then r.k[i]:SetText(GREEN .. ver .. "|r") else r.k[i]:SetText(YELLOW .. BG.T("state_disabled") .. "|r") end
+					local txt = running and (GREEN .. ver .. "|r") or (YELLOW .. BG.T("state_disabled") .. "|r")
+					if UI.af.addon == keys[i] then txt = "|cffffffaa>|r" .. txt end
+					r.k[i]:SetText(txt)
 				else
 					r.k[i]:SetText(GRAY .. "-|r")
 				end
@@ -330,6 +383,12 @@ local function BuildAddons(p)
 				r.last:SetText(date("%d.%m. %H:%M", item.p.last) .. GRAY .. " (" .. (item.p.count or 0) .. ")|r")
 			else
 				r.last:SetText(GRAY .. BG.T("never") .. "|r")
+			end
+		end,
+		function(r, item)
+			if item and item.kind == "main" and item.twinks > 0 then
+				UI.addonOpen[item.name] = not item.expanded
+				UI.Refresh("addons")
 			end
 		end)
 	-- accounts (distinct mains) and chars (everybody in the guild)
@@ -340,6 +399,9 @@ local function BuildAddons(p)
 	p.counts = cb:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 	p.counts:SetPoint("LEFT", cb, "LEFT", 0, 0)
 	p.counts:SetJustifyH("LEFT")
+	p.hits = p:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	p.hits:SetPoint("TOPRIGHT", p, "TOPRIGHT", -4, -438)
+	p.hits:SetJustifyH("RIGHT")
 	cb:SetScript("OnEnter", function()
 		local _, _, noNote = BG.Roster.CountAccounts()
 		GameTooltip:SetOwner(this, "ANCHOR_TOP")
@@ -364,7 +426,31 @@ local function BuildAddons(p)
 		end
 		local accounts, chars = BG.Roster.CountAccounts()
 		p.counts:SetText(BG.T("addons_counts", accounts, chars))
-		p.list.SetData(BG.Presence.Rows(UI.showAllMembers))
+		local rows, hits = BG.Presence.AddonRows(UI.af, UI.addonOpen)
+		p.list.SetData(rows)
+		p.hits:SetText(BG.T("addons_hits", hits))
+		-- filter buttons
+		local addon = UI.af.addon
+		local lbl = BG.T("addons_f_all")
+		for i = 1, table.getn(BG.TRACKED) do if BG.TRACKED[i].key == addon then lbl = BG.TRACKED[i].label end end
+		p.fAddon:SetText(BG.T("addons_f_addon", lbl))
+		if addon then
+			local vl = BG.T("addons_v_any")
+			local opts = BG.Presence.VersionOptions(addon)
+			for i = 1, table.getn(opts) do
+				local o = opts[i]
+				if o.value == UI.af.ver then
+					local name = o.value
+					if name == nil then name = BG.T("addons_v_any") elseif name == "off" then name = BG.T("addons_v_off") elseif name == "none" then name = BG.T("addons_v_none") end
+					vl = name .. " (" .. o.count .. ")"
+				end
+			end
+			p.fVer:SetText(BG.T("addons_f_ver", vl))
+			p.fVer:Enable()
+		else
+			p.fVer:SetText(BG.T("addons_f_ver", "-"))
+			p.fVer:Disable()
+		end
 	end
 end
 
@@ -2263,6 +2349,7 @@ function UI.Show(key)
 	if l then for _, w in ipairs(l) do w:Load() end end
 	local p = panels[key]
 	if p and p.refresh then p.refresh() end
+	if key == "addons" and BG.Presence and BG.Presence.AutoQuery then BG.Presence.AutoQuery() end
 end
 
 function UI.Toggle()
