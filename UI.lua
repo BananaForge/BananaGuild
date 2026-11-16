@@ -273,74 +273,6 @@ local function Cell(row, x, w, justify, font)
 end
 
 
---------------------------------------------------------------------- panel: addons / analytics (filter by a click on the column headers)
-
-local verMenu
-
--- a click on "Name": the search box appears in place of the header
-function UI.OpenNameFilter()
-	local p = panels.addons
-	if not p then return end
-	p.search:Show()
-	p.search:SetFocus()
-end
-
--- list of the versions found for one addon: pick one to filter the list (the count is behind it)
-function UI.OpenVersionMenu(key, anchor)
-	if not verMenu then
-		verMenu = CreateFrame("Frame", "BananaGuildVersionMenu", UIParent)
-		verMenu:SetWidth(190)
-		verMenu:SetFrameStrata("FULLSCREEN_DIALOG")
-		verMenu:EnableMouse(true)
-		BG.Backdrop(verMenu, false, true)
-		verMenu.btns = {}
-		for i = 1, 14 do
-			local idx = i -- local per iteration (Lua 5.0 closures share the loop variable)
-			local b = BG.MakeButton(verMenu, "BananaGuildVersionMenuBtn" .. i, 170, 20, "")
-			b:SetPoint("TOPLEFT", verMenu, "TOPLEFT", 10, -10 - (i - 1) * 22)
-			b:SetScript("OnClick", function()
-				local o = verMenu.opts[idx]
-				if o then
-					UI.af.f[verMenu.key] = o.value
-					verMenu:Hide()
-					UI.Refresh("addons")
-				end
-			end)
-			verMenu.btns[i] = b
-		end
-		verMenu.t = 0
-		verMenu:SetScript("OnUpdate", function()
-			if MouseIsOver and MouseIsOver(this) then this.t = 0 return end
-			if this.anchor and MouseIsOver and MouseIsOver(this.anchor) then this.t = 0 return end
-			this.t = this.t + arg1
-			if this.t > 1.0 then this:Hide() end
-		end)
-		verMenu:Hide()
-	end
-	local opts = BG.Presence.VersionOptions(key)
-	-- at most 14 lines: the oldest versions fall off
-	while table.getn(opts) > 14 do table.remove(opts, table.getn(opts) - 2) end
-	verMenu.opts, verMenu.key, verMenu.anchor, verMenu.t = opts, key, anchor, 0
-	local cur = UI.af.f[key]
-	for i = 1, 14 do
-		local o, b = opts[i], verMenu.btns[i]
-		if o then
-			local name = o.value
-			if name == nil then name = BG.T("addons_v_all") elseif name == "any" then name = BG.T("addons_v_any")
-			elseif name == "off" then name = BG.T("addons_v_off") elseif name == "none" then name = BG.T("addons_v_none") end
-			b:SetText(((o.value == cur) and (GOLD .. name .. "|r") or name) .. GRAY .. "  (" .. o.count .. ")|r")
-			b:Show()
-		else
-			b:Hide()
-		end
-	end
-	verMenu:SetHeight(20 + table.getn(opts) * 22)
-	verMenu:ClearAllPoints()
-	verMenu:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", -4, -2)
-	verMenu:Show()
-	verMenu:Raise()
-end
-
 --------------------------------------------------------------------- panel: addons / analytics
 
 local function BuildAddons(p)
@@ -361,50 +293,35 @@ local function BuildAddons(p)
 		end
 	end
 
-	-- the column headers are the filter: a click on Craft / Bank / ... opens the version list, a click on Name the search
-	UI.af = UI.af or { text = "", f = {} }
+	-- the column headers sort the list: one click = highest first (newest version), a second click reverses it
+	UI.sort = UI.sort or { col = "last", desc = true }
 	UI.addonOpen = UI.addonOpen or {}
-	local af = UI.af
-	local hdr = { { 6, 100, "col_name", nil }, { 112, 66, "key_craft", "craft" }, { 182, 66, "key_bank", "bank" },
+	local hdr = { { 6, 100, "col_name", "name" }, { 112, 66, "key_craft", "craft" }, { 182, 66, "key_bank", "bank" },
 		{ 252, 66, "key_lootline", "lootline" }, { 322, 66, "key_loot", "loot" }, { 392, 66, "key_guild", "guild" },
-		{ 460, 100, "col_last", false } }
+		{ 460, 100, "col_last", "last" } }
 	p.hdr = {}
 	for i = 1, table.getn(hdr) do
 		local h = hdr[i]
+		local col = h[4]
 		local fs = Label(p, h[3], h[1], -124, "GameFontNormalSmall", h[2])
-		p.hdr[i] = { fs = fs, key = h[4] }
-		if h[4] ~= false then
-			local key = h[4]
-			local b = CreateFrame("Button", NextName("Hdr"), p)
-			b:SetWidth(h[2])
-			b:SetHeight(16)
-			b:SetPoint("TOPLEFT", p, "TOPLEFT", h[1], -122)
-			b:SetScript("OnClick", function()
-				if key then UI.OpenVersionMenu(key, this) else UI.OpenNameFilter() end
-			end)
-			b:SetScript("OnEnter", function()
-				GameTooltip:SetOwner(this, "ANCHOR_TOP")
-				GameTooltip:SetText(BG.T(key and "tip_hdr_version" or "tip_hdr_name"), 1, 1, 1, 1, 1)
-				GameTooltip:Show()
-			end)
-			b:SetScript("OnLeave", function() GameTooltip:Hide() end)
-		end
+		local arrow = p:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+		arrow:SetPoint("LEFT", fs, "LEFT", (fs:GetStringWidth() or 30) + 4, 0)
+		p.hdr[col] = arrow
+		local b = CreateFrame("Button", NextName("Hdr"), p)
+		b:SetWidth(h[2])
+		b:SetHeight(16)
+		b:SetPoint("TOPLEFT", p, "TOPLEFT", h[1], -122)
+		b:SetScript("OnClick", function()
+			local s = UI.sort
+			if s.col == col then
+				s.desc = not s.desc
+			else
+				s.col = col
+				s.desc = (col ~= "name")   -- names start at A, everything else at the highest value
+			end
+			UI.Refresh("addons")
+		end)
 	end
-	-- search box in place of the Name header (shown by a click on "Name")
-	p.search = CreateFrame("EditBox", NextName("Edit"), p, "InputBoxTemplate")
-	p.search:SetWidth(100)
-	p.search:SetHeight(18)
-	p.search:SetPoint("TOPLEFT", p, "TOPLEFT", 10, -121)
-	p.search:SetAutoFocus(false)
-	p.search:SetMaxLetters(24)
-	p.search:SetScript("OnTextChanged", function()
-		af.text = string.lower(BG.Trim(this:GetText() or ""))
-		UI.Refresh("addons")
-	end)
-	p.search:SetScript("OnEscapePressed", function() this:ClearFocus() end)
-	p.search:SetScript("OnEnterPressed", function() this:ClearFocus() end)
-	p.search:SetScript("OnEditFocusLost", function() if af.text == "" then this:Hide() end end)
-	p.search:Hide()
 	local keys = { "craft", "bank", "lootline", "loot", "guild" }
 	p.list = MakeList(p, 0, -140, 596, 17, 17,
 		function(r)
@@ -418,7 +335,6 @@ local function BuildAddons(p)
 			local info = BG.roster[item.name]
 			local online = info and info.online
 			local col = online and GREEN or WHITE
-			if item.dim then col = GRAY end
 			local nm = col .. item.name .. "|r"
 			r.name:ClearAllPoints()
 			if item.kind == "twink" then
@@ -466,18 +382,6 @@ local function BuildAddons(p)
 	p.counts = cb:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 	p.counts:SetPoint("LEFT", cb, "LEFT", 0, 0)
 	p.counts:SetJustifyH("LEFT")
-	p.clear = BG.MakeButton(p, NextName("Btn"), 250, 20, "")
-	p.clear:SetPoint("TOPLEFT", p, "TOPLEFT", 236, -434)
-	p.clear:SetScript("OnClick", function()
-		UI.af.text, UI.af.f = "", {}
-		p.search:SetText("")
-		p.search:Hide()
-		UI.Refresh("addons")
-	end)
-	p.clear:Hide()
-	p.hits = p:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-	p.hits:SetPoint("TOPRIGHT", p, "TOPRIGHT", -4, -438)
-	p.hits:SetJustifyH("RIGHT")
 	cb:SetScript("OnEnter", function()
 		local _, _, noNote = BG.Roster.CountAccounts()
 		GameTooltip:SetOwner(this, "ANCHOR_TOP")
@@ -502,30 +406,9 @@ local function BuildAddons(p)
 		end
 		local accounts, chars = BG.Roster.CountAccounts()
 		p.counts:SetText(BG.T("addons_counts", accounts, chars))
-		local rows, hits = BG.Presence.AddonRows(UI.af, UI.addonOpen)
-		p.list.SetData(rows)
-		p.hits:SetText(BG.T("addons_hits", hits))
-		-- headers of filtered columns are white, a button names the active filters and clears them
-		local parts = {}
-		for i = 1, table.getn(p.hdr) do
-			local h = p.hdr[i]
-			local on
-			if h.key == nil then on = (UI.af.text ~= "")
-			elseif h.key then on = (UI.af.f[h.key] ~= nil) end
-			h.fs:SetTextColor(on and 1 or 1, on and 1 or 0.82, on and 1 or 0)
-			if on and h.key then
-				local v = UI.af.f[h.key]
-				if v == "any" then v = BG.T("addons_v_any") elseif v == "off" then v = BG.T("addons_v_off") elseif v == "none" then v = BG.T("addons_v_none") end
-				table.insert(parts, BG.T("key_" .. h.key) .. " " .. v)
-			elseif on then
-				table.insert(parts, BG.T("col_name") .. " \"" .. UI.af.text .. "\"")
-			end
-		end
-		if table.getn(parts) > 0 then
-			p.clear:SetText(BG.T("addons_clear", table.concat(parts, ", ")))
-			p.clear:Show()
-		else
-			p.clear:Hide()
+		p.list.SetData((BG.Presence.AddonRows(UI.addonOpen, UI.sort)))
+		for col, arrow in pairs(p.hdr) do
+			if col == UI.sort.col then arrow:SetText(YELLOW .. (UI.sort.desc and "v" or "^") .. "|r") else arrow:SetText("") end
 		end
 	end
 end

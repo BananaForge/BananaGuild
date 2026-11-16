@@ -157,90 +157,101 @@ local function VerNewer(a, b)
 	return false
 end
 
--- filter options for one addon: { { value = nil | version | "none" | "off", count = n }, ... } newest version first
-function Presence.VersionOptions(key)
-	local counts, none, off, total = {}, 0, 0, 0
-	for name in pairs(BG.roster or {}) do
-		total = total + 1
-		local st, offver = Presence.AddonState(name, key)
-		if st == "none" then none = none + 1
-		elseif st == "off" then off = off + 1
-		else counts[st] = (counts[st] or 0) + 1 end
-	end
-	local vers = {}
-	for v in pairs(counts) do table.insert(vers, v) end
-	table.sort(vers, VerNewer)
-	local out = { { value = nil, count = total }, { value = "any", count = total - none } }
-	for i = 1, table.getn(vers) do table.insert(out, { value = vers[i], count = counts[vers[i]] }) end
-	if off > 0 then table.insert(out, { value = "off", count = off }) end
-	table.insert(out, { value = "none", count = none })
-	return out
+-- sort value of a character for one addon: rank 0 = not installed, 1 = installed but off, 2 = running version
+local function Val(name, key)
+	local st = Presence.AddonState(name, key)
+	if st == "none" then return { r = 0 } end
+	if st == "off" then return { r = 1 } end
+	return { r = 2, v = st }
 end
 
--- af = { text = "name part", f = { craft = nil | "any" | version | "off" | "none", bank = ..., ... } } (all filters must match)
-local function Matches(name, af)
-	if af.text and af.text ~= "" and not string.find(string.lower(name), af.text, 1, true) then return false end
-	for key, want in pairs(af.f or {}) do
-		local st = Presence.AddonState(name, key)
-		if want == "any" then
-			if st == "none" then return false end
-		elseif st ~= want then
-			return false
-		end
-	end
-	return true
-end
-
-function Presence.FilterActive(af)
-	if af.text and af.text ~= "" then return true end
-	for _ in pairs(af.f or {}) do return true end
+-- true when a is strictly higher than b (running version above off above not installed)
+local function Higher(a, b)
+	if a.r ~= b.r then return a.r > b.r end
+	if a.r == 2 then return VerNewer(a.v, b.v) end
 	return false
 end
 
--- Rows grouped by main: { kind = "main" | "twink", name, root, twinks = n, open = bool, dim = bool, p = presence record }
--- Twinks are listed under an opened main; while a filter is active the matching twinks are listed automatically.
-function Presence.AddonRows(af, open)
-	af = af or {}
-	local filtered = Presence.FilterActive(af)
+-- Rows grouped by main: { kind = "main" | "twink", name, root, twinks = n, expanded = bool, p = presence record }
+-- sort = { col = "name" | "last" | addon key, desc = bool }. Characters without the addon always come last.
+-- A group is sorted by its best member (highest version when descending, lowest installed version when ascending).
+function Presence.AddonRows(open, sort)
+	sort = sort or { col = "last", desc = true }
+	local col, desc = sort.col, sort.desc
+	local isAddon = (col ~= "name" and col ~= "last")
 	local groups, order = {}, {}
 	for name in pairs(BG.roster or {}) do
 		local root = BG.Roster.RootOf(name)
-		if not groups[root] then groups[root] = { main = root, twinks = {}, last = 0 } table.insert(order, root) end
-		if name ~= root then table.insert(groups[root].twinks, name) end
+		if not groups[root] then groups[root] = { main = root, twinks = {}, last = 0, members = {} } table.insert(order, root) end
+		local g = groups[root]
+		if name ~= root then table.insert(g.twinks, name) end
+		table.insert(g.members, name)
 		local rec = BG.db.presence[name]
-		if rec and (rec.last or 0) > groups[root].last then groups[root].last = rec.last end
+		if rec and (rec.last or 0) > g.last then g.last = rec.last end
 	end
-	table.sort(order, function(a, b)
-		local la, lb = groups[a].last, groups[b].last
+	-- best value of the group for the sorted addon column
+	for _, g in pairs(groups) do
+		if isAddon then
+			local best
+			for i = 1, table.getn(g.members) do
+				local v = Val(g.members[i], col)
+				if v.r > 0 then
+					if not best then best = v
+					elseif desc and Higher(v, best) then best = v
+					elseif (not desc) and Higher(best, v) then best = v end
+				end
+			end
+			g.val = best or { r = 0 }
+		end
+	end
+	local function Tie(a, b, la, lb)
 		if la ~= lb then return la > lb end
 		return a < b
+	end
+	table.sort(order, function(a, b)
+		local ga, gb = groups[a], groups[b]
+		if col == "name" then
+			if desc then return a > b end
+			return a < b
+		elseif col == "last" then
+			if desc then return Tie(a, b, ga.last, gb.last) end
+			if ga.last ~= gb.last then return ga.last < gb.last end
+			return a < b
+		end
+		local va, vb = ga.val, gb.val
+		if va.r == 0 or vb.r == 0 then
+			if va.r ~= vb.r then return va.r > vb.r end
+			return Tie(a, b, ga.last, gb.last)
+		end
+		if Higher(va, vb) then return desc end
+		if Higher(vb, va) then return not desc end
+		return Tie(a, b, ga.last, gb.last)
 	end)
-	local rows, hits = {}, 0
+	local rows = {}
 	for i = 1, table.getn(order) do
 		local g = groups[order[i]]
-		table.sort(g.twinks)
-		local mainOk = BG.roster[g.main] ~= nil and Matches(g.main, af)
-		local twOk = {}
-		for j = 1, table.getn(g.twinks) do
-			if Matches(g.twinks[j], af) then table.insert(twOk, g.twinks[j]) end
-		end
-		if mainOk or table.getn(twOk) > 0 then
-			-- explicit choice (true / false) wins, otherwise a filter opens the groups that have matching twinks
-			local choice = open and open[g.main]
-			local expanded = (choice == true) or (choice == nil and filtered and table.getn(twOk) > 0)
-			table.insert(rows, { kind = "main", name = g.main, root = g.main, twinks = table.getn(g.twinks),
-				expanded = expanded, dim = not mainOk, p = BG.db.presence[g.main] })
-			if mainOk then hits = hits + 1 end
-			hits = hits + table.getn(twOk)
-			if expanded then
-				local list = filtered and twOk or g.twinks
-				for j = 1, table.getn(list) do
-					table.insert(rows, { kind = "twink", name = list[j], root = g.main, p = BG.db.presence[list[j]] })
-				end
+		table.sort(g.twinks, function(a, b)
+			if isAddon then
+				local va, vb = Val(a, col), Val(b, col)
+				if va.r == 0 or vb.r == 0 then
+					if va.r ~= vb.r then return va.r > vb.r end
+				elseif Higher(va, vb) then return desc
+				elseif Higher(vb, va) then return not desc end
+			elseif col == "name" then
+				return desc and a > b or ((not desc) and a < b)
+			end
+			return a < b
+		end)
+		local expanded = (open and open[g.main]) and true or false
+		table.insert(rows, { kind = "main", name = g.main, root = g.main, twinks = table.getn(g.twinks),
+			expanded = expanded, p = BG.db.presence[g.main] })
+		if expanded then
+			for j = 1, table.getn(g.twinks) do
+				table.insert(rows, { kind = "twink", name = g.twinks[j], root = g.main, p = BG.db.presence[g.twinks[j]] })
 			end
 		end
 	end
-	return rows, hits
+	return rows
 end
 
 local lastAutoQuery = -10000
