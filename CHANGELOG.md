@@ -3,6 +3,11 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 2.4.4
+- **Heatmap: unplausible Ausreißer werden aussortiert.** In den Daten standen Stunden wie „32 Online, davon 2 Level 60" (Sonntag 9 Uhr) und „60 Online" (Dienstag 22 Uhr), sehr wahrscheinlich von einem Client, dessen Gildenliste direkt nach dem Login noch veraltet war. Ein Wert über max(2 × Median, Median + 10) der gespeicherten Stunden wird jetzt abgelehnt (erst ab 24 gespeicherten Stunden), bereits gespeicherte Ausreißer werden beim Start und nach dem Nachladen gelöscht. Normale Spitzen (zum Beispiel 19 bei Median 12) bleiben.
+- Der erste Messwert nach dem Login kommt erst nach 90 statt 45 Sekunden, damit die Gildenliste Zeit hat, sich zu aktualisieren.
+- `BananaActivity.lua` hat jetzt die Version 4. Die Nachrichten sind gleich geblieben, die neueste Kopie unter BananaGuild, BananaBank und BananaCraft läuft. `/bgd activity` zählt `rej_outlier`.
+
 ## 2.4.3
 - **Fix: Auswertungstext der Heatmap zeigte `%s %s Uhr (Ø %s ...)`.** Der Text hat 6 Platzhalter, die Übersetzungsfunktion kannte nur 4. Jetzt bis 8.
 - **Heatmap-Farben:** Die Skala richtet sich nach dem 95. Perzentil der Stundenwerte statt nach dem größten Wert. Ein einzelner Ausreißer (zum Beispiel 60 Online an einem Dienstag um 22 Uhr) färbt nicht mehr das ganze Bild blau. Die Tooltips zeigen weiter den echten Wert.
