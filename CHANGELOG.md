@@ -3,6 +3,9 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 2.4.5
+- **Heatmap: keine Messung mit einer veralteten Gildenliste.** Nach einem Gildenwechsel kann der Client noch die Liste der alten Gilde im Zwischenspeicher haben, dann zählte der Tracker deren Online-Zahl (zum Beispiel 60). Jetzt wird nur gezählt, wenn der **eigene Charakter in der Liste steht und online ist**; sonst wird der Messwert verworfen (`skip_stale` in `/bgd activity`). `BananaActivity.lua` ist Version 5.
+
 ## 2.4.4
 - **Heatmap: unplausible Ausreißer werden aussortiert.** In den Daten standen Stunden wie „32 Online, davon 2 Level 60" (Sonntag 9 Uhr) und „60 Online" (Dienstag 22 Uhr), sehr wahrscheinlich von einem Client, dessen Gildenliste direkt nach dem Login noch veraltet war. Ein Wert über max(2 × Median, Median + 10) der gespeicherten Stunden wird jetzt abgelehnt (erst ab 24 gespeicherten Stunden), bereits gespeicherte Ausreißer werden beim Start und nach dem Nachladen gelöscht. Normale Spitzen (zum Beispiel 19 bei Median 12) bleiben.
 - Der erste Messwert nach dem Login kommt erst nach 90 statt 45 Sekunden, damit die Gildenliste Zeit hat, sich zu aktualisieren.
