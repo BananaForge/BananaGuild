@@ -2076,7 +2076,8 @@ function UI.UpdateActivity()
 		for h = 0, 23 do
 			local c = p.cells[d][h]
 			local v = 0
-			if g.max > 0 then v = g.v[d][h] / g.max end
+			local top = g.scale and g.scale > 0 and g.scale or g.max
+			if top > 0 then v = g.v[d][h] / top end
 			if st.view == "online" and g.n[d][h] == 0 then c.tex:SetTexture(0.12, 0.12, 0.14, 1)
 			else c.tex:SetTexture(HeatColor(v)) end
 			if d == nd and h == nh then

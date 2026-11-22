@@ -129,6 +129,25 @@ local function SameClock(n)
 	return math.abs(n - A.HourIndex()) <= 1
 end
 
+-- the highest measured hours with their source (finds outliers), for /bgd activity top
+function A.Top(store, n)
+	local keys = {}
+	for idx in pairs(store.a) do table.insert(keys, idx) end
+	table.sort(keys, function(x, y)
+		if store.a[x] ~= store.a[y] then return store.a[x] > store.a[y] end
+		return x > y
+	end)
+	local out = {}
+	local shift = A.LocalShift()
+	for i = 1, math.min(n or 10, table.getn(keys)) do
+		local idx = keys[i]
+		local d, h = A.WeekHour(idx + shift)
+		table.insert(out, "online " .. store.a[idx] .. "  l60 " .. (store.b[idx] or 0) .. "  day " .. d .. " " .. h .. ":00 local  index " .. idx .. "  "
+			.. ((store.src and store.src[idx]) == "o" and "own" or "received"))
+	end
+	return out
+end
+
 -- lines for /bgd activity
 function A.Dump(store)
 	local out = {}

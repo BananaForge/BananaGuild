@@ -104,12 +104,12 @@ function BG.Lang()
 	return (BG.db and BG.db.lang) or ((GetLocale and GetLocale() == "deDE") and "de" or "en")
 end
 
-function BG.T(key, a1, a2, a3, a4)
+function BG.T(key, a1, a2, a3, a4, a5, a6, a7, a8)
 	local L = BG.L
 	local lang = BG.Lang()
 	local s = (L and L[lang] and L[lang][key]) or (L and L.en and L.en[key]) or key
 	if a1 ~= nil then
-		local ok, res = pcall(string.format, s, a1, a2, a3, a4)
+		local ok, res = pcall(string.format, s, a1, a2, a3, a4, a5, a6, a7, a8)
 		if ok then return res end
 	end
 	return s
@@ -792,6 +792,9 @@ local function Slash(msg)
 			if BananaActivity then BananaActivity.Init(BG.db.activity) end
 			BG.Print("Activity data deleted.")
 			if BG.UI and BG.UI.Refresh then BG.UI.Refresh("activity") end
+		elseif string.lower(rest or "") == "top" and st and BananaActivity and BananaActivity.Top then
+			local lines = BananaActivity.Top(st, 12)
+			for i = 1, table.getn(lines) do BG.Print(lines[i]) end
 		elseif st and BananaActivity and BananaActivity.Dump then
 			local lines = BananaActivity.Dump(st)
 			for i = 1, table.getn(lines) do BG.Print(lines[i]) end

@@ -57,7 +57,7 @@ end
 --------------------------------------------------------------------- grids
 
 local function NewGrid()
-	local g = { v = {}, n = {}, max = 0, total = 0, count = 0 }
+	local g = { v = {}, n = {}, max = 0, scale = nil, total = 0, count = 0 }
 	for d = 0, 6 do
 		g.v[d], g.n[d] = {}, {}
 		for h = 0, 23 do g.v[d][h] = 0; g.n[d][h] = 0 end
@@ -83,6 +83,14 @@ function Act.Grid(kind, weeks, only60)
 				if not g.first or idx < g.first then g.first = idx end
 			end
 		end
+		local vals = {}
+		for d = 0, 6 do for h = 0, 23 do
+			local n = sum.n[d][h]
+			if n > 0 then table.insert(vals, sum.v[d][h] / n) end
+		end end
+		-- colour scale: the 95th percentile, so that one absurd hour does not turn the whole picture blue
+		table.sort(vals)
+		g.scale = vals[math.max(1, math.floor(table.getn(vals) * 0.95 + 0.5))] or 0
 		for d = 0, 6 do for h = 0, 23 do
 			local n = sum.n[d][h]
 			g.n[d][h] = n

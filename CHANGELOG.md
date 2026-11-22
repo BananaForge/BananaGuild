@@ -3,6 +3,11 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 2.4.3
+- **Fix: Auswertungstext der Heatmap zeigte `%s %s Uhr (Ø %s ...)`.** Der Text hat 6 Platzhalter, die Übersetzungsfunktion kannte nur 4. Jetzt bis 8.
+- **Heatmap-Farben:** Die Skala richtet sich nach dem 95. Perzentil der Stundenwerte statt nach dem größten Wert. Ein einzelner Ausreißer (zum Beispiel 60 Online an einem Dienstag um 22 Uhr) färbt nicht mehr das ganze Bild blau. Die Tooltips zeigen weiter den echten Wert.
+- `/bgd activity top` zeigt die 12 höchsten gemessenen Stunden mit Quelle (eigen / empfangen), um Ausreißer zu finden.
+
 ## 2.4.2
 - **Addons & Analytics: Sortieren per Klick auf die Spaltenköpfe, keine Filter-Menüs mehr.** Ein Klick auf Craft / Bank / Lootline / Loot / Guild sortiert nach der höchsten Version zuerst (wer das Addon nicht hat, steht unten), ein zweiter Klick dreht um. Auf Name sortiert der erste Klick A-Z, auf „Zuletzt" die neuesten Logins zuerst. Ein Pfeil (v / ^) hinter dem Kopf zeigt die Sortierung. Eine Gruppe (Main mit Twinks) wird nach ihrem besten Mitglied einsortiert, die Twinks darunter nach derselben Spalte. Entfernt: Versions-Liste, Namenssuche, „Filter aufheben" und Trefferzahl.
 
