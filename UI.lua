@@ -858,6 +858,13 @@ local function BuildTexts(p)
 		UI.UpdateTexts()
 	end)
 	p.btnResetAll:SetPoint("TOPLEFT", p, "TOPLEFT", TX, -420)
+	MakeCheck("texts", p, TX + 156, -420, "chk_english", function() return BG.db.features.englishTexts end,
+		function(v)
+			BG.db.features.englishTexts = v and true or false
+			-- unchanged default texts follow the switch (own edits stay)
+			if v and BG.Lang() == "en" then BG.ConvertDefaultTexts("de", "en") else BG.ConvertDefaultTexts("en", "de") end
+			UI.Refresh("all")
+		end, "tip_english")
 
 	UI.textSel = FIRST_TEXT
 	UI.slotSel = 1

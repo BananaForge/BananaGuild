@@ -563,9 +563,11 @@ WhisperPopup = function(sender, msg, lang, force, nonce)
 		table.insert(buttons, { text = BG.T("btn_other_variant"), fn = function() WhisperPopup(sender, msg, lang, true, (nonce or 0) + 1) end })
 	end
 	table.insert(buttons, { text = BG.T("btn_invite_only"), fn = function() BG.Invite(sender) end })
-	local other = (lang == "en") and "de" or "en"
-	table.insert(buttons, { text = BG.T("btn_other_lang", string.upper(other)),
-		fn = function() WhisperPopup(sender, msg, other, true) end })
+	if BG.EnglishTexts() then
+		local other = (lang == "en") and "de" or "en"
+		table.insert(buttons, { text = BG.T("btn_other_lang", string.upper(other)),
+			fn = function() WhisperPopup(sender, msg, other, true) end })
+	end
 	table.insert(buttons, { text = BG.T("btn_ignore"), fn = function() end })
 	local shown = msg
 	if string.len(shown) > 160 then shown = string.sub(shown, 1, 157) .. "..." end
@@ -589,7 +591,7 @@ BG.On("CHAT_MSG_WHISPER", function(msg, sender)
 	Recruit.whisperSeen[sender] = time()
 	Prospect(sender, "whisper")
 	BG.AddLog("prospect", sender, BG.T("src_whisper"))
-	WhisperPopup(sender, msg or "", Recruit.DetectLang(msg))
+	WhisperPopup(sender, msg or "", BG.EnglishTexts() and Recruit.DetectLang(msg) or "de")
 end)
 
 --------------------------------------------------------------------- scanner (/4 /5)
@@ -631,6 +633,7 @@ function Recruit.Classify(msg)
 	local s = string.lower(msg)
 	if HasAny(s, KW("kwExclude")) then return nil end
 	local mode = BG.db.scanner.lang
+	if not BG.EnglishTexts() then mode = "de" end   -- no English texts: players who ask in English are not listed
 	if mode ~= "en" and HasAny(s, KW("kwGuildDE")) and HasAny(s, KW("kwSeekDE")) then return "de" end
 	if mode ~= "de" and HasAny(s, KW("kwGuildEN")) and HasAny(s, KW("kwSeekEN")) then return "en" end
 	return nil

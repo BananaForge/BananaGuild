@@ -3,6 +3,11 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 2.5.0
+- **Alle Texte, die das Addon an andere schickt, sind jetzt deutsch**, unabhängig von der Fenstersprache. Bisher wurden die Standardtexte beim ersten Start in der Sprache des Fensters gespeichert: Wer das Addon auf EN hatte (zum Beispiel Piradoxx), schickte englische Nachfragen („Hello ..., i'm completing our member list ...").
+- **Einmalige Korrektur beim Start:** Texte, die noch genau dem englischen Standard entsprechen, werden durch den deutschen ersetzt. Selbst geänderte Texte bleiben unberührt.
+- Neuer Schalter **„Englische Texte"** im Reiter Texte (unten, neben „Alle Standardtexte"), standardmäßig **aus**. Aus: keine englischen Antworten, kein „Sprache wechseln" im Flüster-Popup, englisch suchende Spieler im Scanner werden nicht aufgelistet. An: englische Antworten und Kontakttexte sind möglich, und bei Fenstersprache EN werden die unveränderten Standardtexte englisch (beim Ausschalten wieder deutsch; eigene Änderungen bleiben).
+
 ## 2.4.5
 - **Heatmap: keine Messung mit einer veralteten Gildenliste.** Nach einem Gildenwechsel kann der Client noch die Liste der alten Gilde im Zwischenspeicher haben, dann zählte der Tracker deren Online-Zahl (zum Beispiel 60). Jetzt wird nur gezählt, wenn der **eigene Charakter in der Liste steht und online ist**; sonst wird der Messwert verworfen (`skip_stale` in `/bgd activity`). `BananaActivity.lua` ist Version 5.
 

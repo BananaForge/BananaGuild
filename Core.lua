@@ -162,6 +162,7 @@ local DEFAULTS = {
 		worldPing        = false,  -- hidden world-chat presence ping (see README)
 		minimap          = true,
 		sound            = true,
+		englishTexts     = false,  -- English outgoing texts only when switched on explicitly
 		writeNote        = true,   -- also write the data into the public guild note when an officer saves it
 	},
 	recruit = {
@@ -235,8 +236,19 @@ function BG.FixedLang(name)
 	return nil
 end
 
+-- Language of the texts the addon SENDS (recruiting, whispers, welcome ...). German unless English texts were switched on
+-- explicitly (Settings > General), independent of the language of the window.
+function BG.EnglishTexts()
+	return BG.db and BG.db.features and BG.db.features.englishTexts and true or false
+end
+
+function BG.TextLang()
+	if BG.EnglishTexts() and BG.Lang() == "en" then return "en" end
+	return "de"
+end
+
 function BG.DefaultText(name, lang)
-	lang = lang or BG.Lang()
+	lang = lang or BG.TextLang()
 	local L = BG.L
 	return (L and L[lang] and L[lang]["def_" .. name]) or (L and L.en and L.en["def_" .. name]) or ""
 end
@@ -253,7 +265,7 @@ end
 
 -- default text of variant i; kinds ending in DE/EN keep their own language, the others follow the UI language
 function BG.DefaultVariant(kind, i, lang)
-	lang = lang or BG.FixedLang(kind) or BG.Lang()
+	lang = lang or BG.FixedLang(kind) or BG.TextLang()
 	local key = "def_" .. kind .. "_" .. i
 	local L = BG.L
 	return (L and L[lang] and L[lang][key]) or (L and L.en and L.en[key]) or (L and L.de and L.de[key]) or ""
@@ -393,6 +405,29 @@ local function MigrateTexts()
 	end
 end
 
+-- texts that are still the unchanged default of one language are replaced by the default of the other one
+-- (own edits stay as they are). Used when the English texts are switched on / off and for the 2.5.0 migration.
+function BG.ConvertDefaultTexts(from, to)
+	local db, L = BG.db, BG.L
+	if not L or not L[from] or not L[to] then return end
+	for i = 1, table.getn(BG.VARIANT_KINDS) do
+		local kind = BG.VARIANT_KINDS[i]
+		local cur = db.variants[kind]
+		if type(cur) == "table" and not BG.FixedLang(kind) then
+			for k = 1, BG.VariantCount(kind) do
+				local a = L[from]["def_" .. kind .. "_" .. k]
+				local b = L[to]["def_" .. kind .. "_" .. k]
+				if a and b and cur[k] == a then cur[k] = b end
+			end
+		end
+	end
+	for i = 1, table.getn(BG.TEXT_NAMES) do
+		local n = BG.TEXT_NAMES[i]
+		local a, b = L[from]["def_" .. n], L[to]["def_" .. n]
+		if a and b and not BG.FixedLang(n) and db.texts[n] == a then db.texts[n] = b end
+	end
+end
+
 local function MigrateVariants()
 	local db = BG.db
 	if type(db.variants.welcome) == "table" then
@@ -401,6 +436,11 @@ local function MigrateVariants()
 	if (db.variantsV or 0) < 5 then
 		MigrateTexts()
 		db.variantsV = 5 -- (fresh install: defaults are filled below)
+	end
+	if (db.variantsV or 0) < 6 then
+		-- 2.5.0: texts that are still the unchanged English default (filled in on an English client) become German
+		BG.ConvertDefaultTexts("en", "de")
+		db.variantsV = 6
 	end
 	for i = 1, table.getn(BG.VARIANT_KINDS) do
 		local kind = BG.VARIANT_KINDS[i]

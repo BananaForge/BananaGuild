@@ -2106,3 +2106,9 @@ de.tip_hdr_version = "Klick: Liste nach der Version dieses Addons filtern (insta
 en.tip_hdr_version = "Click: filter the list by the version of this addon (installed, each version, disabled, not installed). Several columns can be combined."
 de.tip_hdr_name = "Klick: nach einem Namen suchen."
 en.tip_hdr_name = "Click: search for a name."
+
+-- 2.5.0: sent texts are German unless English texts are switched on
+de.chk_english = "Englische Texte"
+en.chk_english = "English texts"
+de.tip_english = "Aus (Standard): Alle Texte, die das Addon an andere schickt (Gildensuche, Flüstern, Begrüßung ...), sind deutsch, auch wenn das Fenster auf EN steht. An: englische Antworten an englisch schreibende Spieler sind möglich, und bei Fenster-Sprache EN werden die unveränderten Standardtexte englisch. Eigene Änderungen bleiben."
+en.tip_english = "Off (default): all texts the addon sends to others (recruiting, whispers, welcome ...) are German, even when the window is set to EN. On: English replies to players who write English are possible, and with the window set to EN the unchanged default texts become English. Own edits stay."
