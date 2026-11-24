@@ -3,6 +3,17 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 2.6.0
+- **Neu: "Unser Stand" für die Gildensuche.** Im Reiter Gildensuche öffnet der Knopf **"Unser Stand ..."** ein Fenster, in dem die Offiziere eintragen:
+  - **Raids, die ihr gemeistert habt** (zum Anhaken): Kara 10, ZG, MC, Onyxia, BWL, Emerald Sanctum, AQ20, AQ40, Kara 40.
+  - **Raidtage** (Mo bis So zum Anhaken, mehrere möglich) und eine **optionale Uhrzeit** ("20" oder "20:30").
+  - **Aussagen, die in die Texte dürfen:** starke Community-Gilde mit Gemeinschaft zuerst, Raiden ist zweitrangig und freiwillig (kein Zwang), eigene selbstgeschriebene Addons (Gildenbank, Rezeptkatalog, Verwaltung).
+  Der Stand wird unter den Offizieren abgeglichen (Nachricht `ST`, neuester Stand gewinnt, nur von Offiziersrängen angenommen, neue Clients fragen beim Login nach).
+- **Sechs neue Textsorten mit je 30 Texten** (Reiter Texte, Gruppe "Gildensuche: Unser Stand"): Alle Klassen, Heiler, Tanks, Schaden (DD), Bestimmte Klassen, Rollen + Klassen. Welche Sorte drankommt, bestimmt die Wunschliste der Klassen und Rollen. Ist im Stand etwas angehakt, nutzt jeder zweite Beitrag die Stand-Texte, die anderen die bisherigen Such-Texte.
+- **Neue Platzhalter:** `{raids}` ("Kara 10, ZG und MC", ab 5 Raids "Kara 10, ZG, MC und 2 weitere"; Onyxia und Emerald Sanctum werden ausgeschrieben, wenn der Platz reicht), `{raidtag}` ("Donnerstag"), `{raidtags}` ("donnerstags ab 20 Uhr", ab 4 Tagen "mehrmals pro Woche") und `{raidzeit}`. Dazu die unsichtbaren Marker `{community}`, `{freiwillig}`, `{addons}`: Ein Text mit Marker wird nur benutzt, wenn die Aussage angehakt ist, ein Text mit `{raids}` oder `{raidtag}` nur, wenn Raids bzw. Tage angehakt sind.
+- Beiträge sind immer höchstens 255 Zeichen: zu lange Texte werden mit den Kurznamen der Raids neu versucht oder durch einen anderen Text ersetzt.
+- Neue Datei `Stand.lua` (Neustart von WoW nötig). Die Liste der Textsorten im Reiter Texte ist etwas enger gesetzt, damit alle hineinpassen.
+
 ## 2.5.0
 - **Alle Texte, die das Addon an andere schickt, sind jetzt deutsch**, unabhängig von der Fenstersprache. Bisher wurden die Standardtexte beim ersten Start in der Sprache des Fensters gespeichert: Wer das Addon auf EN hatte (zum Beispiel Piradoxx), schickte englische Nachfragen („Hello ..., i'm completing our member list ...").
 - **Einmalige Korrektur beim Start:** Texte, die noch genau dem englischen Standard entsprechen, werden durch den deutschen ersetzt. Selbst geänderte Texte bleiben unberührt.
