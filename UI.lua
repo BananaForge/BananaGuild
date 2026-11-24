@@ -460,6 +460,10 @@ local function BuildRecruit(p)
 	end)
 	now:SetPoint("TOPLEFT", p, "TOPLEFT", 400, -128)
 	Tooltip(now, "tip_postnow")
+	p.standBtn = BG.MakeButton(p, NextName("Btn"), 190, 22, "")
+	p.standBtn:SetPoint("TOPLEFT", p, "TOPLEFT", 204, -128)
+	p.standBtn:SetScript("OnClick", function() BG.Stand.Open() end)
+	Tooltip(p.standBtn, "tip_stand")
 
 	-- wanted classes / roles (synced between the officers; the search then only posts the matching class texts)
 	Label(p, "rec_wanted_title", 0, -164, "GameFontNormal")
@@ -510,6 +514,9 @@ end
 function UI.UpdateWanted()
 	local p = panels.recruit
 	if not p or not p.wantedStatus then return end
+	if p.standBtn and BG.Stand then
+		p.standBtn:SetText(BG.T("btn_stand", table.getn(BG.Stand.PickedRaids()), table.getn(BG.Stand.PickedDays())))
+	end
 	local R = BG.Recruit
 	local txt = R.WantedText()
 	if R.WantedKind() then
@@ -650,6 +657,7 @@ end
 -- text kinds by theme; the sidebar of the texts page follows this order
 local TEXT_GROUPS = {
 	{ "grp_search", { "recruit", "recruitOne", "recruitFew", "recruitMany", "recruitRole", "recruitMix" } },
+	{ "grp_stand", { "standAll", "standHeal", "standTank", "standDps", "standClass", "standMix" } },
 	{ "grp_greet", { "welcomeRec", "welcome" } },
 	{ "grp_prospects", { "repliesDE", "repliesEN", "contactDE", "contactEN", "funny" } },
 	{ "grp_members", { "askAll", "askProf", "askSpec", "askTwink", "promoBank" } },
@@ -664,6 +672,9 @@ local TEXT_PH = {
 	recruitMany = { "{guild}", "{klassen}", "{klassen_oder}" },
 	recruitRole = { "{guild}", "{klassen}", "{klassen_oder}" },
 	recruitMix = { "{guild}", "{klassen}", "{klassen_oder}" },
+	standAll = { "{raids}", "{raidtag}", "{raidtags}", "{raidzeit}" }, standHeal = { "{raids}", "{raidtag}", "{raidtags}", "{raidzeit}" },
+	standTank = { "{raids}", "{raidtag}", "{raidtags}", "{raidzeit}" }, standDps = { "{raids}", "{raidtag}", "{raidtags}", "{raidzeit}" },
+	standClass = { "{klassen}", "{raids}", "{raidtag}", "{raidtags}" }, standMix = { "{klassen}", "{raids}", "{raidtag}", "{raidtags}" },
 	welcomeRec = { "{name}", "{guild}", "{discord}" },
 	welcome = { "{name}", "{guild}" },
 	repliesDE = { "{name}", "{guild}", "{discord}" }, repliesEN = { "{name}", "{guild}", "{discord}" },
@@ -676,7 +687,9 @@ local TEXT_PH = {
 -- example values for the preview under the editor
 local function SampleVars()
 	return { name = (BG.me and BG.me ~= "") and BG.me or "Thrall", level = 60, klassen = "Priester, Druiden und Magier",
-		klassen_oder = "Priester, Druiden oder Magier", klasse = "Druide", klasse_akk = "Druiden" }
+		klassen_oder = "Priester, Druiden oder Magier", klasse = "Druide", klasse_akk = "Druiden",
+		raids = "Kara 10, ZG und MC", raidtag = "Donnerstag", raidtags = "donnerstags ab 20 Uhr", raidzeit = "ab 20 Uhr",
+		community = "", freiwillig = "", addons = "" }
 end
 
 -- the texts of the language that is NOT active are greyed out (they are still used automatically for
@@ -712,13 +725,13 @@ local function BuildTexts(p)
 		fs:SetTextColor(0.62, 0.64, 0.72)
 		fs.key = TEXT_GROUPS[g][1]
 		table.insert(p.side, fs)
-		y = y - 17
+		y = y - 14
 		local kinds = TEXT_GROUPS[g][2]
 		for i = 1, table.getn(kinds) do
 			local k = kinds[i] -- Lua 5.0: closures share the loop variable, so copy it into a local
 			local b = CreateFrame("Button", NextName("Side"), p)
 			b:SetWidth(172)
-			b:SetHeight(17)
+			b:SetHeight(13)
 			b:SetPoint("TOPLEFT", p, "TOPLEFT", 0, y)
 			b.bg = b:CreateTexture(nil, "BACKGROUND")
 			b.bg:SetAllPoints(b)
@@ -732,9 +745,9 @@ local function BuildTexts(p)
 			b:SetScript("OnEnter", function() if UI.textSel ~= this.kind then this.bg:SetTexture(1, 1, 1, 0.08) end end)
 			b:SetScript("OnLeave", function() if UI.textSel ~= this.kind then this.bg:SetTexture(1, 0.82, 0, 0) end end)
 			p.side[k] = b
-			y = y - 17
+			y = y - 13
 		end
-		y = y - 5
+		y = y - 2
 	end
 	p.sideHint = Label(p, "tx_settings_hint", 4, y - 4, "GameFontDisableSmall", 168)
 	p.sideHint:SetHeight(40)

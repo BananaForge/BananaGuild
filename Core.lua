@@ -196,6 +196,8 @@ local DEFAULTS = {
 	variantsOff = {},   -- kind -> { [i] = true } variants that are switched off (skipped by the random pick)
 	-- wanted classes / roles of the guild search (synced between the officers): classes = { WARRIOR = true ... }, roles = { T, H, D }
 	wanted = { classes = {}, roles = {}, ts = 0, by = "" },
+	-- what the search texts tell: cleared raids, raid days (+ time), statements (see Stand.lua), synced between the officers
+	stand = { raids = {}, days = {}, claims = {}, time = "", ts = 0, by = "" },
 	variants = {},   -- 5 editable chat variants per kind (welcome, funny, repliesDE/EN, contactDE/EN)
 	keywords = {},
 	chars = {},
@@ -221,11 +223,13 @@ end
 BG.TEXT_NAMES = {}
 -- every kind has exactly 5 variants; one chat message per variant
 BG.VARIANT_KINDS = { "recruit", "welcome", "welcomeRec", "funny", "repliesDE", "repliesEN", "contactDE", "contactEN", "askProf", "askSpec", "askTwink", "askAll", "promoBank",
-	"recruitOne", "recruitFew", "recruitMany", "recruitRole", "recruitMix" }
+	"recruitOne", "recruitFew", "recruitMany", "recruitRole", "recruitMix",
+	"standAll", "standHeal", "standTank", "standDps", "standClass", "standMix" }
 BG.VARIANTS = 5
 -- welcome (role play) has 20 variants, welcomeRec (recruiter, with Discord) 30
 BG.VARIANT_COUNT = { welcome = 20, welcomeRec = 30, promoBank = 3,
-	recruitOne = 10, recruitFew = 10, recruitMany = 10, recruitRole = 10, recruitMix = 10 }
+	recruitOne = 10, recruitFew = 10, recruitMany = 10, recruitRole = 10, recruitMix = 10,
+	standAll = 30, standHeal = 30, standTank = 30, standDps = 30, standClass = 30, standMix = 30 }
 function BG.VariantCount(kind) return BG.VARIANT_COUNT[kind] or BG.VARIANTS end
 
 -- "contactDE" / "repliesEN" ... are tied to one language, independent of the UI language
@@ -287,19 +291,20 @@ end
 BG.lastVariant = {}
 
 -- Random variant of a kind, never the same one twice in a row. Returns text, index (nil if all are empty).
-function BG.PickVariant(kind)
+-- filter(text) (optional): only texts for which it returns true are taken
+function BG.PickVariant(kind, filter)
 	local v = BG.db and BG.db.variants and BG.db.variants[kind]
 	if not v then return nil end
 	local idx = {}
 	local off = BG.db.variantsOff and BG.db.variantsOff[kind]
 	for i = 1, BG.VariantCount(kind) do
-		if v[i] and BG.Trim(v[i]) ~= "" and not (off and off[i]) then table.insert(idx, i) end
+		if v[i] and BG.Trim(v[i]) ~= "" and not (off and off[i]) and (not filter or filter(v[i])) then table.insert(idx, i) end
 	end
 	local n = table.getn(idx)
 	if n == 0 then
 		-- everything switched off: better one of the texts than nothing
 		for i = 1, BG.VariantCount(kind) do
-			if v[i] and BG.Trim(v[i]) ~= "" then table.insert(idx, i) end
+			if v[i] and BG.Trim(v[i]) ~= "" and (not filter or filter(v[i])) then table.insert(idx, i) end
 		end
 		n = table.getn(idx)
 	end
@@ -796,7 +801,7 @@ local function Slash(msg)
 		if not BG.booted then pcall(Boot, nil) end
 		if not BG.loaded then
 			local missing = {}
-			for _, f in ipairs({ "BananaPresence", "Locale", "Core", "Notes", "Presence", "Roster", "Alerts", "NoteWin", "Promote", "Stats", "Inactive", "Activity", "Recruit", "UI", "SelfTest" }) do
+			for _, f in ipairs({ "BananaPresence", "Locale", "Core", "Notes", "Presence", "Roster", "Alerts", "NoteWin", "Promote", "Stats", "Inactive", "Activity", "Recruit", "Stand", "UI", "SelfTest" }) do
 				if not (BG.files and BG.files[f]) then table.insert(missing, f) end
 			end
 			DEFAULT_CHAT_FRAME:AddMessage("|cffff5555[BananaGuild] not initialised.|r folder=" .. tostring(BG.folder)

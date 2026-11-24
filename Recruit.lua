@@ -343,6 +343,11 @@ BG.OnLogin(function()
 end)
 
 function Recruit.PostText()
+	-- "Unser Stand" (cleared raids, raid days, statements): half of the posts use the stand texts when something is ticked
+	if BG.Stand and BG.Stand.Active() and math.random() < 0.5 then
+		local text = BG.Stand.PostText()
+		if text then return text end
+	end
 	local kind = Recruit.WantedKind()
 	local vars = kind and Recruit.WantedVars() or {}
 	local line
