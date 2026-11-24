@@ -3,6 +3,12 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 2.6.1
+- **Raids in Arbeit.** Im Fenster "Unser Stand" hat jeder Raid jetzt zwei Zustände: **Linksklick = gemeistert (goldener Haken)**, **Rechtsklick = gerade in Arbeit (roter Haken)**. Nochmal klicken nimmt den Haken weg, ein Raid hat immer nur einen Zustand. Unter den Raids steht eine Legende.
+- Neue Platzhalter: `{raidsdran}` (die Raids in Arbeit, höchstens zwei), `{liegt}` ("liegt"/"liegen") und `{ist}` ("ist"/"sind") für die gemeisterten Raids. Texte mit `{raidsdran}` kommen nur dran, wenn ein roter Haken gesetzt ist, Texte mit `{raids}` nur bei mindestens einem goldenen.
+- **10 der 30 Stand-Texte jeder Sorte erwähnen die Raids in Arbeit**, zum Beispiel "Kara 10 liegt hinter uns, jetzt machen wir uns langsam an ZG ran" oder "Hinter uns: Kara 10. In Arbeit: ZG". Wer die Texte nicht geändert hat, bekommt sie automatisch (einmalig beim Start); selbst geänderte Texte bleiben.
+- Der Abgleich zwischen den Offizieren trägt die roten Haken in derselben Nachricht (Ziffer 2 je Raid). Ältere Versionen lesen sie als nicht angehakt.
+
 ## 2.6.0
 - **Neu: "Unser Stand" für die Gildensuche.** Im Reiter Gildensuche öffnet der Knopf **"Unser Stand ..."** ein Fenster, in dem die Offiziere eintragen:
   - **Raids, die ihr gemeistert habt** (zum Anhaken): Kara 10, ZG, MC, Onyxia, BWL, Emerald Sanctum, AQ20, AQ40, Kara 40.

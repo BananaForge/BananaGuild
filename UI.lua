@@ -672,9 +672,9 @@ local TEXT_PH = {
 	recruitMany = { "{guild}", "{klassen}", "{klassen_oder}" },
 	recruitRole = { "{guild}", "{klassen}", "{klassen_oder}" },
 	recruitMix = { "{guild}", "{klassen}", "{klassen_oder}" },
-	standAll = { "{raids}", "{raidtag}", "{raidtags}", "{raidzeit}" }, standHeal = { "{raids}", "{raidtag}", "{raidtags}", "{raidzeit}" },
-	standTank = { "{raids}", "{raidtag}", "{raidtags}", "{raidzeit}" }, standDps = { "{raids}", "{raidtag}", "{raidtags}", "{raidzeit}" },
-	standClass = { "{klassen}", "{raids}", "{raidtag}", "{raidtags}" }, standMix = { "{klassen}", "{raids}", "{raidtag}", "{raidtags}" },
+	standAll = { "{raids}", "{raidsdran}", "{raidtags}", "{liegt}" }, standHeal = { "{raids}", "{raidsdran}", "{raidtags}", "{liegt}" },
+	standTank = { "{raids}", "{raidsdran}", "{raidtags}", "{liegt}" }, standDps = { "{raids}", "{raidsdran}", "{raidtags}", "{liegt}" },
+	standClass = { "{klassen}", "{raids}", "{raidsdran}", "{raidtags}" }, standMix = { "{klassen}", "{raids}", "{raidsdran}", "{raidtags}" },
 	welcomeRec = { "{name}", "{guild}", "{discord}" },
 	welcome = { "{name}", "{guild}" },
 	repliesDE = { "{name}", "{guild}", "{discord}" }, repliesEN = { "{name}", "{guild}", "{discord}" },
@@ -688,7 +688,7 @@ local TEXT_PH = {
 local function SampleVars()
 	return { name = (BG.me and BG.me ~= "") and BG.me or "Thrall", level = 60, klassen = "Priester, Druiden und Magier",
 		klassen_oder = "Priester, Druiden oder Magier", klasse = "Druide", klasse_akk = "Druiden",
-		raids = "Kara 10, ZG und MC", raidtag = "Donnerstag", raidtags = "donnerstags ab 20 Uhr", raidzeit = "ab 20 Uhr",
+		raids = "Kara 10 und ZG", raidsdran = "MC", liegt = "liegen", ist = "sind", raidtag = "Donnerstag", raidtags = "donnerstags ab 20 Uhr", raidzeit = "ab 20 Uhr",
 		community = "", freiwillig = "", addons = "" }
 end
 

@@ -197,7 +197,7 @@ local DEFAULTS = {
 	-- wanted classes / roles of the guild search (synced between the officers): classes = { WARRIOR = true ... }, roles = { T, H, D }
 	wanted = { classes = {}, roles = {}, ts = 0, by = "" },
 	-- what the search texts tell: cleared raids, raid days (+ time), statements (see Stand.lua), synced between the officers
-	stand = { raids = {}, days = {}, claims = {}, time = "", ts = 0, by = "" },
+	stand = { raids = {}, trying = {}, days = {}, claims = {}, time = "", ts = 0, by = "" },
 	variants = {},   -- 5 editable chat variants per kind (welcome, funny, repliesDE/EN, contactDE/EN)
 	keywords = {},
 	chars = {},
@@ -446,6 +446,22 @@ local function MigrateVariants()
 		-- 2.5.0: texts that are still the unchanged English default (filled in on an English client) become German
 		BG.ConvertDefaultTexts("en", "de")
 		db.variantsV = 6
+	end
+	if (db.variantsV or 0) < 7 then
+		-- 2.6.1: ten of the 30 stand texts per kind now mention the raids in progress; unchanged old ones are replaced
+		local de = BG.L and BG.L.de
+		if de then
+			for _, kind in ipairs({ "standAll", "standHeal", "standTank", "standDps", "standClass", "standMix" }) do
+				local cur = db.variants[kind]
+				if type(cur) == "table" then
+					for k = 1, 30 do
+						local o = de["old260_" .. kind .. "_" .. k]
+						if o and cur[k] == o then cur[k] = de["def_" .. kind .. "_" .. k] end
+					end
+				end
+			end
+		end
+		db.variantsV = 7
 	end
 	for i = 1, table.getn(BG.VARIANT_KINDS) do
 		local kind = BG.VARIANT_KINDS[i]

@@ -5,7 +5,10 @@
   window (button on the Gildensuche tab), the state is synced between the officers (message "ST", newest wins).
 
   Texts of the kinds standAll / standHeal / standTank / standDps / standClass / standMix use it:
-    {raids}      "Kara 10, ZG und MC"       (more than 4: "Kara 10, ZG, MC und 2 weitere")
+    {raids}      "Kara 10, ZG und MC"       (cleared raids; more than 4: "Kara 10, ZG, MC und 2 weitere")
+    {raidsdran}  "ZG"                       (raids in progress, at most two)
+    {liegt}      "liegt" / "liegen"         (verb for {raids}: "{raids} {liegt} hinter uns")
+    {ist}        "ist" / "sind"             ("{raids} {ist} geschafft")
     {raidtag}    "Donnerstag" / "Dienstag und Donnerstag"          (4 or more days: "mehrmals pro Woche")
     {raidtags}   "donnerstags ab 20 Uhr"    (adverb, with the optional time)
     {raidzeit}   "ab 20 Uhr" or nothing
@@ -33,8 +36,8 @@ Stand.CLAIMS = { "community", "freiwillig", "addons" }
 
 local function Data()
 	local s = BG.db.stand
-	if not s then s = { raids = {}, days = {}, claims = {}, time = "", ts = 0, by = "" } BG.db.stand = s end
-	s.raids, s.days, s.claims = s.raids or {}, s.days or {}, s.claims or {}
+	if not s then s = { raids = {}, trying = {}, days = {}, claims = {}, time = "", ts = 0, by = "" } BG.db.stand = s end
+	s.raids, s.trying, s.days, s.claims = s.raids or {}, s.trying or {}, s.days or {}, s.claims or {}
 	return s
 end
 Stand.Data = Data
@@ -56,20 +59,34 @@ function Stand.PickedRaids()
 	return out
 end
 
+-- raids in progress (red tick)
+function Stand.PickedTrying()
+	local out, s = {}, Data()
+	for i = 1, table.getn(Stand.RAIDS) do
+		if s.trying[Stand.RAIDS[i][1]] then table.insert(out, i) end
+	end
+	return out
+end
+
 function Stand.PickedDays()
 	local out, s = {}, Data()
 	for i = 1, 7 do if s.days[i] then table.insert(out, i) end end
 	return out
 end
 
-function Stand.RaidText(short)
-	local picked = Stand.PickedRaids()
+function Stand.RaidText(short, trying)
+	local picked = trying and Stand.PickedTrying() or Stand.PickedRaids()
 	local names = {}
 	for i = 1, table.getn(picked) do
 		local r = Stand.RAIDS[picked[i]]
 		table.insert(names, short and r[3] or r[2])
 	end
 	local n = table.getn(names)
+	if trying then
+		-- in progress: at most two are named
+		if n > 2 then return JoinList({ names[1], names[2] }, "und") end
+		return JoinList(names, "und")
+	end
 	if n > 4 then
 		return table.concat(names, ", ", 1, 3) .. " " .. string.format(BG.T("stand_more"), n - 3)
 	end
@@ -105,7 +122,9 @@ end
 function Stand.Vars(short)
 	local noun, adv = Stand.DayTexts()
 	local t = Stand.TimeText()
-	local vars = { raids = Stand.RaidText(short), raidtag = noun, raidtags = adv, raidzeit = "",
+	local nDone = table.getn(Stand.PickedRaids())
+	local vars = { raids = Stand.RaidText(short), raidsdran = Stand.RaidText(short, true), raidtag = noun, raidtags = adv, raidzeit = "",
+		liegt = (nDone > 1) and "liegen" or "liegt", ist = (nDone > 1) and "sind" or "ist",
 		community = "", freiwillig = "", addons = "" }
 	if t ~= "" then
 		vars.raidzeit = "ab " .. t
@@ -118,6 +137,7 @@ end
 function Stand.Active()
 	local s = Data()
 	for _ in pairs(s.raids) do return true end
+	for _ in pairs(s.trying) do return true end
 	for _ in pairs(s.days) do return true end
 	for _ in pairs(s.claims) do return true end
 	return false
@@ -149,7 +169,8 @@ function Stand.Eligible(text)
 	if Has(text, "{community}") and not s.claims.community then return false end
 	if Has(text, "{freiwillig}") and not s.claims.freiwillig then return false end
 	if Has(text, "{addons}") and not s.claims.addons then return false end
-	if Has(text, "{raids}") and table.getn(Stand.PickedRaids()) == 0 then return false end
+	if (Has(text, "{raids}") or Has(text, "{liegt}") or Has(text, "{ist}")) and table.getn(Stand.PickedRaids()) == 0 then return false end
+	if Has(text, "{raidsdran}") and table.getn(Stand.PickedTrying()) == 0 then return false end
 	if (Has(text, "{raidtag}") or Has(text, "{raidtags}")) and table.getn(Stand.PickedDays()) == 0 then return false end
 	return true
 end
@@ -189,7 +210,13 @@ end
 
 local function Encode()
 	local s = Data()
-	local raids = Bits(nil, table.getn(Stand.RAIDS), function(i) return s.raids[Stand.RAIDS[i][1]] end)
+	-- one digit per raid: 0 = nothing, 1 = cleared, 2 = in progress (old versions read only the 1s)
+	local rt = {}
+	for i = 1, table.getn(Stand.RAIDS) do
+		local key = Stand.RAIDS[i][1]
+		rt[i] = s.raids[key] and "1" or (s.trying[key] and "2" or "0")
+	end
+	local raids = table.concat(rt)
 	local days = Bits(nil, 7, function(i) return s.days[i] end)
 	local claims = Bits(nil, table.getn(Stand.CLAIMS), function(i) return s.claims[Stand.CLAIMS[i]] end)
 	local t = string.gsub(s.time or "", "[^%d:%.]", "")
@@ -223,6 +250,23 @@ function Stand.Set(group, key, on)
 	return true
 end
 
+-- state of one raid: nil = nothing, "done" = cleared (gold tick), "try" = in progress (red tick)
+function Stand.SetRaid(key, state)
+	if not Stand.CanEdit() then return false end
+	local s = Data()
+	s.raids[key] = (state == "done") and true or nil
+	s.trying[key] = (state == "try") and true or nil
+	Touched()
+	return true
+end
+
+function Stand.RaidState(key)
+	local s = Data()
+	if s.raids[key] then return "done" end
+	if s.trying[key] then return "try" end
+	return nil
+end
+
 function Stand.SetTime(text)
 	if not Stand.CanEdit() then return false end
 	local t = string.gsub(text or "", "[^%d:%.]", "")
@@ -238,8 +282,11 @@ BG.OnComm("ST", function(sender, p)
 	if not rm or string.len(rm) ~= table.getn(Stand.RAIDS) or string.len(dm or "") ~= 7 or string.len(cm or "") ~= table.getn(Stand.CLAIMS) then return end
 	local s = Data()
 	if ts <= (s.ts or 0) then return end
-	s.raids, s.days, s.claims = {}, {}, {}
-	for i = 1, table.getn(Stand.RAIDS) do if string.sub(rm, i, i) == "1" then s.raids[Stand.RAIDS[i][1]] = true end end
+	s.raids, s.trying, s.days, s.claims = {}, {}, {}, {}
+	for i = 1, table.getn(Stand.RAIDS) do
+		local c = string.sub(rm, i, i)
+		if c == "1" then s.raids[Stand.RAIDS[i][1]] = true elseif c == "2" then s.trying[Stand.RAIDS[i][1]] = true end
+	end
 	for i = 1, 7 do if string.sub(dm, i, i) == "1" then s.days[i] = true end end
 	for i = 1, table.getn(Stand.CLAIMS) do if string.sub(cm, i, i) == "1" then s.claims[Stand.CLAIMS[i]] = true end end
 	s.time = (tm and tm ~= "_") and string.gsub(tm, "[^%d:%.]", "") or ""
@@ -319,18 +366,34 @@ local function Build()
 	win.sub:SetHeight(28)
 	win.sub:SetJustifyV("TOP")
 
-	-- raids: 3 columns
+	-- raids: 3 columns. Left click = cleared (gold tick), right click = in progress (red tick), again = off
 	win.raidLbl = Text(win, 16, -76, "GameFontNormal", 400)
 	win.raidChecks = {}
 	for i = 1, table.getn(Stand.RAIDS) do
 		local key = Stand.RAIDS[i][1] -- local per iteration (Lua 5.0 closures share the loop variable)
 		local row = math.floor((i - 1) / 3)
 		local col = (i - 1) - row * 3
-		local c = Check(win, 12 + col * 178, -94 - row * 24, 140, function(on) return Stand.Set("raids", key, on) end)
+		local c = Check(win, 12 + col * 178, -94 - row * 24, 140, function() return true end)
+		c:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+		c:SetScript("OnClick", function()
+			local want = (arg1 == "RightButton") and "try" or "done"
+			local cur = Stand.RaidState(key)
+			if not Stand.SetRaid(key, (cur == want) and nil or want) then
+				BG.Print(BG.T("stand_noright"))
+			end
+			Stand.Update()
+		end)
+		c:SetScript("OnEnter", function()
+			GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
+			GameTooltip:SetText(BG.T("stand_raid_tip"), 1, 1, 1, 1, 1)
+			GameTooltip:Show()
+		end)
+		c:SetScript("OnLeave", function() GameTooltip:Hide() end)
 		c.label:SetText(Stand.RAIDS[i][2])
 		c.key = key
 		table.insert(win.raidChecks, c)
 	end
+	win.legend = Text(win, 16, -146, "GameFontHighlightSmall", W - 32)
 
 	-- days: one row
 	win.dayLbl = Text(win, 16, -176, "GameFontNormal", 300)
@@ -391,9 +454,15 @@ function Stand.Update()
 	win.claimLbl:SetText(BG.T("stand_claims"))
 	win.prevLbl:SetText(BG.T("stand_preview"))
 	win.other:SetText(BG.T("stand_other"))
+	win.legend:SetText("|cffffd100" .. BG.T("stand_legend_done") .. "|r     |cffff4040" .. BG.T("stand_legend_try") .. "|r")
 	for i = 1, table.getn(win.raidChecks) do
 		local c = win.raidChecks[i]
-		c:SetChecked(s.raids[c.key] and 1 or nil)
+		local st = Stand.RaidState(c.key)
+		c:SetChecked(st and 1 or nil)
+		local tex = c.GetCheckedTexture and c:GetCheckedTexture()
+		if tex then
+			if st == "try" then tex:SetVertexColor(1, 0.25, 0.25) else tex:SetVertexColor(1, 0.82, 0) end
+		end
 		if can then c:Enable() else c:Disable() end
 	end
 	for i = 1, 7 do
