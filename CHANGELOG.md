@@ -3,6 +3,11 @@
 Die Version steht in `BananaGuild.toc` (`## Version`) und wird im Fenster rechts unten angezeigt.
 Bei jeder Änderung am Addon wird sie hochgezählt.
 
+## 2.6.2
+- **Fix: Haken in "Unser Stand" ließen sich nicht mehr entfernen.** Ursache war die Lua-Schreibweise `(a == b) and nil or c`, die immer `c` ergibt. Jetzt nimmt ein zweiter Klick mit derselben Maustaste den Haken weg, Gold und Rot lassen sich wechseln.
+- **Fix: Die Legende (Gold/Rot) überdeckte die dritte Raid-Reihe.** Das Fenster ist etwas höher, die Legende steht unter den Raids.
+- **Fix: Raidtag und Uhrzeit fehlten in vielen Texten.** `{raidtag}` enthält jetzt auch die Uhrzeit ("Donnerstag ab 20 Uhr"). Und wenn Tage angehakt sind, aber ein Text keinen Tag nennt, setzt das Addon einen kurzen Satz davor ("Raidtag: Donnerstag ab 20 Uhr." oder "Wir raiden donnerstags ab 20 Uhr."), vor den Schlusssatz und vor die unsichtbaren Marker. Jeder Beitrag nennt damit den angehakten Raidtag und die Uhrzeit.
+
 ## 2.6.1
 - **Raids in Arbeit.** Im Fenster "Unser Stand" hat jeder Raid jetzt zwei Zustände: **Linksklick = gemeistert (goldener Haken)**, **Rechtsklick = gerade in Arbeit (roter Haken)**. Nochmal klicken nimmt den Haken weg, ein Raid hat immer nur einen Zustand. Unter den Raids steht eine Legende.
 - Neue Platzhalter: `{raidsdran}` (die Raids in Arbeit, höchstens zwei), `{liegt}` ("liegt"/"liegen") und `{ist}` ("ist"/"sind") für die gemeisterten Raids. Texte mit `{raidsdran}` kommen nur dran, wenn ein roter Haken gesetzt ist, Texte mit `{raids}` nur bei mindestens einem goldenen.

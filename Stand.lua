@@ -129,6 +129,7 @@ function Stand.Vars(short)
 	if t ~= "" then
 		vars.raidzeit = "ab " .. t
 		if adv ~= "" then vars.raidtags = adv .. " ab " .. t end
+		if noun ~= "" then vars.raidtag = noun .. " ab " .. t end   -- "Raidabend ist bei uns Donnerstag ab 20 Uhr"
 	end
 	return vars
 end
@@ -175,6 +176,35 @@ function Stand.Eligible(text)
 	return true
 end
 
+-- short sentences that name the raid day (and time); used when a ticked day would otherwise not appear in the text
+Stand.DAY_SENTENCES = { "Raidtag: {raidtag}.", "Wir raiden {raidtags}.", "Geraidet wird {raidtags}.", "Unser Raidabend: {raidtag}." }
+
+-- the text with a day sentence in front of its last sentence (the call to action), or the text itself
+function Stand.WithDay(line)
+	if table.getn(Stand.PickedDays()) == 0 then return line end
+	if Has(line, "{raidtag}") or Has(line, "{raidtags}") or Has(line, "{raidzeit}") then return line end
+	-- the markers at the end ({community} ...) stay at the end
+	local core, tail = line, ""
+	while true do
+		local _, _, rest, tag = string.find(core, "^(.*) ({%a+})$")
+		if rest and (tag == "{community}" or tag == "{freiwillig}" or tag == "{addons}") then
+			core, tail = rest, " " .. tag .. tail
+		else
+			break
+		end
+	end
+	-- position of the last sentence: after the last ". " / "! " / "? "
+	local pos, init = nil, 1
+	while true do
+		local _, e = string.find(core, "[%.!%?] ", init)
+		if not e then break end
+		pos, init = e, e + 1
+	end
+	if not pos then return line end
+	local sentence = Stand.DAY_SENTENCES[math.random(1, table.getn(Stand.DAY_SENTENCES))]
+	return string.sub(core, 1, pos) .. sentence .. " " .. string.sub(core, pos + 1) .. tail
+end
+
 local function Clean(msg)
 	msg = string.gsub(msg, "%s+", " ")
 	msg = string.gsub(msg, " ([%.,!%?])", "%1")
@@ -189,11 +219,13 @@ function Stand.PostText()
 	for attempt = 1, 8 do
 		local line = BG.PickVariant(kind, Stand.Eligible)
 		if not line then return nil end
+		local withDay = Stand.WithDay(line)
 		for pass = 1, 3 do
 			local vars = Stand.Vars(pass >= 2)
 			for k, v in pairs(base) do vars[k] = v end
 			if pass == 3 then vars.klassen, vars.klassen_oder = BG.T("wanted_many"), BG.T("wanted_many") end
-			local msg = Clean(BG.Fill(line, vars))
+			local msg = Clean(BG.Fill(withDay, vars))
+			if string.len(msg) > 255 and withDay ~= line then msg = Clean(BG.Fill(line, vars)) end
 			if string.len(msg) <= 255 then return msg end
 		end
 	end
@@ -307,7 +339,7 @@ end)
 
 --------------------------------------------------------------------- window
 
-local W, H = 560, 456
+local W, H = 560, 476
 local win
 local counter = 0
 
@@ -378,7 +410,9 @@ local function Build()
 		c:SetScript("OnClick", function()
 			local want = (arg1 == "RightButton") and "try" or "done"
 			local cur = Stand.RaidState(key)
-			if not Stand.SetRaid(key, (cur == want) and nil or want) then
+			local state = want
+			if cur == want then state = nil end   -- same click again: tick off (not "(a and nil) or b": that is always b)
+			if not Stand.SetRaid(key, state) then
 				BG.Print(BG.T("stand_noright"))
 			end
 			Stand.Update()
@@ -393,23 +427,23 @@ local function Build()
 		c.key = key
 		table.insert(win.raidChecks, c)
 	end
-	win.legend = Text(win, 16, -146, "GameFontHighlightSmall", W - 32)
+	win.legend = Text(win, 16, -170, "GameFontHighlightSmall", W - 32)
 
 	-- days: one row
-	win.dayLbl = Text(win, 16, -176, "GameFontNormal", 300)
+	win.dayLbl = Text(win, 16, -194, "GameFontNormal", 300)
 	win.dayChecks = {}
 	for i = 1, 7 do
 		local idx = i
-		local c = Check(win, 12 + (i - 1) * 76, -194, 56, function(on) return Stand.Set("days", idx, on) end)
+		local c = Check(win, 12 + (i - 1) * 76, -212, 56, function(on) return Stand.Set("days", idx, on) end)
 		c.label:SetText(Stand.DAYS[i][3])
 		c.idx = idx
 		table.insert(win.dayChecks, c)
 	end
-	win.timeLbl = Text(win, 16, -228, "GameFontHighlightSmall", 190)
+	win.timeLbl = Text(win, 16, -246, "GameFontHighlightSmall", 190)
 	win.timeEdit = CreateFrame("EditBox", Name("Edit"), win, "InputBoxTemplate")
 	win.timeEdit:SetWidth(56)
 	win.timeEdit:SetHeight(20)
-	win.timeEdit:SetPoint("TOPLEFT", win, "TOPLEFT", 204, -224)
+	win.timeEdit:SetPoint("TOPLEFT", win, "TOPLEFT", 204, -242)
 	win.timeEdit:SetAutoFocus(false)
 	win.timeEdit:SetMaxLetters(5)
 	win.timeEdit:SetScript("OnEnterPressed", function() this:ClearFocus() end)
@@ -418,27 +452,27 @@ local function Build()
 		if win.loading then return end
 		if not Stand.SetTime(this:GetText()) then BG.Print(BG.T("stand_noright")) Stand.Update() end
 	end)
-	win.timeHint = Text(win, 270, -230, "GameFontDisableSmall", 270)
+	win.timeHint = Text(win, 270, -248, "GameFontDisableSmall", 270)
 
 	-- statements
-	win.claimLbl = Text(win, 16, -262, "GameFontNormal", 400)
+	win.claimLbl = Text(win, 16, -280, "GameFontNormal", 400)
 	win.claimChecks = {}
 	for i = 1, table.getn(Stand.CLAIMS) do
 		local key = Stand.CLAIMS[i]
-		local c = Check(win, 12, -280 - (i - 1) * 24, 500, function(on) return Stand.Set("claims", key, on) end)
+		local c = Check(win, 12, -298 - (i - 1) * 24, 500, function(on) return Stand.Set("claims", key, on) end)
 		c.key = key
 		table.insert(win.claimChecks, c)
 	end
 
 	-- preview
-	win.prevLbl = Text(win, 16, -362, "GameFontNormal", 300)
-	win.prev = Text(win, 16, -380, "GameFontHighlightSmall", W - 32)
+	win.prevLbl = Text(win, 16, -380, "GameFontNormal", 300)
+	win.prev = Text(win, 16, -398, "GameFontHighlightSmall", W - 32)
 	win.prev:SetHeight(40)
 	win.prev:SetJustifyV("TOP")
 	win.other = BG.MakeButton(win, Name("Btn"), 170, 22, "")
-	win.other:SetPoint("TOPRIGHT", win, "TOPRIGHT", -16, -358)
+	win.other:SetPoint("TOPRIGHT", win, "TOPRIGHT", -16, -376)
 	win.other:SetScript("OnClick", function() Stand.Update() end)
-	win.by = Text(win, 16, -428, "GameFontDisableSmall", W - 32)
+	win.by = Text(win, 16, -446, "GameFontDisableSmall", W - 32)
 end
 
 function Stand.Update()
